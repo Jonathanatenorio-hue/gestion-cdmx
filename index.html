@@ -118,6 +118,23 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
 .p-warn{background:var(--warn-l);color:var(--warn)} .p-teal{background:var(--teal-l);color:var(--teal)}
 .p-gray{background:#EDEFF2;color:var(--txt-2)}
 
+/* ---------- Globos de ayuda ---------- */
+.help{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;
+  background:var(--line);color:var(--txt-2);font-size:10px;font-weight:700;margin-left:6px;cursor:help;
+  position:relative;vertical-align:middle;flex:none;font-family:'IBM Plex Sans',sans-serif;text-transform:none;letter-spacing:0}
+.help:hover{background:var(--teal);color:#fff}
+.help:hover:after,.help.on:after{content:attr(data-tip);position:absolute;bottom:calc(100% + 7px);left:50%;
+  transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 12px;border-radius:var(--r);
+  font-size:12.5px;font-weight:400;line-height:1.45;width:250px;text-align:left;z-index:90;
+  box-shadow:0 6px 20px rgba(16,23,32,.28);white-space:normal;pointer-events:none}
+.help:hover:before,.help.on:before{content:'';position:absolute;bottom:calc(100% + 2px);left:50%;
+  transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--ink);z-index:91}
+.help.on{background:var(--teal);color:#fff}
+.f label{display:flex;align-items:center}
+.hint{background:var(--teal-l);border:1px solid #C5E0DE;border-radius:var(--r);padding:9px 12px;
+  font-size:12.5px;color:#0A5555;margin-top:12px;display:none}
+.hint.on{display:block}
+
 /* ---------- Modal ---------- */
 .ov{position:fixed;inset:0;background:rgba(16,23,32,.55);display:none;align-items:flex-start;justify-content:center;padding:24px;z-index:60;overflow-y:auto}
 .ov.on{display:flex}
@@ -302,6 +319,7 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
           <option value="parcial">Pago parcial</option>
           <option value="cancelado">Cancelado</option></select></div>
       </div>
+      <div class="hint" id="co-hint"></div>
       <div style="margin:20px 0 10px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-2);border-top:1px solid var(--line);padding-top:16px">Factura</div>
       <div class="grid">
         <div class="f"><label for="co-ffol">Folio</label><input id="co-ffol" class="mono"></div>
@@ -436,6 +454,7 @@ async function iniciar(){
   $('#u-nom').textContent=perfil.nombre;
   $('#u-rol').textContent=perfil.rol;
   pintarNav();
+  pintarAyudas();
   await cargarCatalogos();
   irA('plantilla');
 }
@@ -965,7 +984,7 @@ async function vistaIngresos(){
   const netoMes=pagadosMes.reduce((a,b)=>a+Number(b.monto_neto||0),0);
   const retMes=pagadosMes.reduce((a,b)=>a+Number(b.retencion_almacen||0),0);
   const porCobrar=S.cobros.filter(c=>['archivo_recibido','facturado','parcial'].includes(c.estatus))
-    .reduce((a,b)=>a+(Number(b.monto_archivo||0)-Number(b.monto_recibido||0)),0);
+    .reduce((a,b)=>{const d=Number(b.monto_archivo||0)-Number(b.monto_recibido||0);return a+(Math.abs(d)<1?0:d);},0);
   const disp=(sal.data||[])[0];
 
   $('#main').innerHTML=`
@@ -1038,10 +1057,30 @@ async function vistaIngresos(){
 
 function calcNeto(){
   const m=Number($('#co-mrec').value||0), r=Number($('#co-ret').value||0);
-  $('#co-neto').value = m ? money(m - Math.round(m*r)/100 ) : '';
-  if(m){ const ret=Math.round(m*r)/100; $('#co-neto').value=money(m-ret); }
+  $('#co-neto').value = m ? money(m - Math.round(m*r)/100) : '';
+  revisarEstatusCobro();
+}
+function revisarEstatusCobro(){
+  const h=$('#co-hint'), sel=$('#co-est');
+  if(!h||!sel) return;
+  const tienePago = $('#co-freal').value && Number($('#co-mrec').value||0)>0;
+  const tieneFact = $('#co-ffol').value.trim() || $('#co-ffec').value;
+  if(tienePago && sel.value!=='pagado' && sel.value!=='parcial' && sel.value!=='cancelado'){
+    sel.value='pagado';
+    h.className='hint on';
+    h.innerHTML='<b>Estatus cambiado a Pagado.</b> Ya capturaste la fecha y el monto del depósito, así que al guardar se va a registrar el ingreso y el movimiento de banco. Si el dinero todavía no cae, borra la fecha del pago.';
+  }else if(!tienePago && tieneFact && sel.value==='archivo_recibido'){
+    sel.value='facturado';
+    h.className='hint on';
+    h.innerHTML='<b>Estatus cambiado a Facturado.</b> Cuando caiga el depósito, vuelve a abrir este cobro y captura la fecha y el monto recibido.';
+  }else if(!tienePago && sel.value==='pagado'){
+    h.className='hint on';
+    h.innerHTML='<b>Falta la fecha o el monto del depósito.</b> Para marcar como pagado necesitas los dos datos de la sección de abajo.';
+  }else{ h.className='hint'; }
 }
 ['co-mrec','co-ret'].forEach(id=>{ const el=$('#'+id); if(el) el.oninput=calcNeto; });
+['co-freal','co-ffol','co-ffec'].forEach(id=>{ const el=$('#'+id); if(el) el.onchange=revisarEstatusCobro; });
+const _selEst=$('#co-est'); if(_selEst) _selEst.onchange=()=>{ $('#co-hint').className='hint'; };
 
 function abrirCobro(id){
   const c = id ? S.cobros.find(x=>x.id===id) : null;
@@ -1056,9 +1095,13 @@ function abrirCobro(id){
   $('#co-file-msg').textContent = c?.factura_url ? 'Ya hay un respaldo guardado. Subir otro lo reemplaza.' : '';
   $('#co-freal').value=c?.fecha_pago_real??''; $('#co-mrec').value=c?.monto_recibido??'';
   $('#co-ret').value=c?.retencion_pct??6;
+  $('#co-hint').className='hint';
   calcNeto();
+  $('#co-est').value=c?.estatus??'archivo_recibido';
   $('#co-save').disabled = c?.estatus==='pagado';
   $('#co-save').textContent = c?.estatus==='pagado' ? 'Cobro cerrado' : 'Guardar';
+  $('#co-est').onchange=()=>{ $('#co-hint').className='hint';
+    $('#co-save').textContent = $('#co-est').value==='pagado' ? 'Guardar y registrar el pago' : 'Guardar'; };
   $('#ov-cobro').classList.add('on');
 }
 
@@ -1319,6 +1362,74 @@ async function vistaBalance(){
     </tr>`).join(''):'<tr><td colspan="4"><div class="empty"><b>Sin movimientos</b>Todavía no hay entradas ni salidas registradas.</div></td></tr>'}
     </tbody></table></div>`;
 }
+
+/* ============================================================
+   GLOBOS DE AYUDA
+   ============================================================ */
+const AYUDA={
+  /* Empleado */
+  'e-cod':'El número que ya usa tu archivo de dispersión del banco. Es la llave con la que el sistema identifica a cada persona, así que no lo cambies una vez asignado.',
+  'e-nom':'Nombre completo tal como aparece en la cuenta bancaria. Si no coincide, el banco puede rechazar la transferencia.',
+  'e-pue':'Define las reglas de horario que se le aplican al calcular asistencia. Si lo dejas sin asignar, la persona no se califica.',
+  'e-cen':'A qué call center pertenece. Sirve para separar reportes y costos por sede.',
+  'e-sup':'Quién lo supervisa. Se usa para agrupar resultados por equipo.',
+  'e-esq':'Quincenal es el estándar. Comisión pura es para quien no tiene sueldo base y solo cobra por venta.',
+  'e-sue':'Lo que se paga por quincena, sin comisiones ni bonos. De aquí se calculan los descuentos por falta.',
+  'e-ing':'Primer día que entró a trabajar. Se usa para antigüedad y para saber cuándo termina su capacitación.',
+  'e-est':'Activo cuenta en nómina. Permiso, vacaciones e incapacidad siguen en plantilla pero se califican distinto. Baja lo saca de la operación.',
+  'e-baja':'Último día que trabajó. Obligatorio si el estatus es baja.',
+  'e-tel':'Teléfono de contacto a 10 dígitos.',
+  'e-cor':'Correo personal o de la empresa, para enviarle recibos o accesos.',
+  'e-rfc':'RFC con homoclave, 13 caracteres para persona física.',
+  'e-curp':'CURP a 18 caracteres. Opcional, pero útil para expediente.',
+  'e-mot':'Por qué se fue: renuncia, ausentismo, bajo desempeño. Sirve para ver patrones de rotación.',
+  'e-not':'Cualquier cosa que convenga recordar de esta persona.',
+  /* Datos bancarios */
+  'b-ban':'Banco al que se transfiere. Debe coincidir con los primeros tres dígitos de la CLABE.',
+  'b-tit':'Solo si la cuenta está a nombre de alguien más. Si es del propio empleado, déjalo vacío.',
+  'b-cla':'CLABE interbancaria a 18 dígitos, sin espacios ni guiones. Es la que se usa para dispersar. Si está mal, el pago rebota.',
+  'b-ver':'Márcalo cuando ya se hizo al menos una transferencia exitosa a esta cuenta.',
+  /* Cobro */
+  'co-tipo':'Semanal es el archivo que llega los miércoles y paga la mitad de la comisión. Mensual es el remanente, la otra mitad, y llega entre el 20 y el 25 del mes siguiente.',
+  'co-per':'Cómo se identifica este corte. Para semanales usa el año y la semana, por ejemplo 2026-S34. Para mensuales usa el año y el mes, por ejemplo 2026-07.',
+  'co-desc':'Texto libre para reconocer el cobro de un vistazo. Puede ser el mismo concepto que va en la factura.',
+  'co-farch':'El día que llegó el correo con el archivo de ExpertCell, no el día que cae el dinero.',
+  'co-march':'El total con IVA que dice el archivo. Es lo que se va a facturar y lo que se espera cobrar.',
+  'co-fesp':'Si lo dejas vacío el sistema lo calcula solo: martes siguiente para los semanales, día 22 del mes siguiente para los mensuales.',
+  'co-est':'Se mueve solo conforme llenas los datos. Cambia a Pagado únicamente cuando el dinero ya cayó a la cuenta.',
+  'co-ffol':'El número de folio de la factura que emitiste, sin la serie. Por ejemplo 2199.',
+  'co-ffec':'La fecha de emisión que aparece en el CFDI.',
+  'co-fuuid':'El folio fiscal del SAT, esa cadena larga con guiones. Sirve para localizar la factura si hay una aclaración.',
+  'co-file':'Sube el PDF o el XML de la factura. Queda guardado como respaldo y solo dirección puede verlo.',
+  'co-freal':'El día que el depósito apareció en el estado de cuenta. Con esta fecha se registra el movimiento de banco.',
+  'co-mrec':'El monto bruto que depositaron, antes de que AT&T descuente el uso de almacén. Normalmente es igual al total de la factura.',
+  'co-ret':'El porcentaje que AT&T retiene por uso del almacén. Hoy es 6% sobre el total con IVA. Solo cámbialo si te avisan que subió.',
+  'co-neto':'Lo que realmente entra a la cuenta y con lo que se puede pagar. Se calcula solo, no se escribe.',
+  /* Carga de archivo */
+  'cg-tipo':'Semanal si es el reporte de los miércoles con el anticipo. Mensual si es el archivo de remanentes.',
+  'cg-per':'El sistema lo propone leyendo el archivo. Revísalo antes de cargar, porque con esto se evita cargar dos veces el mismo corte.',
+  'cg-farch':'El día que llegó el correo con este archivo.',
+  'cg-desc':'Nombre corto para reconocer el corte en la lista.'
+};
+
+function pintarAyudas(){
+  Object.entries(AYUDA).forEach(([id,txt])=>{
+    const el=document.getElementById(id); if(!el) return;
+    const cont=el.closest('.f'); if(!cont) return;
+    const lab=cont.querySelector('label'); if(!lab||lab.querySelector('.help')) return;
+    const s=document.createElement('span');
+    s.className='help'; s.textContent='?'; s.tabIndex=0;
+    s.setAttribute('data-tip',txt); s.setAttribute('role','button');
+    s.setAttribute('aria-label','Ayuda: '+txt);
+    s.onclick=ev=>{ ev.preventDefault(); ev.stopPropagation();
+      const ya=s.classList.contains('on');
+      document.querySelectorAll('.help.on').forEach(h=>h.classList.remove('on'));
+      if(!ya) s.classList.add('on'); };
+    s.onkeydown=ev=>{ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); s.click(); } };
+    lab.appendChild(s);
+  });
+}
+document.addEventListener('click',()=>document.querySelectorAll('.help.on').forEach(h=>h.classList.remove('on')));
 
 /* ============================================================
    ARRANQUE
