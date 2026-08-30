@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestión CDMX</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+/* ============================================================
+   CONSOLA DE OPERACIÓN — sistema visual
+   Tinta grafito + acento verde petróleo + cobre para dinero.
+   Cifras y claves en mono: en este sistema los números se leen,
+   no se decoran.
+   ============================================================ */
+:root{
+  --ink:#101720; --ink-2:#19222E; --ink-3:#24303F;
+  --paper:#EDEFF2; --card:#FFFFFF; --line:#D9DEE5; --line-2:#EAEDF1;
+  --txt:#141B24; --txt-2:#5A6673; --txt-3:#8A95A2;
+  --teal:#0B6E6E; --teal-l:#E4F1F0;
+  --copper:#9C5426; --copper-l:#FBEDE3;
+  --ok:#15803D; --ok-l:#E6F4EA;
+  --warn:#B45309; --warn-l:#FDF0DF;
+  --bad:#B42318; --bad-l:#FDEBE9;
+  --r:6px; --sh:0 1px 2px rgba(16,23,32,.06),0 4px 12px rgba(16,23,32,.05);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'IBM Plex Sans',system-ui,sans-serif;background:var(--paper);color:var(--txt);font-size:14px;-webkit-font-smoothing:antialiased}
+.mono{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---------- Login ---------- */
+#login{position:fixed;inset:0;background:var(--ink);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
+.lbox{width:100%;max-width:380px}
+.lbrand{color:#fff;margin-bottom:28px}
+.lbrand b{display:block;font-size:26px;font-weight:600;letter-spacing:-.5px}
+.lbrand span{display:block;color:#7D8B9B;font-size:12px;letter-spacing:.16em;text-transform:uppercase;margin-top:6px}
+.lcard{background:var(--card);border-radius:var(--r);padding:24px}
+.lcard label{display:block;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-2);margin-bottom:6px}
+.lcard input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px;background:#fff}
+.lcard input:focus{border-color:var(--teal);outline:none;box-shadow:0 0 0 3px var(--teal-l)}
+.lfoot{color:#5C6878;font-size:12px;text-align:center;margin-top:18px}
+
+/* ---------- Botones ---------- */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border:1px solid var(--line);background:#fff;border-radius:var(--r);cursor:pointer;font-weight:500;white-space:nowrap}
+.btn:hover{background:var(--line-2)}
+.btn-p{background:var(--teal);border-color:var(--teal);color:#fff}
+.btn-p:hover{background:#095B5B}
+.btn-d{background:#fff;border-color:#E7C9C6;color:var(--bad)}
+.btn-d:hover{background:var(--bad-l)}
+.btn-w{width:100%;justify-content:center;padding:11px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-sm{padding:5px 10px;font-size:13px}
+
+/* ---------- Shell ---------- */
+#app{display:none;min-height:100vh}
+#app.on{display:grid;grid-template-columns:236px 1fr}
+aside{background:var(--ink);color:#C6CFD9;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.abrand{padding:20px 18px 16px;border-bottom:1px solid var(--ink-3)}
+.abrand b{color:#fff;font-size:16px;font-weight:600;letter-spacing:-.2px;display:block}
+.abrand span{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#6E7C8C}
+nav{flex:1;overflow-y:auto;padding:10px 0}
+nav a{display:grid;grid-template-columns:26px 1fr;align-items:center;gap:8px;padding:8px 18px;color:#AEBAC7;text-decoration:none;cursor:pointer;border-left:2px solid transparent;font-size:13.5px}
+nav a:hover{background:var(--ink-2);color:#fff}
+nav a.on{background:var(--ink-2);color:#fff;border-left-color:var(--teal)}
+nav a.soon{color:#5F6C7B;cursor:pointer}
+nav a i{font-style:normal;font-size:10px;letter-spacing:.06em;color:#5A6879;font-family:'IBM Plex Mono',monospace}
+nav a.on i{color:var(--teal)}
+.auser{border-top:1px solid var(--ink-3);padding:14px 18px}
+.auser b{color:#fff;display:block;font-size:13px}
+.auser span{font-size:11px;color:#7D8B9B;text-transform:uppercase;letter-spacing:.08em}
+.auser button{margin-top:10px;width:100%;background:transparent;border:1px solid var(--ink-3);color:#AEBAC7;padding:7px;border-radius:var(--r);cursor:pointer;font-size:12.5px}
+.auser button:hover{background:var(--ink-2);color:#fff}
+
+main{min-width:0;padding:22px 26px 60px}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+.head h1{font-size:22px;font-weight:600;letter-spacing:-.4px}
+.head p{color:var(--txt-2);font-size:13px;margin-top:3px}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ---------- KPIs ---------- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:18px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;box-shadow:var(--sh)}
+.kpi span{display:block;font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--txt-3);margin-bottom:7px}
+.kpi b{font-size:26px;font-weight:600;letter-spacing:-1px;line-height:1}
+.kpi small{display:block;color:var(--txt-2);font-size:12px;margin-top:5px}
+.kpi.t b{color:var(--teal)} .kpi.c b{color:var(--copper)} .kpi.w b{color:var(--warn)} .kpi.b b{color:var(--bad)}
+
+/* ---------- Filtros ---------- */
+.bar{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.bar input,.bar select{padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);background:#fff}
+.bar input[type=search]{flex:1;min-width:200px}
+.bar .cnt{margin-left:auto;color:var(--txt-2);font-size:12.5px}
+
+/* ---------- Tabla ---------- */
+.tw{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:auto;box-shadow:var(--sh)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#F7F8FA;text-align:left;padding:10px 12px;font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-2);border-bottom:1px solid var(--line);white-space:nowrap;position:sticky;top:0;z-index:2}
+th.s{cursor:pointer;user-select:none}
+th.s:hover{color:var(--teal)}
+td{padding:9px 12px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+tbody tr:hover{background:#FAFBFC}
+tbody tr:last-child td{border-bottom:none}
+td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+.nm{font-weight:500}
+.empty{padding:52px 20px;text-align:center;color:var(--txt-2)}
+.empty b{display:block;color:var(--txt);font-size:15px;margin-bottom:6px;font-weight:600}
+
+/* ---------- Píldoras ---------- */
+.p{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.02em;white-space:nowrap}
+.p-ok{background:var(--ok-l);color:var(--ok)} .p-bad{background:var(--bad-l);color:var(--bad)}
+.p-warn{background:var(--warn-l);color:var(--warn)} .p-teal{background:var(--teal-l);color:var(--teal)}
+.p-gray{background:#EDEFF2;color:var(--txt-2)}
+
+/* ---------- Modal ---------- */
+.ov{position:fixed;inset:0;background:rgba(16,23,32,.55);display:none;align-items:flex-start;justify-content:center;padding:24px;z-index:60;overflow-y:auto}
+.ov.on{display:flex}
+.md{background:var(--card);border-radius:var(--r);width:100%;max-width:720px;box-shadow:0 20px 50px rgba(16,23,32,.3);margin:auto}
+.md-h{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.md-h b{font-size:16px;font-weight:600}
+.md-h button{background:none;border:none;font-size:22px;cursor:pointer;color:var(--txt-3);line-height:1;padding:0 4px}
+.md-b{padding:20px;max-height:calc(100vh - 200px);overflow-y:auto}
+.md-f{padding:14px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:9px;background:#FAFBFC;border-radius:0 0 var(--r) var(--r)}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:-20px -20px 18px;padding:0 20px;background:#FAFBFC}
+.tabs button{background:none;border:none;padding:11px 14px;cursor:pointer;color:var(--txt-2);font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button.on{color:var(--teal);border-bottom-color:var(--teal)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.f{display:flex;flex-direction:column;gap:5px}
+.f.full{grid-column:1/-1}
+.f label{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--txt-2)}
+.f input,.f select,.f textarea{padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);background:#fff;width:100%}
+.f input:focus,.f select:focus,.f textarea:focus{border-color:var(--teal);outline:none;box-shadow:0 0 0 3px var(--teal-l)}
+.f small{color:var(--txt-3);font-size:11.5px}
+.note{background:var(--warn-l);border:1px solid #F0DCC0;border-radius:var(--r);padding:11px 13px;font-size:12.5px;color:#7C3D06;margin-bottom:16px}
+.note b{display:block;margin-bottom:3px}
+
+/* ---------- Toast ---------- */
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(14px);background:var(--ink);color:#fff;padding:11px 18px;border-radius:var(--r);opacity:0;pointer-events:none;transition:.18s;z-index:200;max-width:88vw;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+#toast.on{opacity:1;transform:translateX(-50%)}
+#toast.bad{background:var(--bad)} #toast.ok{background:var(--ok)}
+
+/* ---------- Construcción ---------- */
+.soonbox{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:34px;box-shadow:var(--sh);max-width:660px}
+.soonbox .n{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--teal);letter-spacing:.1em;font-weight:600}
+.soonbox h2{font-size:20px;font-weight:600;margin:8px 0 10px;letter-spacing:-.3px}
+.soonbox p{color:var(--txt-2);line-height:1.6;margin-bottom:16px}
+.soonbox ul{list-style:none;display:flex;flex-direction:column;gap:8px}
+.soonbox li{display:grid;grid-template-columns:16px 1fr;gap:9px;color:var(--txt-2);font-size:13.5px;line-height:1.5}
+.soonbox li:before{content:'';width:6px;height:6px;background:var(--teal);border-radius:50%;margin-top:7px}
+
+/* ---------- Importador ---------- */
+.drop{border:2px dashed var(--line);border-radius:var(--r);padding:34px;text-align:center;background:#FAFBFC;cursor:pointer}
+.drop:hover,.drop.over{border-color:var(--teal);background:var(--teal-l)}
+.drop b{display:block;font-size:15px;margin-bottom:5px}
+.drop span{color:var(--txt-2);font-size:13px}
+.prev{max-height:270px;overflow:auto;border:1px solid var(--line);border-radius:var(--r);margin-top:16px}
+.sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-top:14px}
+.sum div{background:#F7F8FA;border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+.sum span{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt-3);margin-bottom:4px}
+.sum b{font-size:19px;font-family:'IBM Plex Mono',monospace}
+
+@media(max-width:900px){
+  #app.on{grid-template-columns:1fr}
+  aside{position:static;height:auto}
+  nav{display:flex;overflow-x:auto;padding:8px}
+  nav a{border-left:none;border-bottom:2px solid transparent;padding:8px 12px;grid-template-columns:1fr;white-space:nowrap}
+  nav a.on{border-left:none;border-bottom-color:var(--teal)}
+  nav a i{display:none}
+  main{padding:16px}
+  .grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="login">
+  <div class="lbox">
+    <div class="lbrand"><b>Gestión CDMX</b><span>Consola de operación</span></div>
+    <div class="lcard">
+      <label for="li-mail">Correo</label>
+      <input id="li-mail" type="email" autocomplete="username" placeholder="tucorreo@dominio.com">
+      <label for="li-pass">Contraseña</label>
+      <input id="li-pass" type="password" autocomplete="current-password" placeholder="••••••••">
+      <button class="btn btn-p btn-w" id="li-btn">Entrar</button>
+      <div id="li-err" style="color:var(--bad);font-size:12.5px;margin-top:10px;display:none"></div>
+    </div>
+    <div class="lfoot">Acceso restringido al personal autorizado.</div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app">
+  <aside>
+    <div class="abrand"><b>Gestión CDMX</b><span>Consola de operación</span></div>
+    <nav id="nav"></nav>
+    <div class="auser">
+      <b id="u-nom">—</b><span id="u-rol">—</span>
+      <button id="u-out">Cerrar sesión</button>
+    </div>
+  </aside>
+  <main id="main"></main>
+</div>
+
+<!-- ================= MODALES ================= -->
+<div class="ov" id="ov-emp">
+  <div class="md">
+    <div class="md-h"><b id="emp-tit">Empleado</b><button data-close="ov-emp">&times;</button></div>
+    <div class="md-b">
+      <div class="tabs">
+        <button class="on" data-tab="gen">Datos generales</button>
+        <button data-tab="ban">Pago</button>
+        <button data-tab="mov">Movimientos</button>
+      </div>
+      <div id="tab-gen">
+        <div class="grid">
+          <div class="f"><label for="e-cod">Código de dispersión</label><input id="e-cod" type="number" class="mono"><small>El que ya usa tu layout bancario.</small></div>
+          <div class="f"><label for="e-nom">Nombre completo</label><input id="e-nom"></div>
+          <div class="f"><label for="e-pue">Puesto</label><select id="e-pue"></select></div>
+          <div class="f"><label for="e-cen">Centro</label><select id="e-cen"></select></div>
+          <div class="f"><label for="e-sup">Supervisor</label><select id="e-sup"></select></div>
+          <div class="f"><label for="e-esq">Esquema de pago</label><select id="e-esq">
+            <option value="quincenal">Quincenal</option><option value="semanal">Semanal</option>
+            <option value="honorarios">Honorarios</option><option value="comision_pura">Comisión pura</option></select></div>
+          <div class="f"><label for="e-sue">Sueldo quincenal</label><input id="e-sue" type="number" step="0.01" class="mono"></div>
+          <div class="f"><label for="e-ing">Fecha de ingreso</label><input id="e-ing" type="date"></div>
+          <div class="f"><label for="e-est">Estatus</label><select id="e-est">
+            <option value="activo">Activo</option><option value="incapacidad">Incapacidad</option>
+            <option value="permiso">Permiso</option><option value="vacaciones">Vacaciones</option>
+            <option value="baja">Baja</option></select></div>
+          <div class="f"><label for="e-baja">Fecha de baja</label><input id="e-baja" type="date"></div>
+          <div class="f"><label for="e-tel">Teléfono</label><input id="e-tel" class="mono"></div>
+          <div class="f"><label for="e-cor">Correo</label><input id="e-cor" type="email"></div>
+          <div class="f"><label for="e-rfc">RFC</label><input id="e-rfc" class="mono" style="text-transform:uppercase"></div>
+          <div class="f"><label for="e-curp">CURP</label><input id="e-curp" class="mono" style="text-transform:uppercase"></div>
+          <div class="f full"><label for="e-mot">Motivo de baja</label><input id="e-mot" placeholder="Solo si el estatus es baja"></div>
+          <div class="f full"><label for="e-not">Notas</label><textarea id="e-not" rows="2"></textarea></div>
+        </div>
+      </div>
+      <div id="tab-ban" style="display:none">
+        <div class="note"><b>Información restringida</b>Solo dirección y administración ven esta pestaña. La CLABE debe tener exactamente 18 dígitos, sin espacios.</div>
+        <div class="grid">
+          <div class="f"><label for="b-ban">Banco</label><select id="b-ban"></select></div>
+          <div class="f"><label for="b-tit">Titular de la cuenta</label><input id="b-tit" placeholder="Si es distinto al empleado"></div>
+          <div class="f full"><label for="b-cla">CLABE interbancaria</label><input id="b-cla" class="mono" maxlength="18" placeholder="18 dígitos"><small id="b-cla-msg"></small></div>
+          <div class="f full"><label style="display:flex;flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px">
+            <input type="checkbox" id="b-ver" style="width:auto"> Cuenta verificada con el banco</label></div>
+        </div>
+      </div>
+      <div id="tab-mov" style="display:none"></div>
+    </div>
+    <div class="md-f">
+      <button class="btn" data-close="ov-emp">Cancelar</button>
+      <button class="btn btn-p" id="emp-save">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="ov-imp">
+  <div class="md" style="max-width:840px">
+    <div class="md-h"><b>Importar plantilla desde Excel</b><button data-close="ov-imp">&times;</button></div>
+    <div class="md-b">
+      <div class="note"><b>Qué lee este importador</b>Tu archivo de dispersión: columnas CÓDIGO, NOMBRE COMPLETO, BANCO PARA PAGO y CUENTA CLAVE. Los códigos que ya existan se actualizan; los nuevos se dan de alta. Nada se borra.</div>
+      <div class="drop" id="drop">
+        <b>Suelta el archivo aquí o haz clic para elegirlo</b>
+        <span>Formato .xlsx o .xls</span>
+        <input type="file" id="file" accept=".xlsx,.xls" hidden>
+      </div>
+      <div id="imp-res"></div>
+    </div>
+    <div class="md-f">
+      <button class="btn" data-close="ov-imp">Cancelar</button>
+      <button class="btn btn-p" id="imp-go" disabled>Importar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   CONFIGURACIÓN — pega aquí las credenciales del proyecto
+   ============================================================ */
+const SUPABASE_URL = 'https://vcdvugrkcaiolvvokxiq.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjZHZ1Z3JrY2Fpb2x2dm9reGlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwNTA0ODEsImV4cCI6MjEwMzYyNjQ4MX0.cdhx4eTtPT5USrcLypzyPQDm2uTAIbFrtV9PJCAik50';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ============================================================
+   ESTADO
+   ============================================================ */
+const S = {
+  perfil:null, direccion:false,
+  empleados:[], puestos:[], centros:[], bancos:[],
+  filtros:{q:'',estatus:'activo',puesto:''},
+  orden:{col:'nombre_completo',dir:1},
+  empActual:null, impFilas:[]
+};
+
+const MODULOS = [
+  {id:'plantilla',  n:'05', t:'Plantilla',            lista:true},
+  {id:'asistencia', n:'01', t:'Asistencia',           bloque:3, desc:'Carga los dos exportes del checador (AT&T y NEZA), cruza los marcajes contra las reglas de horario y califica cada día como asistencia, retardo, falta o descanso. Ajustes manuales quedan firmados con usuario y motivo.', pts:['Lector de los archivos del biométrico con control de duplicados','Reglas por puesto: ejecutivos 10:05 / 10:15, supervisión 10:00 / 10:10, facturación 8:00 / 8:10','Sin checada de salida se marca falta, con opción de justificar','Tablero por quincena y detalle por persona']},
+  {id:'nomina',     n:'02', t:'Nómina',               bloque:4, desc:'Calcula la quincena a partir de la asistencia ya calificada, aplica percepciones y deducciones, y cierra el periodo para que no se pueda tocar después de pagado.', pts:['Periodos del 6 al 20 y del 21 al 5','Descuento automático por faltas y retardos','Conceptos manuales: préstamos, equipo, bonos','Cierre de periodo con bitácora de quién cerró']},
+  {id:'comisiones', n:'03', t:'Comisiones y bonos',   bloque:6, desc:'Toma las ventas que sí pagó AT&T y las convierte en comisión por agente según el esquema vigente. Se alimenta de la auditoría, no del reporte interno.', pts:['Esquemas con vigencia y rangos por volumen','Factores por plan','Autorización antes de pasar a nómina','Comparativo de lo calculado contra lo pagado']},
+  {id:'auditoria',  n:'04', t:'Auditoría de ventas',  bloque:5, desc:'El corazón del control: cruza tu reporte interno contra Global y contra los dos archivos de pago de ExpertCell, el semanal del 50% y el mensual del remanente.', pts:['Cruce por folio y por teléfono, con asignación manual para lo que no empate','Detección de duplicados en el interno','Clasificación: pagada sin comisionar, comisionada sin pagar, solo interno, solo Global','Control del remanente mensual pendiente de cobro']},
+  {id:'accesos',    n:'06', t:'Accesos a plataformas',bloque:10,desc:'Padrón de usuarios de AT&T, Bonsaif, Odoo, iVentas y el CRM de leads. Sin contraseñas: solo quién tiene qué y desde cuándo.', pts:['Alta y baja ligada al movimiento de personal','Alerta de accesos activos de gente que ya causó baja','Costo mensual por plataforma','Historial de solicitudes']},
+  {id:'gastos',     n:'07', t:'Gastos',               bloque:7, desc:'Registro de egresos clasificados en fijos, semifijos y variables, con generación automática de los recurrentes.', pts:['Catálogo de categorías y proveedores','Gastos recurrentes que se proponen solos cada periodo','Pendiente de pago contra pagado','Comparativo mes a mes por categoría']},
+  {id:'ingresos',   n:'08', t:'Ingresos',             bloque:7, desc:'Entradas por comisión semanal, remanente mensual y otros conceptos, ligadas al periodo que las originó.', pts:['Captura manual y carga desde los archivos de pago','Amarre con la auditoría de ventas','Detección de remanentes que no llegaron']},
+  {id:'balance',    n:'09', t:'Balance financiero',   bloque:7, desc:'Ingresos contra egresos, saldo acumulado y sanidad de la cuenta. Aquí migra el histórico de 247 movimientos que ya traes en Excel desde diciembre de 2024.', pts:['Saldo corrido con la misma lógica de tu hoja Histórico','Resultado por mes y por categoría','Cobertura: cuántas quincenas aguanta el saldo actual','Alerta cuando el egreso proyectado supera el saldo']},
+  {id:'dispersion', n:'10', t:'Dispersión de pagos',  bloque:8, desc:'Arma el archivo que subes al banco, con el mismo layout que hoy ya te acepta, tomando montos de nómina y comisiones.', pts:['Layout idéntico: código, nombre, banco, CLABE, fecha, total','Validación de CLABE antes de exportar','Autorización previa a la dispersión','Historial de lo dispersado con estatus por registro']},
+  {id:'tickets',    n:'11', t:'Buzón de tickets',     bloque:9, desc:'Pendientes entre el Call Center y la dirección, con folio, responsable y cierre obligatorio.', pts:['Folio automático y prioridad','Conversación por ticket','No se cierra sin resolución escrita','Tablero de abiertos por antigüedad']}
+];
+
+/* ============================================================
+   UTILIDADES
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = n => (Number(n)||0).toLocaleString('es-MX',{style:'currency',currency:'MXN'});
+const fecha = d => d ? new Date(d+'T12:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+const clabeLimpia = v => String(v??'').replace(/\D/g,'');
+let toastT;
+function toast(msg,tipo){
+  const t=$('#toast'); t.textContent=msg; t.className='on '+(tipo||'');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.className='',3200);
+}
+function cerrar(id){ $('#'+id).classList.remove('on'); }
+document.addEventListener('click',e=>{
+  const c=e.target.dataset.close; if(c) cerrar(c);
+  if(e.target.classList.contains('ov')) e.target.classList.remove('on');
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') document.querySelectorAll('.ov.on').forEach(o=>o.classList.remove('on'));
+});
+
+/* ============================================================
+   SESIÓN
+   ============================================================ */
+async function entrar(){
+  const mail=$('#li-mail').value.trim(), pass=$('#li-pass').value;
+  const err=$('#li-err'); err.style.display='none';
+  if(!mail||!pass){ err.textContent='Escribe tu correo y tu contraseña.'; err.style.display='block'; return; }
+  $('#li-btn').disabled=true; $('#li-btn').textContent='Entrando…';
+  const {error}=await sb.auth.signInWithPassword({email:mail,password:pass});
+  $('#li-btn').disabled=false; $('#li-btn').textContent='Entrar';
+  if(error){ err.textContent='No pudimos entrar: correo o contraseña incorrectos.'; err.style.display='block'; return; }
+  await iniciar();
+}
+$('#li-btn').onclick=entrar;
+$('#li-pass').onkeydown=e=>{ if(e.key==='Enter') entrar(); };
+$('#li-mail').onkeydown=e=>{ if(e.key==='Enter') $('#li-pass').focus(); };
+$('#u-out').onclick=async()=>{ await sb.auth.signOut(); location.reload(); };
+
+async function iniciar(){
+  const {data:{user}}=await sb.auth.getUser();
+  if(!user) return;
+  const {data:perfil}=await sb.from('usuarios_app').select('*').eq('id',user.id).maybeSingle();
+  if(!perfil||!perfil.activo){
+    $('#li-err').innerHTML='Tu cuenta existe pero no tiene perfil activo en el sistema. Pide a dirección que te dé de alta en <span class="mono">usuarios_app</span>.';
+    $('#li-err').style.display='block';
+    await sb.auth.signOut(); return;
+  }
+  S.perfil=perfil;
+  S.direccion=['director','admin'].includes(perfil.rol);
+  $('#login').style.display='none';
+  $('#app').classList.add('on');
+  $('#u-nom').textContent=perfil.nombre;
+  $('#u-rol').textContent=perfil.rol;
+  pintarNav();
+  await cargarCatalogos();
+  irA('plantilla');
+}
+
+/* ============================================================
+   NAVEGACIÓN
+   ============================================================ */
+let vistaActual='plantilla';
+function pintarNav(){
+  $('#nav').innerHTML=MODULOS.map(m=>
+    `<a data-ir="${m.id}" class="${m.lista?'':'soon'}"><i>${m.n}</i><span>${esc(m.t)}</span></a>`).join('');
+  $('#nav').querySelectorAll('a').forEach(a=>a.onclick=()=>irA(a.dataset.ir));
+}
+function irA(id){
+  vistaActual=id;
+  $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
+  const m=MODULOS.find(x=>x.id===id);
+  if(m.lista) vistaPlantilla(); else vistaSoon(m);
+  window.scrollTo(0,0);
+}
+function vistaSoon(m){
+  $('#main').innerHTML=`
+    <div class="head"><div><h1>${esc(m.t)}</h1><p>Módulo ${m.n} · se construye en el bloque ${m.bloque}</p></div></div>
+    <div class="soonbox">
+      <div class="n">MÓDULO ${m.n} · BLOQUE ${m.bloque}</div>
+      <h2>${esc(m.t)}</h2>
+      <p>${esc(m.desc)}</p>
+      <ul>${m.pts.map(p=>`<li><span>${esc(p)}</span></li>`).join('')}</ul>
+    </div>`;
+}
+
+/* ============================================================
+   CATÁLOGOS
+   ============================================================ */
+async function cargarCatalogos(){
+  const [p,c,b]=await Promise.all([
+    sb.from('puestos').select('*').eq('activo',true).order('nombre'),
+    sb.from('centros').select('*').eq('activo',true).order('nombre'),
+    sb.from('bancos').select('*').eq('activo',true).order('nombre')
+  ]);
+  S.puestos=p.data||[]; S.centros=c.data||[]; S.bancos=b.data||[];
+}
+
+/* ============================================================
+   MÓDULO PLANTILLA
+   ============================================================ */
+async function cargarEmpleados(){
+  const {data,error}=await sb.from('empleados')
+    .select('*, puestos(id,nombre,clave), centros(id,nombre)')
+    .order('nombre_completo');
+  if(error){ toast('No se pudo cargar la plantilla: '+error.message,'bad'); return; }
+  S.empleados=data||[];
+  if(S.direccion){
+    const {data:ban}=await sb.from('empleados_bancarios').select('*');
+    const mapa={}; (ban||[]).forEach(x=>mapa[x.empleado_id]=x);
+    S.empleados.forEach(e=>e._banco=mapa[e.id]||null);
+  }
+}
+
+function filtrar(){
+  const {q,estatus,puesto}=S.filtros;
+  let r=S.empleados.filter(e=>{
+    if(estatus==='activos_todos'){ if(e.estatus==='baja') return false; }
+    else if(estatus && e.estatus!==estatus) return false;
+    if(puesto && String(e.puesto_id)!==puesto) return false;
+    if(q){
+      const t=(e.nombre_completo+' '+(e.codigo||'')+' '+(e.telefono||'')+' '+(e.correo||'')).toLowerCase();
+      if(!t.includes(q.toLowerCase())) return false;
+    }
+    return true;
+  });
+  const {col,dir}=S.orden;
+  r.sort((a,b)=>{
+    let x=a[col],y=b[col];
+    if(col==='puesto') { x=a.puestos?.nombre||''; y=b.puestos?.nombre||''; }
+    if(typeof x==='number'||typeof y==='number') return ((x||0)-(y||0))*dir;
+    return String(x||'').localeCompare(String(y||''),'es')*dir;
+  });
+  return r;
+}
+
+async function vistaPlantilla(){
+  $('#main').innerHTML='<div class="empty">Cargando plantilla…</div>';
+  await cargarEmpleados();
+  pintarPlantilla();
+}
+
+function pintarPlantilla(){
+  const act=S.empleados.filter(e=>e.estatus==='activo').length;
+  const baja=S.empleados.filter(e=>e.estatus==='baja').length;
+  const otros=S.empleados.filter(e=>['incapacidad','permiso','vacaciones'].includes(e.estatus)).length;
+  const sinPuesto=S.empleados.filter(e=>!e.puesto_id&&e.estatus!=='baja').length;
+  const sinClabe=S.direccion?S.empleados.filter(e=>e.estatus!=='baja'&&(!e._banco||!e._banco.clabe)).length:null;
+  const hoy=new Date(), mesIni=new Date(hoy.getFullYear(),hoy.getMonth(),1).toISOString().slice(0,10);
+  const altasMes=S.empleados.filter(e=>e.fecha_ingreso&&e.fecha_ingreso>=mesIni).length;
+
+  $('#main').innerHTML=`
+  <div class="head">
+    <div><h1>Plantilla</h1><p>Personal, movimientos y datos de pago de la operación CDMX</p></div>
+    <div class="acts">
+      ${S.direccion?'<button class="btn" id="b-imp">Importar Excel</button>':''}
+      <button class="btn" id="b-exp">Exportar Excel</button>
+      ${S.direccion?'<button class="btn btn-p" id="b-new">Nuevo empleado</button>':''}
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi t"><span>Activos</span><b>${act}</b><small>en operación hoy</small></div>
+    <div class="kpi"><span>En incidencia</span><b>${otros}</b><small>permiso, vacaciones o incapacidad</small></div>
+    <div class="kpi"><span>Altas del mes</span><b>${altasMes}</b><small>ingresos desde el día 1</small></div>
+    <div class="kpi"><span>Bajas históricas</span><b>${baja}</b><small>acumuladas</small></div>
+    <div class="kpi ${sinPuesto?'w':''}"><span>Sin puesto</span><b>${sinPuesto}</b><small>requieren clasificación</small></div>
+    ${sinClabe!==null?`<div class="kpi ${sinClabe?'b':''}"><span>Sin CLABE</span><b>${sinClabe}</b><small>no se pueden dispersar</small></div>`:''}
+  </div>
+
+  <div class="bar">
+    <input type="search" id="f-q" placeholder="Buscar por nombre, código, teléfono o correo" value="${esc(S.filtros.q)}">
+    <select id="f-est">
+      <option value="activo">Activos</option>
+      <option value="activos_todos">Activos + incidencias</option>
+      <option value="baja">Bajas</option>
+      <option value="incapacidad">Incapacidad</option>
+      <option value="permiso">Permiso</option>
+      <option value="vacaciones">Vacaciones</option>
+      <option value="">Todos</option>
+    </select>
+    <select id="f-pue"><option value="">Todos los puestos</option>
+      ${S.puestos.map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join('')}</select>
+    <span class="cnt" id="f-cnt"></span>
+  </div>
+
+  <div class="tw"><table>
+    <thead><tr>
+      <th class="s" data-o="codigo">Cód.</th>
+      <th class="s" data-o="nombre_completo">Nombre</th>
+      <th class="s" data-o="puesto">Puesto</th>
+      <th class="s" data-o="fecha_ingreso">Ingreso</th>
+      <th>Antigüedad</th>
+      ${S.direccion?'<th class="s" data-o="sueldo_quincenal" style="text-align:right">Sueldo quinc.</th>':''}
+      ${S.direccion?'<th>Pago</th>':''}
+      <th>Estatus</th>
+      <th></th>
+    </tr></thead>
+    <tbody id="tb"></tbody>
+  </table></div>`;
+
+  $('#f-est').value=S.filtros.estatus;
+  $('#f-pue').value=S.filtros.puesto;
+  $('#f-q').oninput=e=>{S.filtros.q=e.target.value;pintarFilas();};
+  $('#f-est').onchange=e=>{S.filtros.estatus=e.target.value;pintarFilas();};
+  $('#f-pue').onchange=e=>{S.filtros.puesto=e.target.value;pintarFilas();};
+  document.querySelectorAll('th.s').forEach(th=>th.onclick=()=>{
+    const c=th.dataset.o;
+    S.orden.dir = S.orden.col===c ? -S.orden.dir : 1;
+    S.orden.col=c; pintarFilas();
+  });
+  if($('#b-new')) $('#b-new').onclick=()=>abrirEmpleado(null);
+  if($('#b-imp')) $('#b-imp').onclick=()=>{ S.impFilas=[]; $('#imp-res').innerHTML=''; $('#imp-go').disabled=true; $('#ov-imp').classList.add('on'); };
+  $('#b-exp').onclick=exportarPlantilla;
+  pintarFilas();
+}
+
+function antiguedad(f){
+  if(!f) return '—';
+  const d=Math.floor((Date.now()-new Date(f+'T12:00:00'))/86400000);
+  if(d<0) return 'Por ingresar';
+  if(d<30) return d+' d';
+  const m=Math.floor(d/30.44);
+  if(m<12) return m+' m';
+  const a=Math.floor(m/12);
+  return a+' a '+(m%12?(m%12)+' m':'');
+}
+const PILL={activo:'p-ok',baja:'p-bad',incapacidad:'p-warn',permiso:'p-warn',vacaciones:'p-teal'};
+
+function pintarFilas(){
+  const rows=filtrar();
+  $('#f-cnt').textContent=rows.length+' de '+S.empleados.length+' registros';
+  if(!rows.length){
+    $('#tb').innerHTML=`<tr><td colspan="9"><div class="empty"><b>Sin resultados</b>Ajusta los filtros o registra al primer empleado.</div></td></tr>`;
+    return;
+  }
+  $('#tb').innerHTML=rows.map(e=>{
+    const cl=e._banco?.clabe;
+    const pago=!S.direccion?'':`<td>${cl
+      ? `<span class="mono" style="font-size:12px" title="${esc(cl)}">${esc(e._banco.banco_texto||'')} ····${esc(cl.slice(-4))}</span>`
+      : '<span class="p p-bad">Falta CLABE</span>'}</td>`;
+    return `<tr>
+      <td class="mono" style="color:var(--txt-2)">${e.codigo??'—'}</td>
+      <td class="nm">${esc(e.nombre_completo)}</td>
+      <td>${esc(e.puestos?.nombre||'<sin asignar>')}</td>
+      <td class="mono" style="font-size:12.5px">${fecha(e.fecha_ingreso)}</td>
+      <td style="color:var(--txt-2)">${antiguedad(e.fecha_ingreso)}</td>
+      ${S.direccion?`<td class="num">${e.sueldo_quincenal?money(e.sueldo_quincenal):'—'}</td>`:''}
+      ${pago}
+      <td><span class="p ${PILL[e.estatus]||'p-gray'}">${esc(e.estatus)}</span></td>
+      <td style="text-align:right"><button class="btn btn-sm" data-ver="${e.id}">${S.direccion?'Editar':'Ver'}</button></td>
+    </tr>`;
+  }).join('');
+  document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=()=>abrirEmpleado(Number(b.dataset.ver)));
+}
+
+/* ---------- Modal empleado ---------- */
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  ['gen','ban','mov'].forEach(t=>$('#tab-'+t).style.display = t===b.dataset.tab?'':'none');
+  if(b.dataset.tab==='mov') cargarMovimientos();
+});
+
+function llenarSelects(){
+  $('#e-pue').innerHTML='<option value="">— sin asignar —</option>'+S.puestos.map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
+  $('#e-cen').innerHTML='<option value="">— sin asignar —</option>'+S.centros.map(c=>`<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
+  $('#e-sup').innerHTML='<option value="">— sin asignar —</option>'+S.empleados.filter(e=>e.estatus!=='baja').map(e=>`<option value="${e.id}">${esc(e.nombre_completo)}</option>`).join('');
+  $('#b-ban').innerHTML='<option value="">— elegir banco —</option>'+S.bancos.map(b=>`<option value="${b.id}">${esc(b.nombre)}</option>`).join('');
+}
+
+function abrirEmpleado(id){
+  llenarSelects();
+  const e = id ? S.empleados.find(x=>x.id===id) : null;
+  S.empActual=e;
+  $('#emp-tit').textContent = e ? e.nombre_completo : 'Nuevo empleado';
+  $('#e-cod').value=e?.codigo??''; $('#e-nom').value=e?.nombre_completo??'';
+  $('#e-pue').value=e?.puesto_id??''; $('#e-cen').value=e?.centro_id??(S.centros[0]?.id??'');
+  $('#e-sup').value=e?.supervisor_id??''; $('#e-esq').value=e?.esquema_pago??'quincenal';
+  $('#e-sue').value=e?.sueldo_quincenal??''; $('#e-ing').value=e?.fecha_ingreso??'';
+  $('#e-est').value=e?.estatus??'activo'; $('#e-baja').value=e?.fecha_baja??'';
+  $('#e-tel').value=e?.telefono??''; $('#e-cor').value=e?.correo??'';
+  $('#e-rfc').value=e?.rfc??''; $('#e-curp').value=e?.curp??'';
+  $('#e-mot').value=e?.motivo_baja??''; $('#e-not').value=e?.notas??'';
+  const b=e?._banco;
+  $('#b-ban').value=b?.banco_id??''; $('#b-tit').value=b?.titular??'';
+  $('#b-cla').value=b?.clabe??''; $('#b-ver').checked=!!b?.verificada; $('#b-cla-msg').textContent='';
+
+  document.querySelectorAll('.tabs button').forEach((x,i)=>x.classList.toggle('on',i===0));
+  $('#tab-gen').style.display=''; $('#tab-ban').style.display='none'; $('#tab-mov').style.display='none';
+  document.querySelector('[data-tab="ban"]').style.display=S.direccion?'':'none';
+  $('#emp-save').style.display=S.direccion?'':'none';
+  $('#tab-gen').querySelectorAll('input,select,textarea').forEach(i=>i.disabled=!S.direccion);
+  $('#ov-emp').classList.add('on');
+}
+
+$('#b-cla').oninput=e=>{
+  const v=clabeLimpia(e.target.value); e.target.value=v;
+  const m=$('#b-cla-msg');
+  if(!v){ m.textContent=''; m.style.color=''; }
+  else if(v.length===18){ m.textContent='18 dígitos, correcta.'; m.style.color='var(--ok)'; }
+  else { m.textContent=`Van ${v.length} de 18 dígitos.`; m.style.color='var(--warn)'; }
+};
+
+async function cargarMovimientos(){
+  const c=$('#tab-mov');
+  if(!S.empActual){ c.innerHTML='<div class="empty">Guarda al empleado para registrar movimientos.</div>'; return; }
+  c.innerHTML='<div class="empty">Cargando…</div>';
+  const {data}=await sb.from('movimientos_personal').select('*')
+    .eq('empleado_id',S.empActual.id).order('fecha_efectiva',{ascending:false}).limit(80);
+  if(!data||!data.length){ c.innerHTML='<div class="empty"><b>Sin movimientos</b>Los cambios de puesto, sueldo o estatus se registran solos al guardar.</div>'; return; }
+  c.innerHTML=`<div class="tw"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Antes</th><th>Después</th><th>Motivo</th></tr></thead><tbody>
+    ${data.map(m=>`<tr><td class="mono" style="font-size:12.5px">${fecha(m.fecha_efectiva)}</td>
+      <td><span class="p p-gray">${esc(m.tipo)}</span></td>
+      <td style="color:var(--txt-2)">${esc(m.valor_anterior||'—')}</td>
+      <td class="nm">${esc(m.valor_nuevo||'—')}</td>
+      <td style="color:var(--txt-2)">${esc(m.motivo||'—')}</td></tr>`).join('')}
+  </tbody></table></div>`;
+}
+
+$('#emp-save').onclick=async()=>{
+  if(!S.direccion) return;
+  const nom=$('#e-nom').value.trim();
+  if(!nom){ toast('El nombre completo es obligatorio.','bad'); return; }
+  const clabe=clabeLimpia($('#b-cla').value);
+  if(clabe && clabe.length!==18){ toast('La CLABE debe tener 18 dígitos.','bad'); return; }
+
+  const est=$('#e-est').value;
+  const payload={
+    codigo: $('#e-cod').value?Number($('#e-cod').value):null,
+    nombre_completo: nom,
+    puesto_id: $('#e-pue').value||null,
+    centro_id: $('#e-cen').value||null,
+    supervisor_id: $('#e-sup').value||null,
+    esquema_pago: $('#e-esq').value,
+    sueldo_quincenal: $('#e-sue').value?Number($('#e-sue').value):0,
+    fecha_ingreso: $('#e-ing').value||null,
+    estatus: est,
+    fecha_baja: $('#e-baja').value||null,
+    telefono: $('#e-tel').value.trim()||null,
+    correo: $('#e-cor').value.trim()||null,
+    rfc: $('#e-rfc').value.trim().toUpperCase()||null,
+    curp: $('#e-curp').value.trim().toUpperCase()||null,
+    motivo_baja: $('#e-mot').value.trim()||null,
+    notas: $('#e-not').value.trim()||null,
+    actualizado_en: new Date().toISOString()
+  };
+  if(est==='baja' && !payload.fecha_baja){ toast('Una baja necesita fecha de baja.','bad'); return; }
+
+  $('#emp-save').disabled=true;
+  const prev=S.empActual;
+  let empId=prev?.id;
+  if(prev){
+    const {error}=await sb.from('empleados').update(payload).eq('id',prev.id);
+    if(error){ $('#emp-save').disabled=false; toast('No se guardó: '+error.message,'bad'); return; }
+  }else{
+    const {data,error}=await sb.from('empleados').insert(payload).select().single();
+    if(error){ $('#emp-save').disabled=false; toast('No se guardó: '+error.message,'bad'); return; }
+    empId=data.id;
+  }
+
+  // Bitácora de cambios relevantes
+  const movs=[]; const hoy=new Date().toISOString().slice(0,10);
+  const nomPuesto=id=>S.puestos.find(p=>String(p.id)===String(id))?.nombre||'sin asignar';
+  if(!prev){
+    movs.push({empleado_id:empId,tipo:'alta',fecha_efectiva:payload.fecha_ingreso||hoy,
+      valor_nuevo:nomPuesto(payload.puesto_id),motivo:'Alta en plantilla',registrado_por:S.perfil.id});
+  }else{
+    if(String(prev.puesto_id??'')!==String(payload.puesto_id??''))
+      movs.push({empleado_id:empId,tipo:'cambio_puesto',fecha_efectiva:hoy,valor_anterior:nomPuesto(prev.puesto_id),valor_nuevo:nomPuesto(payload.puesto_id),registrado_por:S.perfil.id});
+    if(Number(prev.sueldo_quincenal||0)!==Number(payload.sueldo_quincenal||0))
+      movs.push({empleado_id:empId,tipo:'cambio_sueldo',fecha_efectiva:hoy,valor_anterior:money(prev.sueldo_quincenal),valor_nuevo:money(payload.sueldo_quincenal),registrado_por:S.perfil.id});
+    if(prev.estatus!==payload.estatus)
+      movs.push({empleado_id:empId,tipo:payload.estatus==='baja'?'baja':(prev.estatus==='baja'?'reingreso':'otro'),
+        fecha_efectiva:payload.estatus==='baja'?(payload.fecha_baja||hoy):hoy,
+        valor_anterior:prev.estatus,valor_nuevo:payload.estatus,motivo:payload.motivo_baja||null,registrado_por:S.perfil.id});
+    if(String(prev.supervisor_id??'')!==String(payload.supervisor_id??''))
+      movs.push({empleado_id:empId,tipo:'cambio_supervisor',fecha_efectiva:hoy,
+        valor_anterior:S.empleados.find(x=>x.id===prev.supervisor_id)?.nombre_completo||'sin asignar',
+        valor_nuevo:S.empleados.find(x=>String(x.id)===String(payload.supervisor_id))?.nombre_completo||'sin asignar',registrado_por:S.perfil.id});
+  }
+  if(movs.length) await sb.from('movimientos_personal').insert(movs);
+
+  // Datos de pago
+  if(clabe || $('#b-ban').value){
+    const bancoNom=S.bancos.find(b=>String(b.id)===$('#b-ban').value)?.nombre||null;
+    const antes=prev?._banco?.clabe;
+    const {error}=await sb.from('empleados_bancarios').upsert({
+      empleado_id:empId, banco_id:$('#b-ban').value||null, banco_texto:bancoNom,
+      clabe:clabe||null, titular:$('#b-tit').value.trim()||null,
+      verificada:$('#b-ver').checked, actualizado_en:new Date().toISOString()
+    },{onConflict:'empleado_id'});
+    if(error) toast('El empleado se guardó, pero los datos de pago no: '+error.message,'bad');
+    else if(antes && clabe && antes!==clabe)
+      await sb.from('movimientos_personal').insert({empleado_id:empId,tipo:'cambio_banco',fecha_efectiva:hoy,
+        valor_anterior:'····'+antes.slice(-4),valor_nuevo:'····'+clabe.slice(-4),registrado_por:S.perfil.id});
+  }
+
+  $('#emp-save').disabled=false;
+  cerrar('ov-emp');
+  toast(prev?'Cambios guardados.':'Empleado registrado.','ok');
+  await cargarEmpleados(); pintarPlantilla();
+};
+
+/* ============================================================
+   IMPORTADOR (layout de dispersión)
+   ============================================================ */
+$('#drop').onclick=()=>$('#file').click();
+$('#drop').ondragover=e=>{e.preventDefault();$('#drop').classList.add('over');};
+$('#drop').ondragleave=()=>$('#drop').classList.remove('over');
+$('#drop').ondrop=e=>{e.preventDefault();$('#drop').classList.remove('over');if(e.dataTransfer.files[0])leerArchivo(e.dataTransfer.files[0]);};
+$('#file').onchange=e=>{ if(e.target.files[0]) leerArchivo(e.target.files[0]); };
+
+function leerArchivo(f){
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
+      const hoja=wb.SheetNames.find(n=>/disper/i.test(n))||wb.SheetNames[0];
+      const filas=XLSX.utils.sheet_to_json(wb.Sheets[hoja],{defval:null});
+      procesarFilas(filas,f.name);
+    }catch(err){ toast('No pudimos leer el archivo: '+err.message,'bad'); }
+  };
+  r.readAsArrayBuffer(f);
+}
+
+function procesarFilas(filas,nombre){
+  const norm=s=>String(s||'').toLowerCase().replace(/[^a-z]/g,'');
+  const buscar=(row,claves)=>{
+    for(const k of Object.keys(row)){ const n=norm(k); if(claves.some(c=>n.includes(c))) return row[k]; }
+    return null;
+  };
+  const vistas=new Set(), clabes={}, out=[];
+  let sinCodigo=0, sinClabe=0, clabeMala=0;
+
+  filas.forEach(row=>{
+    const nom=String(buscar(row,['nombrecompleto','nombre'])||'').trim();
+    if(!nom) return;
+    const cod=buscar(row,['codigo','cdigo']);
+    const banco=String(buscar(row,['bancoparapago','banco'])||'').trim().toUpperCase();
+    const claRaw=buscar(row,['cuentaclave','clabe','cuenta']);
+    const cla=clabeLimpia(claRaw);
+    if(!cod){ sinCodigo++; return; }
+    if(vistas.has(Number(cod))) return;
+    vistas.add(Number(cod));
+    if(!cla) sinClabe++;
+    else if(cla.length!==18) clabeMala++;
+    if(cla){ (clabes[cla]=clabes[cla]||[]).push(nom); }
+    out.push({codigo:Number(cod),nombre:nom,banco,clabe:cla.length===18?cla:null,clabeCruda:String(claRaw||'')});
+  });
+
+  const repetidas=Object.entries(clabes).filter(([,v])=>v.length>1);
+  const existentes=new Set(S.empleados.map(e=>e.codigo));
+  const nuevos=out.filter(o=>!existentes.has(o.codigo)).length;
+
+  S.impFilas=out;
+  $('#imp-go').disabled=!out.length;
+  $('#imp-res').innerHTML=`
+    <div class="sum">
+      <div><span>Registros leídos</span><b>${out.length}</b></div>
+      <div><span>Altas nuevas</span><b>${nuevos}</b></div>
+      <div><span>Actualizaciones</span><b>${out.length-nuevos}</b></div>
+      <div><span>Sin CLABE</span><b>${sinClabe}</b></div>
+      <div><span>CLABE inválida</span><b>${clabeMala}</b></div>
+    </div>
+    ${sinCodigo?`<div class="note" style="margin-top:14px"><b>${sinCodigo} filas ignoradas</b>No traían código de dispersión. El código es la llave con la que el sistema identifica a cada persona.</div>`:''}
+    ${clabeMala?`<div class="note" style="margin-top:14px"><b>${clabeMala} CLABEs con formato inválido</b>Se importan sin cuenta y quedan marcadas como "Falta CLABE". Suelen ser las que traen espacios en el Excel.</div>`:''}
+    ${repetidas.length?`<div class="note" style="margin-top:14px;background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16"><b>${repetidas.length} CLABEs repetidas</b>${repetidas.map(([c,v])=>`····${c.slice(-4)}: ${esc(v.join(' / '))}`).join('<br>')}<br>Puede ser una persona con dos códigos o dos cuentas legítimas. Revísalo antes de dispersar.</div>`:''}
+    <div class="prev"><table><thead><tr><th>Cód.</th><th>Nombre</th><th>Banco</th><th>CLABE</th><th>Acción</th></tr></thead><tbody>
+      ${out.map(o=>`<tr>
+        <td class="mono">${o.codigo}</td><td>${esc(o.nombre)}</td><td>${esc(o.banco)}</td>
+        <td class="mono" style="font-size:12px">${o.clabe?esc(o.clabe):`<span class="p p-bad">${esc(o.clabeCruda)||'vacía'}</span>`}</td>
+        <td><span class="p ${existentes.has(o.codigo)?'p-gray':'p-ok'}">${existentes.has(o.codigo)?'actualiza':'alta'}</span></td>
+      </tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+$('#imp-go').onclick=async()=>{
+  if(!S.impFilas.length) return;
+  $('#imp-go').disabled=true; $('#imp-go').textContent='Importando…';
+  const centro=S.centros[0]?.id||null;
+  const existentes={}; S.empleados.forEach(e=>{ if(e.codigo!=null) existentes[e.codigo]=e.id; });
+  let altas=0, upd=0, err=0;
+
+  for(const o of S.impFilas){
+    let id=existentes[o.codigo];
+    if(id){
+      const {error}=await sb.from('empleados').update({nombre_completo:o.nombre,actualizado_en:new Date().toISOString()}).eq('id',id);
+      if(error){err++;continue;} upd++;
+    }else{
+      const {data,error}=await sb.from('empleados').insert({codigo:o.codigo,nombre_completo:o.nombre,centro_id:centro,estatus:'activo'}).select('id').single();
+      if(error){err++;continue;}
+      id=data.id; altas++;
+      await sb.from('movimientos_personal').insert({empleado_id:id,tipo:'alta',fecha_efectiva:new Date().toISOString().slice(0,10),motivo:'Importación desde archivo de dispersión',registrado_por:S.perfil.id});
+    }
+    if(o.clabe){
+      const bid=S.bancos.find(b=>b.nombre===o.banco)?.id||null;
+      await sb.from('empleados_bancarios').upsert({empleado_id:id,banco_id:bid,banco_texto:o.banco||null,clabe:o.clabe,actualizado_en:new Date().toISOString()},{onConflict:'empleado_id'});
+    }
+  }
+  $('#imp-go').disabled=false; $('#imp-go').textContent='Importar';
+  cerrar('ov-imp');
+  toast(`${altas} altas, ${upd} actualizaciones${err?', '+err+' con error':''}.`, err?'bad':'ok');
+  await cargarEmpleados(); pintarPlantilla();
+};
+
+/* ============================================================
+   EXPORTAR (con fórmulas vivas)
+   ============================================================ */
+function exportarPlantilla(){
+  const rows=filtrar();
+  const enc=['Código','Nombre completo','Puesto','Centro','Ingreso','Estatus','Esquema'];
+  if(S.direccion) enc.push('Sueldo quincenal','Banco','CLABE');
+  const aoa=[enc];
+  rows.forEach(e=>{
+    const r=[e.codigo??'',e.nombre_completo,e.puestos?.nombre||'',e.centros?.nombre||'',e.fecha_ingreso||'',e.estatus,e.esquema_pago];
+    if(S.direccion) r.push(Number(e.sueldo_quincenal||0), e._banco?.banco_texto||'', e._banco?.clabe||'');
+    aoa.push(r);
+  });
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=enc.map((h,i)=>({wch:i===1?34:(i===9?22:15)}));
+  const n=rows.length, ult=n+1;
+
+  // Hoja resumen con fórmulas vivas contra la hoja Plantilla
+  const res=[
+    ['RESUMEN DE PLANTILLA',null],
+    ['Generado', new Date().toLocaleString('es-MX')],
+    [null,null],
+    ['Total de registros',null],
+    ['Activos',null],
+    ['Bajas',null],
+    ['En incidencia',null],
+    [null,null],
+    ['Sueldo quincenal total',null],
+    ['Sueldo quincenal promedio',null],
+    ['Proyección mensual',null],
+    [null,null],
+    ['Sin CLABE registrada',null]
+  ];
+  const wr=XLSX.utils.aoa_to_sheet(res);
+  wr['!cols']=[{wch:30},{wch:20}];
+  const F=(cel,f,fmt)=>{ wr[cel]={t:'n',f:f}; if(fmt) wr[cel].z=fmt; };
+  F('B4',`COUNTA(Plantilla!B2:B${ult})`);
+  F('B5',`COUNTIF(Plantilla!F2:F${ult},"activo")`);
+  F('B6',`COUNTIF(Plantilla!F2:F${ult},"baja")`);
+  F('B7',`B4-B5-B6`);
+  if(S.direccion){
+    F('B9',`SUMIF(Plantilla!F2:F${ult},"activo",Plantilla!H2:H${ult})`,'"$"#,##0.00');
+    F('B10',`IFERROR(B9/B5,0)`,'"$"#,##0.00');
+    F('B11',`B9*2`,'"$"#,##0.00');
+    F('B13',`COUNTBLANK(Plantilla!J2:J${ult})`);
+  }
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,wr,'Resumen');
+  XLSX.utils.book_append_sheet(wb,ws,'Plantilla');
+  XLSX.writeFile(wb,`plantilla_cdmx_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast('Archivo descargado.','ok');
+}
+
+/* ============================================================
+   ARRANQUE
+   ============================================================ */
+(async()=>{
+  if(SUPABASE_URL.includes('PEGA_AQUI')){
+    $('#li-err').textContent='Falta configurar SUPABASE_URL y SUPABASE_ANON_KEY en el archivo.';
+    $('#li-err').style.display='block'; return;
+  }
+  const {data:{session}}=await sb.auth.getSession();
+  if(session) await iniciar();
+})();
+</script>
+</body>
+</html>
