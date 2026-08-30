@@ -281,6 +281,69 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
   </div>
 </div>
 
+<div class="ov" id="ov-cobro">
+  <div class="md">
+    <div class="md-h"><b id="co-tit">Cobro a ExpertCell</b><button data-close="ov-cobro">&times;</button></div>
+    <div class="md-b">
+      <div class="grid">
+        <div class="f"><label for="co-tipo">Tipo</label><select id="co-tipo">
+          <option value="semanal">Semanal (anticipo 50%)</option>
+          <option value="mensual">Mensual (remanente)</option>
+          <option value="ajuste">Ajuste</option><option value="otro">Otro</option></select></div>
+        <div class="f"><label for="co-per">Periodo</label><input id="co-per" class="mono" placeholder="2026-08-S34"></div>
+        <div class="f full"><label for="co-desc">Descripción</label><input id="co-desc" placeholder="Comisiones ATT / SEM 34 anticipo"></div>
+        <div class="f"><label for="co-farch">Fecha del archivo</label><input id="co-farch" type="date"><small>Cuando llegó el correo</small></div>
+        <div class="f"><label for="co-march">Monto del archivo</label><input id="co-march" type="number" step="0.01" class="mono"><small>Total con IVA</small></div>
+        <div class="f"><label for="co-fesp">Pago esperado</label><input id="co-fesp" type="date"><small>Se calcula solo si lo dejas vacío</small></div>
+        <div class="f"><label for="co-est">Estatus</label><select id="co-est">
+          <option value="archivo_recibido">Archivo recibido</option>
+          <option value="facturado">Facturado</option>
+          <option value="pagado">Pagado</option>
+          <option value="parcial">Pago parcial</option>
+          <option value="cancelado">Cancelado</option></select></div>
+      </div>
+      <div style="margin:20px 0 10px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-2);border-top:1px solid var(--line);padding-top:16px">Factura</div>
+      <div class="grid">
+        <div class="f"><label for="co-ffol">Folio</label><input id="co-ffol" class="mono"></div>
+        <div class="f"><label for="co-ffec">Fecha</label><input id="co-ffec" type="date"></div>
+        <div class="f full"><label for="co-fuuid">Folio fiscal (UUID)</label><input id="co-fuuid" class="mono" style="font-size:12px"></div>
+        <div class="f full"><label for="co-file">Respaldo (PDF o XML)</label><input id="co-file" type="file" accept=".pdf,.xml"><small id="co-file-msg"></small></div>
+      </div>
+      <div style="margin:20px 0 10px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-2);border-top:1px solid var(--line);padding-top:16px">Pago recibido</div>
+      <div class="grid">
+        <div class="f"><label for="co-freal">Fecha en que cayó</label><input id="co-freal" type="date"></div>
+        <div class="f"><label for="co-mrec">Monto bruto recibido</label><input id="co-mrec" type="number" step="0.01" class="mono"></div>
+        <div class="f"><label for="co-ret">Retención de almacén (%)</label><input id="co-ret" type="number" step="0.001" class="mono" value="6"></div>
+        <div class="f"><label>Neto a la cuenta</label><input id="co-neto" class="mono" disabled></div>
+      </div>
+      <div class="note" style="margin-top:16px"><b>Al guardar como pagado</b>Se registran solos el ingreso bruto, el gasto por la retención y el movimiento de banco por el neto. Esto no se puede deshacer desde aquí.</div>
+    </div>
+    <div class="md-f">
+      <button class="btn" data-close="ov-cobro">Cancelar</button>
+      <button class="btn btn-p" id="co-save">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="ov-carga">
+  <div class="md" style="max-width:880px">
+    <div class="md-h"><b>Cargar archivo de pago de ExpertCell</b><button data-close="ov-carga">&times;</button></div>
+    <div class="md-b">
+      <div class="note"><b>Qué hace</b>Lee el reporte tal como lo manda ExpertCell, crea el registro del cobro y guarda cada venta con su folio, teléfono, comisión y estatus. Las que vengan sin validar en CIS quedan en seguimiento.</div>
+      <div class="drop" id="drop-pago">
+        <b>Suelta el archivo aquí o haz clic para elegirlo</b>
+        <span>El .xlsx que llega por correo</span>
+        <input type="file" id="file-pago" accept=".xlsx,.xls" hidden>
+      </div>
+      <div id="carga-res"></div>
+    </div>
+    <div class="md-f">
+      <button class="btn" data-close="ov-carga">Cancelar</button>
+      <button class="btn btn-p" id="carga-go" disabled>Cargar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -311,8 +374,8 @@ const MODULOS = [
   {id:'auditoria',  n:'04', t:'Auditoría de ventas',  bloque:5, desc:'El corazón del control: cruza tu reporte interno contra Global y contra los dos archivos de pago de ExpertCell, el semanal del 50% y el mensual del remanente.', pts:['Cruce por folio y por teléfono, con asignación manual para lo que no empate','Detección de duplicados en el interno','Clasificación: pagada sin comisionar, comisionada sin pagar, solo interno, solo Global','Control del remanente mensual pendiente de cobro']},
   {id:'accesos',    n:'06', t:'Accesos a plataformas',bloque:10,desc:'Padrón de usuarios de AT&T, Bonsaif, Odoo, iVentas y el CRM de leads. Sin contraseñas: solo quién tiene qué y desde cuándo.', pts:['Alta y baja ligada al movimiento de personal','Alerta de accesos activos de gente que ya causó baja','Costo mensual por plataforma','Historial de solicitudes']},
   {id:'gastos',     n:'07', t:'Gastos',               bloque:7, desc:'Registro de egresos clasificados en fijos, semifijos y variables, con generación automática de los recurrentes.', pts:['Catálogo de categorías y proveedores','Gastos recurrentes que se proponen solos cada periodo','Pendiente de pago contra pagado','Comparativo mes a mes por categoría']},
-  {id:'ingresos',   n:'08', t:'Ingresos',             bloque:7, desc:'Entradas por comisión semanal, remanente mensual y otros conceptos, ligadas al periodo que las originó.', pts:['Captura manual y carga desde los archivos de pago','Amarre con la auditoría de ventas','Detección de remanentes que no llegaron']},
-  {id:'balance',    n:'09', t:'Balance financiero',   bloque:7, desc:'Ingresos contra egresos, saldo acumulado y sanidad de la cuenta. Aquí migra el histórico de 247 movimientos que ya traes en Excel desde diciembre de 2024.', pts:['Saldo corrido con la misma lógica de tu hoja Histórico','Resultado por mes y por categoría','Cobertura: cuántas quincenas aguanta el saldo actual','Alerta cuando el egreso proyectado supera el saldo']},
+  {id:'ingresos',   n:'08', t:'Ingresos y cobros',    lista:true},
+  {id:'balance',    n:'09', t:'Balance financiero',   lista:true},
   {id:'dispersion', n:'10', t:'Dispersión de pagos',  bloque:8, desc:'Arma el archivo que subes al banco, con el mismo layout que hoy ya te acepta, tomando montos de nómina y comisiones.', pts:['Layout idéntico: código, nombre, banco, CLABE, fecha, total','Validación de CLABE antes de exportar','Autorización previa a la dispersión','Historial de lo dispersado con estatus por registro']},
   {id:'tickets',    n:'11', t:'Buzón de tickets',     bloque:9, desc:'Pendientes entre el Call Center y la dirección, con folio, responsable y cierre obligatorio.', pts:['Folio automático y prioridad','Conversación por ticket','No se cierra sin resolución escrita','Tablero de abiertos por antigüedad']}
 ];
@@ -390,7 +453,8 @@ function irA(id){
   vistaActual=id;
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
   const m=MODULOS.find(x=>x.id===id);
-  if(m.lista) vistaPlantilla(); else vistaSoon(m);
+  const R={plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance};
+  if(m.lista && R[id]) R[id](); else vistaSoon(m);
   window.scrollTo(0,0);
 }
 function vistaSoon(m){
@@ -874,6 +938,386 @@ function exportarPlantilla(){
   XLSX.utils.book_append_sheet(wb,ws,'Plantilla');
   XLSX.writeFile(wb,`plantilla_cdmx_${new Date().toISOString().slice(0,10)}.xlsx`);
   toast('Archivo descargado.','ok');
+}
+
+/* ============================================================
+   MÓDULO 08 — INGRESOS Y COBROS A EXPERTCELL
+   ============================================================ */
+const EST_COBRO={archivo_recibido:['p-gray','Archivo recibido'],facturado:['p-warn','Facturado'],
+  pagado:['p-ok','Pagado'],parcial:['p-teal','Pago parcial'],cancelado:['p-bad','Cancelado']};
+
+async function vistaIngresos(){
+  $('#main').innerHTML='<div class="empty">Cargando cobros…</div>';
+  const [co,rem,sv,sal]=await Promise.all([
+    sb.from('cobros_expertcell').select('*').order('fecha_archivo',{ascending:false}).limit(200),
+    sb.from('v_remanente_pendiente').select('por_cobrar').limit(20000),
+    sb.from('v_sin_validar').select('*').order('dias_desde_venta',{ascending:false}).limit(500),
+    sb.from('v_saldo_cuenta').select('*').limit(5)
+  ]);
+  if(co.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(co.error.message)}</div>`; return; }
+  S.cobros=co.data||[];
+  const remTotal=(rem.data||[]).reduce((a,b)=>a+Number(b.por_cobrar||0),0);
+  const remN=(rem.data||[]).length;
+  const sinval=sv.data||[];
+  const criticos=sinval.filter(x=>x.alerta==='critico').length;
+  const mes=new Date().toISOString().slice(0,7);
+  const pagadosMes=S.cobros.filter(c=>c.estatus==='pagado'&&(c.fecha_pago_real||'').startsWith(mes));
+  const netoMes=pagadosMes.reduce((a,b)=>a+Number(b.monto_neto||0),0);
+  const retMes=pagadosMes.reduce((a,b)=>a+Number(b.retencion_almacen||0),0);
+  const porCobrar=S.cobros.filter(c=>['archivo_recibido','facturado','parcial'].includes(c.estatus))
+    .reduce((a,b)=>a+(Number(b.monto_archivo||0)-Number(b.monto_recibido||0)),0);
+  const disp=(sal.data||[])[0];
+
+  $('#main').innerHTML=`
+  <div class="head">
+    <div><h1>Ingresos y cobros</h1><p>Ciclo completo: archivo recibido, factura emitida, pago cobrado</p></div>
+    <div class="acts">
+      <button class="btn" id="b-carga">Cargar archivo de pago</button>
+      <button class="btn btn-p" id="b-cobro">Registrar cobro</button>
+    </div>
+  </div>
+  <div class="kpis">
+    <div class="kpi t"><span>Neto cobrado este mes</span><b>${money(netoMes)}</b><small>${pagadosMes.length} pagos recibidos</small></div>
+    <div class="kpi ${porCobrar>0?'w':''}"><span>Por cobrar</span><b>${money(porCobrar)}</b><small>archivos facturados sin pago</small></div>
+    <div class="kpi ${remTotal>0?'c':''}"><span>Remanente pendiente</span><b>${money(remTotal)}</b><small>${remN} folios con 50% sin liquidar</small></div>
+    <div class="kpi ${criticos?'b':''}"><span>Sin validar en CIS</span><b>${sinval.length}</b><small>${criticos} con más de 45 días</small></div>
+    <div class="kpi"><span>Retención de almacén</span><b>${money(retMes)}</b><small>6% del mes en curso</small></div>
+    ${disp?`<div class="kpi"><span>Disponible en cuenta</span><b>${money(disp.disponible)}</b><small>real ${money(disp.saldo_real)}</small></div>`:''}
+  </div>
+
+  <div class="tw" style="margin-bottom:20px"><table>
+    <thead><tr><th>Periodo</th><th>Tipo</th><th>Archivo</th><th style="text-align:right">Monto archivo</th>
+      <th>Factura</th><th>Pago esperado</th><th>Pago real</th>
+      <th style="text-align:right">Recibido</th><th style="text-align:right">Retención</th>
+      <th style="text-align:right">Neto</th><th>Estatus</th><th></th></tr></thead>
+    <tbody id="tb-co"></tbody>
+  </table></div>
+
+  <div class="head" style="margin-bottom:12px"><div>
+    <h1 style="font-size:17px">Ventas sin validar en CIS</h1>
+    <p>Ventas hechas que ExpertCell todavía no paga. Se recorren de un archivo al siguiente.</p></div></div>
+  <div class="tw"><table>
+    <thead><tr><th>Folio</th><th>Cliente</th><th>Teléfono</th><th style="text-align:right">Renta</th>
+      <th>Facturación</th><th style="text-align:right">Días</th><th style="text-align:right">Veces recorrida</th><th>Alerta</th></tr></thead>
+    <tbody>${sinval.length?sinval.map(v=>`<tr>
+      <td class="mono" style="font-size:12.5px">${esc(v.folio_contrato)}</td>
+      <td class="nm">${esc(v.cliente||'—')}</td>
+      <td class="mono" style="font-size:12.5px">${esc(v.dn||'—')}</td>
+      <td class="num">${v.renta_total?money(v.renta_total):'—'}</td>
+      <td class="mono" style="font-size:12.5px">${fecha(v.fecha_facturacion)}</td>
+      <td class="num">${v.dias_desde_venta??'—'}</td>
+      <td class="num">${v.veces_sin_validar??0}</td>
+      <td><span class="p ${v.alerta==='critico'?'p-bad':v.alerta==='atencion'?'p-warn':'p-gray'}">${esc(v.alerta)}</span></td>
+    </tr>`).join(''):'<tr><td colspan="8"><div class="empty"><b>Nada atorado</b>Todas las ventas cargadas están validadas.</div></td></tr>'}
+    </tbody></table></div>`;
+
+  $('#tb-co').innerHTML=S.cobros.length?S.cobros.map(c=>{
+    const [cls,txt]=EST_COBRO[c.estatus]||['p-gray',c.estatus];
+    const dif=Number(c.diferencia_archivo||0);
+    const vencido=['archivo_recibido','facturado'].includes(c.estatus)&&c.fecha_pago_esperada&&c.fecha_pago_esperada<new Date().toISOString().slice(0,10);
+    return `<tr>
+      <td class="mono nm" style="font-size:12.5px">${esc(c.periodo_clave)}</td>
+      <td>${esc(c.tipo)}</td>
+      <td class="mono" style="font-size:12.5px">${fecha(c.fecha_archivo)}</td>
+      <td class="num">${money(c.monto_archivo)}</td>
+      <td class="mono" style="font-size:12.5px">${c.factura_folio?esc(c.factura_folio):'<span style="color:var(--txt-3)">—</span>'}</td>
+      <td class="mono" style="font-size:12.5px${vencido?';color:var(--bad);font-weight:600':''}">${fecha(c.fecha_pago_esperada)}</td>
+      <td class="mono" style="font-size:12.5px">${fecha(c.fecha_pago_real)}</td>
+      <td class="num">${c.monto_recibido?money(c.monto_recibido):'—'}</td>
+      <td class="num" style="color:var(--copper)">${c.retencion_almacen?money(c.retencion_almacen):'—'}</td>
+      <td class="num nm">${c.monto_neto?money(c.monto_neto):'—'}</td>
+      <td><span class="p ${cls}">${esc(txt)}</span>${Math.abs(dif)>1&&c.estatus==='pagado'?`<br><span class="p p-warn" style="margin-top:3px">dif ${money(dif)}</span>`:''}</td>
+      <td style="text-align:right"><button class="btn btn-sm" data-co="${c.id}">Abrir</button></td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="12"><div class="empty"><b>Sin cobros registrados</b>Carga el archivo de pago que te mandó ExpertCell para empezar.</div></td></tr>';
+
+  document.querySelectorAll('[data-co]').forEach(b=>b.onclick=()=>abrirCobro(Number(b.dataset.co)));
+  $('#b-cobro').onclick=()=>abrirCobro(null);
+  $('#b-carga').onclick=()=>{ S.cargaPrev=null; $('#carga-res').innerHTML=''; $('#carga-go').disabled=true; $('#ov-carga').classList.add('on'); };
+}
+
+function calcNeto(){
+  const m=Number($('#co-mrec').value||0), r=Number($('#co-ret').value||0);
+  $('#co-neto').value = m ? money(m - Math.round(m*r)/100 ) : '';
+  if(m){ const ret=Math.round(m*r)/100; $('#co-neto').value=money(m-ret); }
+}
+['co-mrec','co-ret'].forEach(id=>{ const el=$('#'+id); if(el) el.oninput=calcNeto; });
+
+function abrirCobro(id){
+  const c = id ? S.cobros.find(x=>x.id===id) : null;
+  S.cobroActual=c;
+  $('#co-tit').textContent = c ? `Cobro ${c.periodo_clave}` : 'Nuevo cobro';
+  $('#co-tipo').value=c?.tipo??'semanal'; $('#co-per').value=c?.periodo_clave??'';
+  $('#co-desc').value=c?.descripcion??''; $('#co-farch').value=c?.fecha_archivo??'';
+  $('#co-march').value=c?.monto_archivo??''; $('#co-fesp').value=c?.fecha_pago_esperada??'';
+  $('#co-est').value=c?.estatus??'archivo_recibido';
+  $('#co-ffol').value=c?.factura_folio??''; $('#co-ffec').value=c?.factura_fecha??'';
+  $('#co-fuuid').value=c?.factura_uuid??''; $('#co-file').value='';
+  $('#co-file-msg').textContent = c?.factura_url ? 'Ya hay un respaldo guardado. Subir otro lo reemplaza.' : '';
+  $('#co-freal').value=c?.fecha_pago_real??''; $('#co-mrec').value=c?.monto_recibido??'';
+  $('#co-ret').value=c?.retencion_pct??6;
+  calcNeto();
+  $('#co-save').disabled = c?.estatus==='pagado';
+  $('#co-save').textContent = c?.estatus==='pagado' ? 'Cobro cerrado' : 'Guardar';
+  $('#ov-cobro').classList.add('on');
+}
+
+$('#co-save').onclick=async()=>{
+  const per=$('#co-per').value.trim();
+  if(!per){ toast('El periodo es obligatorio.','bad'); return; }
+  const est=$('#co-est').value;
+  if(est==='pagado' && !$('#co-mrec').value){ toast('Para marcar como pagado necesitas el monto recibido.','bad'); return; }
+  if(est==='pagado' && !$('#co-freal').value){ toast('Para marcar como pagado necesitas la fecha en que cayó.','bad'); return; }
+
+  $('#co-save').disabled=true; $('#co-save').textContent='Guardando…';
+  const p={
+    tipo:$('#co-tipo').value, periodo_clave:per,
+    descripcion:$('#co-desc').value.trim()||null,
+    fecha_archivo:$('#co-farch').value||null,
+    monto_archivo:Number($('#co-march').value||0),
+    fecha_pago_esperada:$('#co-fesp').value||null,
+    factura_folio:$('#co-ffol').value.trim()||null,
+    factura_fecha:$('#co-ffec').value||null,
+    factura_uuid:$('#co-fuuid').value.trim()||null,
+    fecha_pago_real:$('#co-freal').value||null,
+    monto_recibido:$('#co-mrec').value?Number($('#co-mrec').value):null,
+    retencion_pct:Number($('#co-ret').value||6),
+    registrado_por:S.perfil.id
+  };
+  let id=S.cobroActual?.id;
+  if(id){
+    const {error}=await sb.from('cobros_expertcell').update({...p,estatus:est}).eq('id',id);
+    if(error){ $('#co-save').disabled=false; $('#co-save').textContent='Guardar'; toast('No se guardó: '+error.message,'bad'); return; }
+  }else{
+    const {data,error}=await sb.from('cobros_expertcell').insert({...p,estatus:est}).select().single();
+    if(error){ $('#co-save').disabled=false; $('#co-save').textContent='Guardar'; toast('No se guardó: '+error.message,'bad'); return; }
+    id=data.id;
+  }
+  const f=$('#co-file').files[0];
+  if(f){
+    const ruta=`${per}/${Date.now()}_${f.name.replace(/[^\w.\-]/g,'_')}`;
+    const {error}=await sb.storage.from('facturas').upload(ruta,f,{upsert:true});
+    if(error) toast('El cobro se guardó, pero el respaldo no subió: '+error.message,'bad');
+    else await sb.from('cobros_expertcell').update({factura_url:ruta}).eq('id',id);
+  }
+  $('#co-save').disabled=false; $('#co-save').textContent='Guardar';
+  cerrar('ov-cobro');
+  toast(est==='pagado'?'Cobro registrado. Ingreso y movimiento de banco generados.':'Cobro guardado.','ok');
+  vistaIngresos();
+};
+
+/* ---------- Lector del archivo de pago ---------- */
+$('#drop-pago').onclick=()=>$('#file-pago').click();
+$('#drop-pago').ondragover=e=>{e.preventDefault();$('#drop-pago').classList.add('over');};
+$('#drop-pago').ondragleave=()=>$('#drop-pago').classList.remove('over');
+$('#drop-pago').ondrop=e=>{e.preventDefault();$('#drop-pago').classList.remove('over');if(e.dataTransfer.files[0])leerPago(e.dataTransfer.files[0]);};
+$('#file-pago').onchange=e=>{ if(e.target.files[0]) leerPago(e.target.files[0]); };
+
+function leerPago(f){
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array',cellDates:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const filas=XLSX.utils.sheet_to_json(ws,{defval:null});
+      procesarPago(filas,f.name);
+    }catch(err){ toast('No pudimos leer el archivo: '+err.message,'bad'); }
+  };
+  r.readAsArrayBuffer(f);
+}
+
+const K=(row,claves)=>{
+  const norm=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  for(const k of Object.keys(row)){ const n=norm(k); if(claves.some(c=>n===c||n.includes(c))) return row[k]; }
+  return null;
+};
+const fechaISO=v=>{
+  if(!v) return null;
+  if(v instanceof Date) return new Date(v.getTime()-v.getTimezoneOffset()*60000).toISOString().slice(0,10);
+  const d=new Date(v); return isNaN(d)?null:d.toISOString().slice(0,10);
+};
+
+function procesarPago(filas,nombre){
+  const ventas=[];
+  filas.forEach(row=>{
+    const folio=K(row,['FOLIODELCONTRATO','FOLIOCONTRATO']);
+    if(!folio) return;
+    const est=String(K(row,['PAGADO'])||'').trim().toUpperCase();
+    ventas.push({
+      folio_contrato:String(folio).trim(),
+      contrato_coid:K(row,['CONTRATOCOID','COID'])?String(K(row,['CONTRATOCOID','COID'])).trim():null,
+      ejecutivo_archivo:K(row,['EJECUTIVO']),
+      cliente:K(row,['CLIENTE']),
+      equipo:K(row,['EQUIPO']),
+      plan:K(row,['PLANATT']),
+      renta_total:Number(K(row,['RENTATOTAL'])||0)||null,
+      renta_sin_impuestos:Number(K(row,['RENTASINIMPUESTOS'])||0)||null,
+      plazo_forzoso:Number(K(row,['PLAZOFORZOSO'])||0)||null,
+      fecha_facturacion:fechaISO(K(row,['FECHADEFACTURACION'])),
+      evento:K(row,['EVENTO']),
+      sistema_venta:K(row,['SISTEMADEVENTA']),
+      dn:K(row,['DN'])?String(K(row,['DN'])).trim():null,
+      imei:K(row,['MEIDIMEID','IMEI'])?String(K(row,['MEIDIMEID','IMEI'])).trim():null,
+      origen_equipo:K(row,['ORIGENDEEQUIPO']),
+      estatus_pago:est||null,
+      semana:est.startsWith('SEM')?est:null,
+      comision_preliminar:Number(K(row,['COMISIONPRELIMINAR'])||0)||null,
+      anticipo_semanal:Number(K(row,['ANTSEMANAL','ANTICIPOSEMANAL'])||0)||null,
+      pct_anticipo:Number(K(row,['ANTICIPOPCT','PORCENTAJEANTICIPO','ANTICIPO'])||0)||null
+    });
+  });
+
+  if(!ventas.length){ $('#carga-res').innerHTML='<div class="note" style="background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16"><b>No encontramos ventas</b>El archivo no trae la columna FOLIODELCONTRATO. Revisa que sea el reporte de pago de ExpertCell.</div>'; return; }
+
+  const sinval=ventas.filter(v=>(v.estatus_pago||'').includes('SIN VALIDAR'));
+  const pagadas=ventas.filter(v=>!(v.estatus_pago||'').includes('SIN VALIDAR')&&(v.anticipo_semanal||0)>0);
+  const subtotal=pagadas.reduce((a,b)=>a+Number(b.anticipo_semanal||0),0);
+  const total=Math.round(subtotal*1.16*100)/100;
+  const comisionTotal=pagadas.reduce((a,b)=>a+Number(b.comision_preliminar||0),0);
+  const remanente=Math.round((comisionTotal-subtotal)*100)/100;
+  const semDetect=(ventas.find(v=>v.semana)?.semana||'').replace(/\s+/g,'');
+  const fechas=ventas.map(v=>v.fecha_facturacion).filter(Boolean).sort();
+  const anio=(fechas[0]||new Date().toISOString()).slice(0,4);
+  const mesDet=(fechas[fechas.length-1]||new Date().toISOString()).slice(0,7);
+  const esMensual=/mensual|remanente|liquidacion/i.test(nombre);
+  const perSug = esMensual ? mesDet : (semDetect?`${anio}-${semDetect.replace('SEM','S')}`:mesDet);
+
+  S.cargaPrev={ventas,subtotal,total,esMensual};
+  $('#carga-go').disabled=false;
+  $('#carga-res').innerHTML=`
+    <div class="sum">
+      <div><span>Ventas en el archivo</span><b>${ventas.length}</b></div>
+      <div><span>Pagadas</span><b>${pagadas.length}</b></div>
+      <div><span>Sin validar</span><b>${sinval.length}</b></div>
+      <div><span>Subtotal</span><b style="font-size:15px">${money(subtotal)}</b></div>
+      <div><span>Total con IVA</span><b style="font-size:15px">${money(total)}</b></div>
+      <div><span>Neto tras 6%</span><b style="font-size:15px">${money(total*0.94)}</b></div>
+    </div>
+    ${remanente>1?`<div class="note" style="margin-top:14px"><b>Remanente por cobrar: ${money(remanente)}</b>Es el 50% de estas mismas ventas que debe llegar en el pago mensual. El sistema lo va a rastrear folio por folio.</div>`:''}
+    <div class="grid" style="margin-top:16px">
+      <div class="f"><label for="cg-tipo">Tipo de archivo</label><select id="cg-tipo">
+        <option value="semanal">Semanal (anticipo)</option><option value="mensual">Mensual (remanente)</option></select></div>
+      <div class="f"><label for="cg-per">Periodo</label><input id="cg-per" class="mono" value="${esc(perSug)}"></div>
+      <div class="f"><label for="cg-farch">Fecha del archivo</label><input id="cg-farch" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="f"><label for="cg-desc">Descripción</label><input id="cg-desc" value="Comisiones ATT ${esc(semDetect||mesDet)}"></div>
+    </div>
+    <div class="prev" style="margin-top:14px"><table><thead><tr><th>Folio</th><th>Cliente</th><th>Teléfono</th><th>Plan</th>
+      <th style="text-align:right">Comisión</th><th style="text-align:right">Anticipo</th><th>Estatus</th></tr></thead><tbody>
+      ${ventas.map(v=>`<tr><td class="mono" style="font-size:12px">${esc(v.folio_contrato)}</td>
+        <td>${esc(v.cliente||'')}</td><td class="mono" style="font-size:12px">${esc(v.dn||'')}</td>
+        <td style="font-size:12px">${esc(v.plan||'')}</td>
+        <td class="num">${v.comision_preliminar?money(v.comision_preliminar):'—'}</td>
+        <td class="num">${v.anticipo_semanal?money(v.anticipo_semanal):'—'}</td>
+        <td><span class="p ${(v.estatus_pago||'').includes('SIN VALIDAR')?'p-warn':'p-ok'}" style="font-size:10px">${esc(v.estatus_pago||'—')}</span></td></tr>`).join('')}
+    </tbody></table></div>`;
+  $('#cg-tipo').value = esMensual?'mensual':'semanal';
+}
+
+$('#carga-go').onclick=async()=>{
+  const P=S.cargaPrev; if(!P) return;
+  const tipo=$('#cg-tipo').value, per=$('#cg-per').value.trim();
+  if(!per){ toast('Escribe el periodo.','bad'); return; }
+  $('#carga-go').disabled=true; $('#carga-go').textContent='Cargando…';
+
+  // 1. Cabecera del cobro
+  let cobroId;
+  const {data:ex}=await sb.from('cobros_expertcell').select('id').eq('periodo_clave',per).eq('tipo',tipo).maybeSingle();
+  if(ex){ cobroId=ex.id; }
+  else{
+    const {data,error}=await sb.from('cobros_expertcell').insert({
+      tipo, periodo_clave:per, descripcion:$('#cg-desc').value.trim()||null,
+      fecha_archivo:$('#cg-farch').value||null, monto_archivo:P.total,
+      estatus:'archivo_recibido', registrado_por:S.perfil.id
+    }).select().single();
+    if(error){ $('#carga-go').disabled=false; $('#carga-go').textContent='Cargar'; toast('No se creó el cobro: '+error.message,'bad'); return; }
+    cobroId=data.id;
+  }
+
+  // 2. Ventas que ya existan en este mismo archivo no se repiten
+  const {data:yaHay}=await sb.from('pagos_att').select('folio_contrato')
+    .eq('tipo_archivo',tipo).eq('periodo_clave',per).limit(20000);
+  const set=new Set((yaHay||[]).map(x=>x.folio_contrato));
+  const nuevas=P.ventas.filter(v=>!set.has(v.folio_contrato));
+
+  let ins=0, err=0;
+  for(let i=0;i<nuevas.length;i+=150){
+    const lote=nuevas.slice(i,i+150).map(v=>({
+      ...v, cobro_id:cobroId, tipo_archivo:tipo, periodo_clave:per,
+      folio:v.folio_contrato, telefono:v.dn,
+      fecha_pago:$('#cg-farch').value||null,
+      monto_pagado: (v.estatus_pago||'').includes('SIN VALIDAR') ? 0
+                    : Number((tipo==='semanal'? v.anticipo_semanal : (v.comision_preliminar||0)-(v.anticipo_semanal||0))||0)
+    }));
+    const {error}=await sb.from('pagos_att').insert(lote);
+    if(error){ err+=lote.length; console.error(error); } else ins+=lote.length;
+  }
+
+  $('#carga-go').disabled=false; $('#carga-go').textContent='Cargar';
+  cerrar('ov-carga');
+  toast(`${ins} ventas cargadas${set.size?', '+set.size+' ya estaban':''}${err?', '+err+' con error':''}.`, err?'bad':'ok');
+  vistaIngresos();
+};
+
+/* ============================================================
+   MÓDULO 09 — BALANCE FINANCIERO
+   ============================================================ */
+async function vistaBalance(){
+  $('#main').innerHTML='<div class="empty">Calculando saldo…</div>';
+  const [sal,bal,mov]=await Promise.all([
+    sb.from('v_saldo_cuenta').select('*'),
+    sb.from('v_balance_mensual').select('*').order('mes',{ascending:false}).limit(18),
+    sb.from('movimientos_cuenta').select('*').order('fecha',{ascending:false}).order('id',{ascending:false}).limit(150)
+  ]);
+  if(sal.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(sal.error.message)}</div>`; return; }
+  const c=(sal.data||[])[0]||{saldo_real:0,comprometido:0,disponible:0,saldo_inicial:0};
+  const meses=(bal.data||[]);
+  const movs=(mov.data||[]);
+  const ult3=meses.slice(0,3);
+  const egresoProm=ult3.length?ult3.reduce((a,b)=>a+Number(b.egresos||0),0)/ult3.length:0;
+  const cobertura=egresoProm>0?(Number(c.disponible)/egresoProm):null;
+  const maxAbs=Math.max(1,...meses.map(m=>Math.max(Number(m.ingresos||0),Number(m.egresos||0))));
+
+  $('#main').innerHTML=`
+  <div class="head"><div><h1>Balance financiero</h1><p>Salud de la cuenta operativa: qué entra, qué sale y qué queda libre</p></div></div>
+  <div class="kpis">
+    <div class="kpi t"><span>Saldo real</span><b>${money(c.saldo_real)}</b><small>lo que dice el banco</small></div>
+    <div class="kpi ${Number(c.comprometido)>0?'w':''}"><span>Comprometido</span><b>${money(c.comprometido)}</b><small>dispersiones autorizadas sin ejecutar</small></div>
+    <div class="kpi ${Number(c.disponible)<0?'b':'c'}"><span>Disponible</span><b>${money(c.disponible)}</b><small>contra esto se puede dispersar</small></div>
+    <div class="kpi"><span>Egreso mensual promedio</span><b style="font-size:20px">${money(egresoProm)}</b><small>últimos ${ult3.length} meses</small></div>
+    <div class="kpi ${cobertura!==null&&cobertura<1?'b':''}"><span>Cobertura</span><b>${cobertura===null?'—':cobertura.toFixed(1)}</b><small>meses que aguanta el disponible</small></div>
+  </div>
+
+  ${Number(c.disponible)<0?'<div class="note" style="background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16"><b>Disponible en negativo</b>Lo comprometido supera al saldo real. No dispersar hasta que entre un cobro.</div>':''}
+
+  <div class="head" style="margin:22px 0 12px"><div><h1 style="font-size:17px">Resultado por mes</h1></div></div>
+  <div class="tw" style="margin-bottom:22px"><table>
+    <thead><tr><th>Mes</th><th style="text-align:right">Ingresos</th><th style="text-align:right">Egresos</th>
+      <th style="text-align:right">Resultado</th><th style="width:34%">Proporción</th></tr></thead>
+    <tbody>${meses.length?meses.map(m=>{
+      const i=Number(m.ingresos||0), e=Number(m.egresos||0), r=Number(m.resultado||0);
+      return `<tr>
+        <td class="mono nm">${esc(m.mes)}</td>
+        <td class="num" style="color:var(--ok)">${money(i)}</td>
+        <td class="num" style="color:var(--bad)">${money(e)}</td>
+        <td class="num nm" style="color:${r>=0?'var(--ok)':'var(--bad)'}">${money(r)}</td>
+        <td><div style="display:flex;flex-direction:column;gap:3px">
+          <div style="height:7px;background:var(--ok);width:${(i/maxAbs*100).toFixed(1)}%;border-radius:2px;min-width:2px"></div>
+          <div style="height:7px;background:var(--bad);width:${(e/maxAbs*100).toFixed(1)}%;border-radius:2px;min-width:2px"></div>
+        </div></td></tr>`;
+    }).join(''):'<tr><td colspan="5"><div class="empty"><b>Sin movimientos</b>El balance se llena solo conforme registres cobros y dispersiones.</div></td></tr>'}
+    </tbody></table></div>
+
+  <div class="head" style="margin-bottom:12px"><div><h1 style="font-size:17px">Últimos movimientos</h1>
+    <p>Libro de banco: cada renglón salió de un cobro cobrado o de una dispersión ejecutada</p></div></div>
+  <div class="tw"><table>
+    <thead><tr><th>Fecha</th><th>Concepto</th><th>Origen</th><th style="text-align:right">Monto</th></tr></thead>
+    <tbody>${movs.length?movs.map(m=>`<tr>
+      <td class="mono" style="font-size:12.5px">${fecha(m.fecha)}</td>
+      <td>${esc(m.concepto||'—')}</td>
+      <td><span class="p p-gray">${esc(m.origen||'—')}</span></td>
+      <td class="num nm" style="color:${Number(m.monto)>=0?'var(--ok)':'var(--bad)'}">${money(m.monto)}</td>
+    </tr>`).join(''):'<tr><td colspan="4"><div class="empty"><b>Sin movimientos</b>Todavía no hay entradas ni salidas registradas.</div></td></tr>'}
+    </tbody></table></div>`;
 }
 
 /* ============================================================
