@@ -333,6 +333,7 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
         <div class="f"><label for="co-mrec">Monto bruto recibido</label><input id="co-mrec" type="number" step="0.01" class="mono"></div>
         <div class="f"><label for="co-ret">Retención de almacén (%)</label><input id="co-ret" type="number" step="0.001" class="mono" value="6"></div>
         <div class="f"><label>Neto a la cuenta</label><input id="co-neto" class="mono" disabled></div>
+        <div class="f full"><label for="co-ref">Clave de rastreo o referencia</label><input id="co-ref" class="mono" style="font-size:12px" placeholder="La que trae el comprobante del banco"></div>
         <div class="f full"><label for="co-comp">Comprobante de la transferencia</label>
           <input id="co-comp" type="file" accept=".pdf,.png,.jpg,.jpeg">
           <small id="co-comp-msg"></small></div>
@@ -384,7 +385,7 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
       <div class="note"><b>Qué hace</b>Lee el reporte tal como lo manda ExpertCell, crea el registro del cobro y guarda cada venta con su folio, teléfono, comisión y estatus. Las que vengan sin validar en CIS quedan en seguimiento.</div>
       <div class="drop" id="drop-pago">
         <b>Suelta el archivo aquí o haz clic para elegirlo</b>
-        <span>El .xlsx que llega por correo</span>
+        <span>El .xlsx que llega por correo, semanal o mensual</span>
         <input type="file" id="file-pago" accept=".xlsx,.xls" hidden>
       </div>
       <div id="carga-res"></div>
@@ -1138,18 +1139,41 @@ function abrirCobro(id){
   $('#co-freal').value=c?.fecha_pago_real??''; $('#co-mrec').value=c?.monto_recibido??'';
   $('#co-ret').value=c?.retencion_pct??6;
   $('#co-comp').value=''; $('#co-comp-msg').textContent = c?.comprobante_url ? 'Ya hay un comprobante guardado. Subir otro lo reemplaza.' : '';
+  $('#co-ref').value=c?.comprobante_banco??'';
   pintarArchivos(c);
   $('#co-hint').className='hint';
   calcNeto();
   $('#co-est').value=c?.estatus??'archivo_recibido';
-  $('#co-save').disabled = c?.estatus==='pagado';
-  $('#co-save').textContent = c?.estatus==='pagado' ? 'Cobro cerrado' : 'Guardar';
+  const cerrado = c?.estatus==='pagado';
+  ['co-tipo','co-per','co-farch','co-march','co-fesp','co-est','co-freal','co-mrec','co-ret']
+    .forEach(id=>{ const el=$('#'+id); if(el) el.disabled=cerrado; });
+  $('#co-save').disabled=false;
+  $('#co-save').textContent = cerrado ? 'Actualizar respaldos' : 'Guardar';
+  if(cerrado){
+    $('#co-hint').className='hint on';
+    $('#co-hint').innerHTML='<b>Cobro cerrado.</b> Los montos y fechas ya no se pueden cambiar porque el movimiento de banco ya está registrado. Sí puedes agregar o reemplazar la factura, el comprobante y la clave de rastreo.';
+  }
   $('#co-est').onchange=()=>{ $('#co-hint').className='hint';
     $('#co-save').textContent = $('#co-est').value==='pagado' ? 'Guardar y registrar el pago' : 'Guardar'; };
   $('#ov-cobro').classList.add('on');
 }
 
 $('#co-save').onclick=async()=>{
+  const cerrado = S.cobroActual?.estatus==='pagado';
+  if(cerrado){
+    const id=S.cobroActual.id, per=S.cobroActual.periodo_clave;
+    $('#co-save').disabled=true; $('#co-save').textContent='Guardando…';
+    const {error}=await sb.from('cobros_expertcell').update({
+      factura_folio:$('#co-ffol').value.trim()||null,
+      factura_fecha:$('#co-ffec').value||null,
+      factura_uuid:$('#co-fuuid').value.trim()||null,
+      comprobante_banco:$('#co-ref').value.trim()||null
+    }).eq('id',id);
+    if(error) toast('No se guardó: '+error.message,'bad');
+    await subirRespaldos(id,per);
+    $('#co-save').disabled=false; $('#co-save').textContent='Actualizar respaldos';
+    cerrar('ov-cobro'); toast('Respaldos actualizados.','ok'); vistaIngresos(); return;
+  }
   const per=$('#co-per').value.trim();
   if(!per){ toast('El periodo es obligatorio.','bad'); return; }
   const est=$('#co-est').value;
@@ -1172,6 +1196,7 @@ $('#co-save').onclick=async()=>{
     fecha_pago_real:$('#co-freal').value||null,
     monto_recibido:$('#co-mrec').value?Number($('#co-mrec').value):null,
     retencion_pct:Number($('#co-ret').value||6),
+    comprobante_banco:$('#co-ref').value.trim()||null,
     registrado_por:S.perfil.id
   };
   let id=S.cobroActual?.id;
@@ -1183,18 +1208,24 @@ $('#co-save').onclick=async()=>{
     if(error){ $('#co-save').disabled=false; $('#co-save').textContent='Guardar'; toast('No se guardó: '+error.message,'bad'); return; }
     id=data.id;
   }
-  for(const [inp,campo,etiqueta] of [['#co-file','factura_url','la factura'],['#co-comp','comprobante_url','el comprobante']]){
-    const f=$(inp).files[0]; if(!f) continue;
-    const ruta=`${per}/${campo==='factura_url'?'factura':'comprobante'}_${Date.now()}_${f.name.replace(/[^\w.\-]/g,'_')}`;
-    const {error}=await sb.storage.from('facturas').upload(ruta,f,{upsert:true});
-    if(error) toast(`El cobro se guardó, pero ${etiqueta} no subió: `+error.message,'bad');
-    else await sb.from('cobros_expertcell').update({[campo]:ruta}).eq('id',id);
-  }
+  await subirRespaldos(id,per);
   $('#co-save').disabled=false; $('#co-save').textContent='Guardar';
   cerrar('ov-cobro');
   toast(est==='pagado'?'Cobro registrado. Ingreso y movimiento de banco generados.':'Cobro guardado.','ok');
   vistaIngresos();
 };
+
+async function subirRespaldos(id,per){
+  for(const [inp,campo,etiqueta] of [['#co-file','factura_url','la factura'],['#co-comp','comprobante_url','el comprobante']]){
+    const f=$(inp).files[0]; if(!f) continue;
+    const limpio=f.name.replace(/[^\w.\-]/g,'_');
+    const ruta=`${(per||'sin_periodo').replace(/[^\w.\-]/g,'_')}/${campo==='factura_url'?'factura':'comprobante'}_${Date.now()}_${limpio}`;
+    const {error}=await sb.storage.from('facturas').upload(ruta,f,{upsert:true});
+    if(error){ toast(`No se pudo subir ${etiqueta}: `+error.message,'bad'); continue; }
+    const {error:e2}=await sb.from('cobros_expertcell').update({[campo]:ruta}).eq('id',id);
+    if(e2) toast(`Se subió ${etiqueta} pero no se enlazó: `+e2.message,'bad');
+  }
+}
 
 async function pintarArchivos(c){
   const box=$('#co-archivos');
@@ -1281,11 +1312,208 @@ function leerPago(f){
     try{
       const wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array',cellDates:true});
       const ws=wb.Sheets[wb.SheetNames[0]];
-      const filas=XLSX.utils.sheet_to_json(ws,{defval:null});
-      procesarPago(filas,f.name);
+      const aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,blankrows:true});
+      const plano=aoa.flat().map(x=>String(x||'').toUpperCase());
+      const esMensual = plano.some(t=>t.includes('BASE COMISION')) || plano.some(t=>t==='ANTICIPOS')
+                     || plano.some(t=>t.includes('TOTAL A FACTURAR'));
+      if(esMensual) procesarMensual(aoa,f.name);
+      else procesarPago(XLSX.utils.sheet_to_json(ws,{defval:null}),f.name);
     }catch(err){ toast('No pudimos leer el archivo: '+err.message,'bad'); }
   };
   r.readAsArrayBuffer(f);
+}
+
+/* ---------- Lector del archivo MENSUAL (remanentes) ---------- */
+const nrm=v=>String(v==null?'':v).toUpperCase().replace(/[^A-Z0-9]/g,'');
+function numero(v){ const n=Number(v); return isNaN(n)?null:n; }
+
+function procesarMensual(aoa,nombre){
+  // 1. Fila de encabezados del detalle de ventas
+  let hi=-1;
+  for(let i=0;i<Math.min(aoa.length,40);i++){
+    if((aoa[i]||[]).some(c=>nrm(c)==='FOLIODELCONTRATO')){ hi=i; break; }
+  }
+  if(hi<0){ $('#carga-res').innerHTML='<div class="note" style="background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16"><b>No reconocimos el archivo</b>No encontramos la columna FOLIO DEL CONTRATO.</div>'; return; }
+
+  const col={}; (aoa[hi]||[]).forEach((c,j)=>{ const n=nrm(c); if(n && !(n in col)) col[n]=j; });
+  const g=(row,...claves)=>{ for(const k of claves){ const j=col[k]; if(j!==undefined && row[j]!=null && row[j]!=='') return row[j]; } return null; };
+
+  // 2. Detalle de ventas: hasta que aparezca el bloque de anticipos o el de chargeback
+  const ventas=[]; let fin=aoa.length;
+  for(let i=hi+1;i<aoa.length;i++){
+    const row=aoa[i]||[];
+    const txt=row.map(c=>String(c||'').toUpperCase()).join('|');
+    if(txt.includes('ANTICIPOS')||txt.includes('DETALLE CHARGEBACK')||txt.includes('SUBTOTAL')){ fin=i; break; }
+    const folio=g(row,'FOLIODELCONTRATO');
+    if(!folio) continue;
+    const marcaCruda=g(row,'BONOADICPLANES400500600','MARCA');
+    const marca = (marcaCruda!=null && isNaN(Number(marcaCruda))) ? String(marcaCruda).toUpperCase().trim() : null;
+    ventas.push({
+      folio_contrato:String(folio).trim(),
+      contrato_coid:g(row,'CONTRATOCOID')?String(g(row,'CONTRATOCOID')).trim():null,
+      cliente:g(row,'CLIENTE'), equipo:g(row,'EQUIPO'), plan:g(row,'PLANATT'),
+      renta_total:numero(g(row,'RENTATOTAL')),
+      renta_sin_impuestos:numero(g(row,'RENTASINIMPUESTOS')),
+      plazo_forzoso:numero(g(row,'PLAZO','PLAZOFORZOSO')),
+      fecha_facturacion:fechaISO(g(row,'FECHADEFACTURACION')),
+      evento:g(row,'EVENTO'), sistema_venta:g(row,'SISTEMADEVENTA'),
+      dn:g(row,'DN')?String(g(row,'DN')).trim():null,
+      imei:g(row,'MEIDIMEID')?String(g(row,'MEIDIMEID')).trim():null,
+      origen_equipo:g(row,'ORIGENDEEQUIPO'),
+      comentario_edo_cta:g(row,'COMENTARIOAEDODECTA'),
+      renta_legado:numero(g(row,'RENTALEGADO')),
+      base_comision:numero(g(row,'BASECOMISION')),
+      addon:numero(g(row,'ADDON'))||0, seguro:numero(g(row,'SEGURO'))||0,
+      bono_cuota:numero(g(row,'BONOADICLOGROCUOTA'))||0,
+      total_a_pagar:numero(g(row,'TOTALAPAGAR')),
+      marca
+    });
+  }
+
+  // 3. Etiquetas sueltas: anticipos, descuentos y cascada
+  const buscaEtiqueta=(...claves)=>{
+    for(let i=fin;i<aoa.length;i++){
+      const row=aoa[i]||[];
+      for(let j=0;j<row.length;j++){
+        const n=nrm(row[j]);
+        if(n && claves.some(k=>n===k||n.startsWith(k))){
+          for(let k=j+1;k<row.length;k++){ const v=numero(row[k]); if(v!==null && row[k]!=='') return v; }
+        }
+      }
+    }
+    return null;
+  };
+  const anticipos=[];
+  for(let i=fin;i<aoa.length;i++){
+    const row=aoa[i]||[];
+    for(let j=0;j<row.length;j++){
+      if(/^SEM\s*\d+/i.test(String(row[j]||''))){
+        for(let k=j+1;k<row.length;k++){ const v=numero(row[k]); if(v!==null){ anticipos.push({sem:String(row[j]).trim(),monto:v}); break; } }
+      }
+    }
+  }
+  const desc=[
+    {tipo:'dhl',         concepto:'Guías DHL',              monto:Math.abs(buscaEtiqueta('DESCGUIASDHL','DESCGUIAS')||0)},
+    {tipo:'covex',       concepto:'Excedentes COVEX',       monto:Math.abs(buscaEtiqueta('DESCEXCEDENTESCOVEX','DESCEXCEDENTES')||0)},
+    {tipo:'fulfillment', concepto:'Fulfillment (morado)',   monto:Math.abs(buscaEtiqueta('DESCFULFILLMENT')||0)}
+  ].filter(d=>d.monto>0);
+
+  const cas={
+    subtotal:  buscaEtiqueta('SUBTOTAL'),
+    anticipo:  Math.abs(buscaEtiqueta('ANTICIPO')||0),
+    chargeback:Math.abs(buscaEtiqueta('DESCUENTOCHARGEBACK')||0),
+    vencidos:  Math.abs(buscaEtiqueta('DESCUENTOEQUIPOSVENCIDOS')||0),
+    expedientes:Math.abs(buscaEtiqueta('DESCUENTOEXPEDIENTESPENALIZADOS')||0),
+    remanente: buscaEtiqueta('REMANENTE'),
+    iva:       buscaEtiqueta('IVA'),
+    total:     buscaEtiqueta('TOTALAFACTURAR')
+  };
+
+  // 4. Tabla de chargebacks
+  const cbs=[]; let ci=-1;
+  for(let i=fin;i<aoa.length;i++){
+    const row=aoa[i]||[];
+    if(nrm(row[0])==='CUENTA' && row.some(c=>nrm(c).includes('RAZONMOVIMIENTO'))){ ci=i; break; }
+  }
+  if(ci>=0){
+    const cc={}; (aoa[ci]||[]).forEach((c,j)=>{ const n=nrm(c); if(n && !(n in cc)) cc[n]=j; });
+    const gc=(row,...claves)=>{ for(const k of claves){ const j=cc[k]; if(j!==undefined && row[j]!=null && row[j]!=='') return row[j]; } return null; };
+    for(let i=ci+1;i<aoa.length;i++){
+      const row=aoa[i]||[]; if(!row[0]) continue;
+      const imp=numero(gc(row,'IMPORTECOMISIONADESCONTAR'));
+      if(imp===null) continue;
+      cbs.push({
+        cuenta:String(row[0]).trim(),
+        contrato_coid:gc(row,'CONTRATOCOID')?String(gc(row,'CONTRATOCOID')).trim():null,
+        cliente:gc(row,'NOMBREDELCLIENTE'),
+        plan:gc(row,'PLANNOMBREPLAN'),
+        telefono:gc(row,'TELEFONO')?String(gc(row,'TELEFONO')).trim():null,
+        propiedad_equipo:gc(row,'PROPIEDADEQUIPO'),
+        fecha_activacion:fechaISO(gc(row,'FECHADEACTIVACION')),
+        razon_movimiento:gc(row,'RAZONMOVIMIENTO'),
+        dias_activo:numero(gc(row,'DIASALTABAJA')),
+        porcentaje:numero(gc(row,'PORCENTAJE')),
+        tipo_baja:(String(gc(row,'TIPOBAJA')||'').toUpperCase().trim()||null),
+        penalizacion_equipo:Math.abs(numero(gc(row,'PENALIZACIONDEEQUIPOPORCANCELACIONINVOLUNTARIA'))||0),
+        importe_comision:Math.abs(imp),
+        total_descontado:Math.abs(numero(gc(row,'COMISIONADESCONTARMASPENALILZACIONEQUIPO','COMISIONADESCONTARMASPENALIZACIONEQUIPO'))||imp)
+      });
+    }
+  }
+
+  // 5. Verificación contra nuestro propio cálculo
+  const F=3.8;
+  const bruto=ventas.reduce((a,b)=>a+Number(b.total_a_pagar||0),0);
+  const descTotal=desc.reduce((a,b)=>a+b.monto,0);
+  const antTotal=anticipos.reduce((a,b)=>a+b.monto,0);
+  const cbTotal=cbs.reduce((a,b)=>a+b.total_descontado,0);
+  const subCalc=bruto-descTotal;
+  const remCalc=subCalc-(cas.anticipo||antTotal)-(cbTotal||cas.chargeback||0)-cas.vencidos-cas.expedientes;
+  const ivaCalc=Math.round(remCalc*0.16*100)/100;
+  const totCalc=Math.round((remCalc+ivaCalc)*100)/100;
+
+  let malFactor=0;
+  ventas.forEach(v=>{
+    if(v.renta_sin_impuestos==null||v.base_comision==null) return;
+    const esp = ['CANCELADO','BYOD','DESACTIVADO MISMO MES'].includes(v.marca) ? 0
+              : v.marca==='TRADEIN' ? 100
+              : Math.round(v.renta_sin_impuestos*F*100)/100;
+    if(Math.abs(v.base_comision-esp)>0.05) malFactor++;
+  });
+  const ceros=ventas.filter(v=>Number(v.total_a_pagar||0)===0).length;
+
+  const cmp=(a,b)=>{ if(a==null||b==null) return ''; const d=Math.abs(a-b);
+    return d<1 ? '<span class="p p-ok">cuadra</span>' : `<span class="p p-bad">dif ${money(a-b)}</span>`; };
+
+  const mesDet=(ventas.map(v=>v.fecha_facturacion).filter(Boolean).sort().pop()||'').slice(0,7);
+  S.cargaPrev={modo:'mensual',ventas,desc,anticipos,cbs,cas,totCalc,antTotal:cas.anticipo||antTotal};
+  $('#carga-go').disabled=false;
+
+  $('#carga-res').innerHTML=`
+    <div class="sum">
+      <div><span>Ventas</span><b>${ventas.length}</b></div>
+      <div><span>Sin comisión</span><b>${ceros}</b></div>
+      <div><span>Chargebacks</span><b>${cbs.length}</b></div>
+      <div><span>Descuentos</span><b>${desc.length}</b></div>
+      <div><span>Anticipos</span><b>${anticipos.length}</b></div>
+      <div><span>Factor distinto a 3.8</span><b style="color:${malFactor?'var(--bad)':'var(--ok)'}">${malFactor}</b></div>
+    </div>
+
+    <div style="margin:18px 0 9px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-2)">Cascada: lo que dice el archivo contra lo que calculamos</div>
+    <div class="tw"><table><thead><tr><th>Concepto</th><th style="text-align:right">Archivo</th><th style="text-align:right">Calculado</th><th>Revisión</th></tr></thead><tbody>
+      <tr><td>Comisión de ventas</td><td class="num">—</td><td class="num">${money(bruto)}</td><td></td></tr>
+      ${desc.map(d=>`<tr><td style="color:var(--txt-2)">− ${esc(d.concepto)}</td><td class="num">${money(-d.monto)}</td><td class="num">—</td><td></td></tr>`).join('')}
+      <tr style="background:#FAFBFC"><td class="nm">Subtotal</td><td class="num nm">${cas.subtotal!=null?money(cas.subtotal):'—'}</td><td class="num nm">${money(subCalc)}</td><td>${cmp(cas.subtotal,subCalc)}</td></tr>
+      <tr><td style="color:var(--txt-2)">− Anticipos ya cobrados</td><td class="num">${money(-(cas.anticipo||0))}</td><td class="num">${money(-antTotal)}</td><td>${cmp(cas.anticipo,antTotal)}</td></tr>
+      <tr><td style="color:var(--txt-2)">− Chargeback</td><td class="num">${money(-(cas.chargeback||0))}</td><td class="num">${money(-cbTotal)}</td><td>${cmp(cas.chargeback,cbTotal)}</td></tr>
+      <tr style="background:#FAFBFC"><td class="nm">Remanente</td><td class="num nm">${cas.remanente!=null?money(cas.remanente):'—'}</td><td class="num nm">${money(remCalc)}</td><td>${cmp(cas.remanente,remCalc)}</td></tr>
+      <tr><td style="color:var(--txt-2)">+ IVA 16%</td><td class="num">${cas.iva!=null?money(cas.iva):'—'}</td><td class="num">${money(ivaCalc)}</td><td>${cmp(cas.iva,ivaCalc)}</td></tr>
+      <tr style="background:var(--teal-l)"><td class="nm">Total a facturar</td><td class="num nm">${cas.total!=null?money(cas.total):'—'}</td><td class="num nm">${money(totCalc)}</td><td>${cmp(cas.total,totCalc)}</td></tr>
+      <tr><td style="color:var(--txt-2)">− 6% uso de almacén</td><td class="num">—</td><td class="num">${money(-(totCalc*0.06))}</td><td></td></tr>
+      <tr><td class="nm">Neto a la cuenta</td><td class="num">—</td><td class="num nm" style="color:var(--teal)">${money(totCalc*0.94)}</td><td></td></tr>
+    </tbody></table></div>
+
+    ${anticipos.length?`<div class="note" style="margin-top:14px"><b>Anticipos descontados</b>${anticipos.map(a=>`${esc(a.sem)}: ${money(a.monto)}`).join(' · ')}</div>`:''}
+    ${malFactor?`<div class="note" style="margin-top:14px;background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16"><b>${malFactor} ventas con comisión distinta al factor 3.8</b>Van a quedar marcadas en la auditoría para que las revises una por una.</div>`:''}
+
+    <div class="grid" style="margin-top:16px">
+      <div class="f"><label for="cg-per">Periodo</label><input id="cg-per" class="mono" value="${esc(mesDet)}"></div>
+      <div class="f"><label for="cg-farch">Fecha del archivo</label><input id="cg-farch" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="f full"><label for="cg-desc">Descripción</label><input id="cg-desc" value="Remanente ${esc(mesDet)}"></div>
+      <div class="f full"><label style="display:flex;flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px">
+        <input type="checkbox" id="cg-hist" style="width:auto"> Este cobro ya está dentro del saldo inicial de la cuenta</label>
+        <small>Márcalo para cargas históricas. Se guarda todo el detalle pero no genera movimiento de banco, así no se duplica el saldo.</small></div>
+    </div>
+    <select id="cg-tipo" style="display:none"><option value="mensual" selected>mensual</option></select>
+
+    <div class="prev" style="margin-top:14px"><table><thead><tr><th>Folio</th><th>Cliente</th><th>Plan</th>
+      <th style="text-align:right">Base</th><th style="text-align:right">Total</th><th>Marca</th></tr></thead><tbody>
+      ${ventas.slice(0,400).map(v=>`<tr><td class="mono" style="font-size:12px">${esc(v.folio_contrato)}</td>
+        <td>${esc(v.cliente||'')}</td><td style="font-size:12px">${esc(v.plan||'')}</td>
+        <td class="num">${v.base_comision!=null?money(v.base_comision):'—'}</td>
+        <td class="num">${v.total_a_pagar!=null?money(v.total_a_pagar):'—'}</td>
+        <td>${v.marca?`<span class="p ${Number(v.total_a_pagar||0)===0?'p-bad':'p-gray'}" style="font-size:10px">${esc(v.marca)}</span>`:''}</td></tr>`).join('')}
+    </tbody></table></div>`;
 }
 
 const K=(row,claves)=>{
@@ -1377,6 +1605,7 @@ function procesarPago(filas,nombre){
 
 $('#carga-go').onclick=async()=>{
   const P=S.cargaPrev; if(!P) return;
+  if(P.modo==='mensual') return cargarMensual();
   const tipo=$('#cg-tipo').value, per=$('#cg-per').value.trim();
   if(!per){ toast('Escribe el periodo.','bad'); return; }
   $('#carga-go').disabled=true; $('#carga-go').textContent='Cargando…';
@@ -1419,6 +1648,103 @@ $('#carga-go').onclick=async()=>{
   toast(`${ins} ventas cargadas${set.size?', '+set.size+' ya estaban':''}${err?', '+err+' con error':''}.`, err?'bad':'ok');
   vistaIngresos();
 };
+
+async function cargarMensual(){
+  const P=S.cargaPrev;
+  const per=$('#cg-per').value.trim();
+  if(!per){ toast('Escribe el periodo.','bad'); return; }
+  const btn=$('#carga-go'); btn.disabled=true; btn.textContent='Cargando…';
+  const fArch=$('#cg-farch').value||null;
+  const hist=$('#cg-hist').checked;
+
+  try{
+    // 1. Cabecera
+    let cobroId;
+    const {data:ex}=await sb.from('cobros_expertcell').select('id')
+      .eq('periodo_clave',per).eq('tipo','mensual').maybeSingle();
+    if(ex) cobroId=ex.id;
+    else{
+      const {data,error}=await sb.from('cobros_expertcell').insert({
+        tipo:'mensual', periodo_clave:per, descripcion:$('#cg-desc').value.trim()||null,
+        fecha_archivo:fArch, monto_archivo:P.cas.total??P.totCalc,
+        anticipos_aplicados:P.antTotal||0, afecta_saldo:!hist,
+        estatus:'archivo_recibido', registrado_por:S.perfil.id
+      }).select().single();
+      if(error) throw error;
+      cobroId=data.id;
+    }
+
+    // 2. Anticipos ya cobrados por folio, para no duplicar el remanente
+    const folios=P.ventas.map(v=>v.folio_contrato);
+    const previo={};
+    for(let i=0;i<folios.length;i+=300){
+      const {data}=await sb.from('folios_att').select('folio_contrato,anticipo_cobrado')
+        .in('folio_contrato',folios.slice(i,i+300));
+      (data||[]).forEach(f=>previo[f.folio_contrato]=Number(f.anticipo_cobrado||0));
+    }
+
+    // 3. Ventas que ya estén cargadas en este mismo corte
+    const {data:yaHay}=await sb.from('pagos_att').select('folio_contrato')
+      .eq('tipo_archivo','mensual').eq('periodo_clave',per).limit(20000);
+    const set=new Set((yaHay||[]).map(x=>x.folio_contrato));
+    const nuevas=P.ventas.filter(v=>!set.has(v.folio_contrato));
+
+    let ins=0, err=0;
+    for(let i=0;i<nuevas.length;i+=120){
+      const lote=nuevas.slice(i,i+120).map(v=>{
+        const total=Number(v.total_a_pagar||0);
+        const ant=previo[v.folio_contrato]||0;
+        return {...v, cobro_id:cobroId, tipo_archivo:'mensual', periodo_clave:per,
+          folio:v.folio_contrato, telefono:v.dn, fecha_pago:fArch,
+          comision_preliminar:total,
+          estatus_pago:v.marca||'REMANENTE',
+          monto_pagado: Math.max(0, Math.round((total-ant)*100)/100)};
+      });
+      const {error}=await sb.from('pagos_att').insert(lote);
+      if(error){ err+=lote.length; console.error(error); } else ins+=lote.length;
+    }
+
+    // 4. Descuentos del corte
+    if(P.desc.length){
+      await sb.from('descuentos_cobro').delete().eq('cobro_id',cobroId).neq('tipo','chargeback');
+      const {data:cats}=await sb.from('categorias_gasto').select('id,clave');
+      const cat=c=>(cats||[]).find(x=>x.clave===c)?.id||null;
+      const mapa={dhl:'MENSAJERIA',fulfillment:'MENSAJERIA',covex:'COVEX'};
+      await sb.from('descuentos_cobro').insert(P.desc.map(d=>({
+        cobro_id:cobroId, tipo:d.tipo, concepto:d.concepto, monto:d.monto,
+        unidades: d.tipo==='fulfillment' ? Math.round(d.monto/190) : null,
+        monto_unitario: d.tipo==='fulfillment' ? 190 : null,
+        categoria_gasto_id:cat(mapa[d.tipo])
+      })));
+    }
+
+    // 5. Chargebacks
+    let cbIns=0;
+    if(P.cbs.length){
+      const {data:yaCb}=await sb.from('chargebacks').select('contrato_coid,telefono')
+        .eq('periodo_clave',per).limit(5000);
+      const setCb=new Set((yaCb||[]).map(x=>x.contrato_coid+'|'+x.telefono));
+      const nuevos=P.cbs.filter(c=>!setCb.has(c.contrato_coid+'|'+c.telefono));
+      for(let i=0;i<nuevos.length;i+=100){
+        const {error}=await sb.from('chargebacks').insert(
+          nuevos.slice(i,i+100).map(c=>({...c, cobro_id:cobroId, periodo_clave:per})));
+        if(!error) cbIns+=Math.min(100,nuevos.length-i);
+      }
+    }
+
+    // 6. Recalcular la cascada con lo que quedó guardado
+    await sb.rpc('recalcular_cascada',{p_cobro_id:cobroId});
+
+    btn.disabled=false; btn.textContent='Cargar';
+    cerrar('ov-carga');
+    toast(`${ins} ventas, ${cbIns} chargebacks y ${P.desc.length} descuentos cargados${err?', '+err+' con error':''}.`, err?'bad':'ok');
+    vistaIngresos();
+  }catch(e){
+    btn.disabled=false; btn.textContent='Cargar';
+    toast('No se pudo cargar: '+(e.message||e),'bad');
+    console.error(e);
+  }
+}
 
 /* ============================================================
    MÓDULO 09 — BALANCE FINANCIERO
@@ -1524,6 +1850,7 @@ const AYUDA={
   'co-mrec':'El monto bruto que depositaron, antes de que AT&T descuente el uso de almacén. Normalmente es igual al total de la factura.',
   'co-ret':'El porcentaje que AT&T retiene por uso del almacén. Hoy es 6% sobre el total con IVA. Solo cámbialo si te avisan que subió.',
   'co-neto':'Lo que realmente entra a la cuenta y con lo que se puede pagar. Se calcula solo, no se escribe.',
+  'co-ref':'La clave de rastreo SPEI o el número de referencia que viene en el comprobante. Es lo que te pide el banco si hay que aclarar un depósito.',
   'co-comp':'El comprobante de la transferencia que te manda ExpertCell. Es obligatorio para marcar el cobro como pagado: si hay comprobante, el dinero ya está en la cuenta.',
   /* Carga de archivo */
   'fo-clas':'Define si la venta se sigue considerando cobrable. En gestión sigue contando en el remanente esperado; las demás opciones la sacan del cálculo cuando la das por perdida.',
