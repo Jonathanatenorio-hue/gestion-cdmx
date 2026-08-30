@@ -333,12 +333,46 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
         <div class="f"><label for="co-mrec">Monto bruto recibido</label><input id="co-mrec" type="number" step="0.01" class="mono"></div>
         <div class="f"><label for="co-ret">Retención de almacén (%)</label><input id="co-ret" type="number" step="0.001" class="mono" value="6"></div>
         <div class="f"><label>Neto a la cuenta</label><input id="co-neto" class="mono" disabled></div>
+        <div class="f full"><label for="co-comp">Comprobante de la transferencia</label>
+          <input id="co-comp" type="file" accept=".pdf,.png,.jpg,.jpeg">
+          <small id="co-comp-msg"></small></div>
       </div>
+      <div id="co-archivos" style="display:none;margin-top:14px;padding:11px 13px;background:#F7F8FA;border:1px solid var(--line);border-radius:var(--r);font-size:12.5px"></div>
       <div class="note" style="margin-top:16px"><b>Al guardar como pagado</b>Se registran solos el ingreso bruto, el gasto por la retención y el movimiento de banco por el neto. Esto no se puede deshacer desde aquí.</div>
     </div>
     <div class="md-f">
       <button class="btn" data-close="ov-cobro">Cancelar</button>
       <button class="btn btn-p" id="co-save">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="ov-folio">
+  <div class="md" style="max-width:620px">
+    <div class="md-h"><b id="fo-tit">Gestionar venta</b><button data-close="ov-folio">&times;</button></div>
+    <div class="md-b">
+      <div id="fo-info" style="background:#F7F8FA;border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:18px;font-size:13px"></div>
+      <div class="grid">
+        <div class="f full"><label for="fo-clas">Por qué no se ha pagado</label><select id="fo-clas">
+          <option value="">— elegir —</option>
+          <option value="en_gestion">En gestión, se espera que sí pague</option>
+          <option value="documentos_pendientes">Faltan documentos del expediente</option>
+          <option value="rechazada_cis">Rechazada en CIS</option>
+          <option value="cancelada_cliente">El cliente canceló</option>
+          <option value="error_captura">Error de captura</option>
+          <option value="duplicada">Venta duplicada</option>
+          <option value="fuera_de_politica">Fuera de política de pago</option>
+          <option value="otro">Otro</option></select></div>
+        <div class="f full"><label for="fo-mot">Detalle</label><textarea id="fo-mot" rows="2" placeholder="Qué te dijeron, con quién lo revisaste, qué falta"></textarea></div>
+        <div class="f full"><label for="fo-comp">Fecha de compromiso</label><input id="fo-comp" type="date"><small>Cuándo prometieron resolverlo. Opcional.</small></div>
+      </div>
+      <div class="note" id="fo-aviso" style="display:none"></div>
+      <div id="fo-hist" style="margin-top:18px"></div>
+    </div>
+    <div class="md-f">
+      <button class="btn" data-close="ov-folio">Cancelar</button>
+      <button class="btn btn-d" id="fo-desc">Dar por perdida</button>
+      <button class="btn btn-p" id="fo-save">Guardar seguimiento</button>
     </div>
   </div>
 </div>
@@ -1017,7 +1051,7 @@ async function vistaIngresos(){
     <p>Ventas hechas que ExpertCell todavía no paga. Se recorren de un archivo al siguiente.</p></div></div>
   <div class="tw"><table>
     <thead><tr><th>Folio</th><th>Cliente</th><th>Teléfono</th><th style="text-align:right">Renta</th>
-      <th>Facturación</th><th style="text-align:right">Días</th><th style="text-align:right">Veces recorrida</th><th>Alerta</th></tr></thead>
+      <th>Facturación</th><th style="text-align:right">Días</th><th style="text-align:right">Veces</th><th>Alerta</th><th>Gestión</th><th></th></tr></thead>
     <tbody>${sinval.length?sinval.map(v=>`<tr>
       <td class="mono" style="font-size:12.5px">${esc(v.folio_contrato)}</td>
       <td class="nm">${esc(v.cliente||'—')}</td>
@@ -1026,8 +1060,12 @@ async function vistaIngresos(){
       <td class="mono" style="font-size:12.5px">${fecha(v.fecha_facturacion)}</td>
       <td class="num">${v.dias_desde_venta??'—'}</td>
       <td class="num">${v.veces_sin_validar??0}</td>
-      <td><span class="p ${v.alerta==='critico'?'p-bad':v.alerta==='atencion'?'p-warn':'p-gray'}">${esc(v.alerta)}</span></td>
-    </tr>`).join(''):'<tr><td colspan="8"><div class="empty"><b>Nada atorado</b>Todas las ventas cargadas están validadas.</div></td></tr>'}
+      <td><span class="p ${v.alerta==='critico'?'p-bad':v.alerta==='atencion'?'p-warn':v.alerta==='sin_clasificar'?'p-teal':'p-gray'}">${esc((v.alerta||'').replace('_',' '))}</span></td>
+      <td style="font-size:12.5px">${v.clasificacion_no_pago
+          ? `<span class="p p-gray">${esc(v.clasificacion_no_pago.replace(/_/g,' '))}</span>${v.fecha_compromiso?`<br><span style="color:${v.fecha_compromiso<new Date().toISOString().slice(0,10)?'var(--bad)':'var(--txt-2)'};font-size:11.5px">compromiso ${fecha(v.fecha_compromiso)}</span>`:''}`
+          : '<span style="color:var(--txt-3)">sin clasificar</span>'}</td>
+      <td style="text-align:right"><button class="btn btn-sm" data-fo="${esc(v.folio_contrato)}">Gestionar</button></td>
+    </tr>`).join(''):'<tr><td colspan="10"><div class="empty"><b>Nada atorado</b>Todas las ventas cargadas están validadas.</div></td></tr>'}
     </tbody></table></div>`;
 
   $('#tb-co').innerHTML=S.cobros.length?S.cobros.map(c=>{
@@ -1050,6 +1088,8 @@ async function vistaIngresos(){
     </tr>`;
   }).join(''):'<tr><td colspan="12"><div class="empty"><b>Sin cobros registrados</b>Carga el archivo de pago que te mandó ExpertCell para empezar.</div></td></tr>';
 
+  S.sinval=sinval;
+  document.querySelectorAll('[data-fo]').forEach(b=>b.onclick=()=>abrirFolio(b.dataset.fo));
   document.querySelectorAll('[data-co]').forEach(b=>b.onclick=()=>abrirCobro(Number(b.dataset.co)));
   $('#b-cobro').onclick=()=>abrirCobro(null);
   $('#b-carga').onclick=()=>{ S.cargaPrev=null; $('#carga-res').innerHTML=''; $('#carga-go').disabled=true; $('#ov-carga').classList.add('on'); };
@@ -1068,7 +1108,9 @@ function revisarEstatusCobro(){
   if(tienePago && sel.value!=='pagado' && sel.value!=='parcial' && sel.value!=='cancelado'){
     sel.value='pagado';
     h.className='hint on';
-    h.innerHTML='<b>Estatus cambiado a Pagado.</b> Ya capturaste la fecha y el monto del depósito, así que al guardar se va a registrar el ingreso y el movimiento de banco. Si el dinero todavía no cae, borra la fecha del pago.';
+    const falta = !$('#co-comp').files[0] && !S.cobroActual?.comprobante_url;
+    h.innerHTML='<b>Estatus cambiado a Pagado.</b> Al guardar se registra el ingreso y el movimiento de banco.'
+      + (falta ? ' <b>Falta subir el comprobante de la transferencia</b>, es obligatorio para cerrar el cobro.' : '');
   }else if(!tienePago && tieneFact && sel.value==='archivo_recibido'){
     sel.value='facturado';
     h.className='hint on';
@@ -1095,6 +1137,8 @@ function abrirCobro(id){
   $('#co-file-msg').textContent = c?.factura_url ? 'Ya hay un respaldo guardado. Subir otro lo reemplaza.' : '';
   $('#co-freal').value=c?.fecha_pago_real??''; $('#co-mrec').value=c?.monto_recibido??'';
   $('#co-ret').value=c?.retencion_pct??6;
+  $('#co-comp').value=''; $('#co-comp-msg').textContent = c?.comprobante_url ? 'Ya hay un comprobante guardado. Subir otro lo reemplaza.' : '';
+  pintarArchivos(c);
   $('#co-hint').className='hint';
   calcNeto();
   $('#co-est').value=c?.estatus??'archivo_recibido';
@@ -1111,6 +1155,9 @@ $('#co-save').onclick=async()=>{
   const est=$('#co-est').value;
   if(est==='pagado' && !$('#co-mrec').value){ toast('Para marcar como pagado necesitas el monto recibido.','bad'); return; }
   if(est==='pagado' && !$('#co-freal').value){ toast('Para marcar como pagado necesitas la fecha en que cayó.','bad'); return; }
+  if(est==='pagado' && !$('#co-comp').files[0] && !S.cobroActual?.comprobante_url){
+    toast('Falta el comprobante de la transferencia. Sin él no se marca como pagado.','bad');
+    $('#co-comp').focus(); return; }
 
   $('#co-save').disabled=true; $('#co-save').textContent='Guardando…';
   const p={
@@ -1136,18 +1183,90 @@ $('#co-save').onclick=async()=>{
     if(error){ $('#co-save').disabled=false; $('#co-save').textContent='Guardar'; toast('No se guardó: '+error.message,'bad'); return; }
     id=data.id;
   }
-  const f=$('#co-file').files[0];
-  if(f){
-    const ruta=`${per}/${Date.now()}_${f.name.replace(/[^\w.\-]/g,'_')}`;
+  for(const [inp,campo,etiqueta] of [['#co-file','factura_url','la factura'],['#co-comp','comprobante_url','el comprobante']]){
+    const f=$(inp).files[0]; if(!f) continue;
+    const ruta=`${per}/${campo==='factura_url'?'factura':'comprobante'}_${Date.now()}_${f.name.replace(/[^\w.\-]/g,'_')}`;
     const {error}=await sb.storage.from('facturas').upload(ruta,f,{upsert:true});
-    if(error) toast('El cobro se guardó, pero el respaldo no subió: '+error.message,'bad');
-    else await sb.from('cobros_expertcell').update({factura_url:ruta}).eq('id',id);
+    if(error) toast(`El cobro se guardó, pero ${etiqueta} no subió: `+error.message,'bad');
+    else await sb.from('cobros_expertcell').update({[campo]:ruta}).eq('id',id);
   }
   $('#co-save').disabled=false; $('#co-save').textContent='Guardar';
   cerrar('ov-cobro');
   toast(est==='pagado'?'Cobro registrado. Ingreso y movimiento de banco generados.':'Cobro guardado.','ok');
   vistaIngresos();
 };
+
+async function pintarArchivos(c){
+  const box=$('#co-archivos');
+  if(!c || (!c.factura_url && !c.comprobante_url)){ box.style.display='none'; box.innerHTML=''; return; }
+  box.style.display='';
+  box.innerHTML='<b style="display:block;margin-bottom:7px">Respaldos guardados</b><span style="color:var(--txt-2)">Abriendo…</span>';
+  const links=[];
+  for(const [campo,etq] of [['factura_url','Factura'],['comprobante_url','Comprobante de transferencia']]){
+    if(!c[campo]) continue;
+    const {data}=await sb.storage.from('facturas').createSignedUrl(c[campo],3600);
+    if(data?.signedUrl) links.push(`<a href="${data.signedUrl}" target="_blank" rel="noopener" style="color:var(--teal);text-decoration:underline;display:block;margin-bottom:4px">${etq}</a>`);
+  }
+  box.innerHTML='<b style="display:block;margin-bottom:7px">Respaldos guardados</b>'
+    + (links.length?links.join(''):'<span style="color:var(--txt-2)">No se pudieron abrir los archivos.</span>');
+}
+
+/* ---------- Gestión de ventas sin validar ---------- */
+async function abrirFolio(folio){
+  const v=(S.sinval||[]).find(x=>x.folio_contrato===folio); if(!v) return;
+  S.folioActual=v;
+  $('#fo-tit').textContent='Venta '+folio;
+  $('#fo-info').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 18px">
+      <div><span style="color:var(--txt-2)">Cliente</span><br><b>${esc(v.cliente||'—')}</b></div>
+      <div><span style="color:var(--txt-2)">Teléfono</span><br><span class="mono">${esc(v.dn||'—')}</span></div>
+      <div><span style="color:var(--txt-2)">Plan</span><br>${esc(v.plan||'—')}</div>
+      <div><span style="color:var(--txt-2)">Comisión en juego</span><br><b style="color:var(--copper)">${v.comision_total?money(v.comision_total):'por definir'}</b></div>
+      <div><span style="color:var(--txt-2)">Facturada</span><br>${fecha(v.fecha_facturacion)} · ${v.dias_desde_venta} días</div>
+      <div><span style="color:var(--txt-2)">Veces recorrida</span><br>${v.veces_sin_validar??0}</div>
+    </div>`;
+  $('#fo-clas').value=v.clasificacion_no_pago||'';
+  $('#fo-mot').value=v.motivo_no_pago||'';
+  $('#fo-comp').value=v.fecha_compromiso||'';
+  const av=$('#fo-aviso');
+  if(v.reactivado){ av.style.display=''; av.innerHTML='<b>Esta venta ya se había dado por perdida</b>Después llegó con pago, así que se reactivó sola. Vale la pena revisar por qué se descartó antes de tiempo.'; }
+  else av.style.display='none';
+  $('#fo-hist').innerHTML='<div style="color:var(--txt-2);font-size:13px">Cargando historial…</div>';
+  $('#ov-folio').classList.add('on');
+
+  const {data}=await sb.from('folio_seguimiento').select('*')
+    .eq('folio_contrato',folio).order('creado_en',{ascending:false}).limit(30);
+  $('#fo-hist').innerHTML = (data&&data.length)
+    ? `<div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-2);margin-bottom:9px">Historial</div>`
+      + data.map(h=>`<div style="border-left:2px solid var(--line);padding:0 0 10px 11px;font-size:12.5px">
+          <b>${esc(h.accion)}</b> <span style="color:var(--txt-3)" class="mono">${new Date(h.creado_en).toLocaleString('es-MX')}</span>
+          ${h.detalle?`<br><span style="color:var(--txt-2)">${esc(h.detalle)}</span>`:''}</div>`).join('')
+    : '<div style="color:var(--txt-3);font-size:12.5px">Sin movimientos registrados todavía.</div>';
+}
+
+async function guardarFolio(descartar){
+  const v=S.folioActual; if(!v) return;
+  const clas=$('#fo-clas').value;
+  if(!clas){ toast('Elige por qué no se ha pagado.','bad'); return; }
+  if(descartar && !$('#fo-mot').value.trim()){ toast('Para dar por perdida una venta hay que escribir el detalle.','bad'); return; }
+  if(descartar && !confirm(`Dar por perdida la venta ${v.folio_contrato}?\n\nSale de la lista de sin validar y deja de contar en el remanente por cobrar. Si después llega el pago, el sistema la reactiva solo.`)) return;
+
+  const btn = descartar ? $('#fo-desc') : $('#fo-save');
+  btn.disabled=true; const txt=btn.textContent; btn.textContent='Guardando…';
+  const {error}=await sb.rpc('gestionar_folio',{
+    p_folio:v.folio_contrato, p_clasificacion:clas,
+    p_motivo:$('#fo-mot').value.trim()||null,
+    p_compromiso:$('#fo-comp').value||null,
+    p_descartar:!!descartar
+  });
+  btn.disabled=false; btn.textContent=txt;
+  if(error){ toast('No se guardó: '+error.message,'bad'); return; }
+  cerrar('ov-folio');
+  toast(descartar?'Venta dada por perdida.':'Seguimiento guardado.','ok');
+  vistaIngresos();
+}
+$('#fo-save').onclick=()=>guardarFolio(false);
+$('#fo-desc').onclick=()=>guardarFolio(true);
 
 /* ---------- Lector del archivo de pago ---------- */
 $('#drop-pago').onclick=()=>$('#file-pago').click();
@@ -1405,7 +1524,11 @@ const AYUDA={
   'co-mrec':'El monto bruto que depositaron, antes de que AT&T descuente el uso de almacén. Normalmente es igual al total de la factura.',
   'co-ret':'El porcentaje que AT&T retiene por uso del almacén. Hoy es 6% sobre el total con IVA. Solo cámbialo si te avisan que subió.',
   'co-neto':'Lo que realmente entra a la cuenta y con lo que se puede pagar. Se calcula solo, no se escribe.',
+  'co-comp':'El comprobante de la transferencia que te manda ExpertCell. Es obligatorio para marcar el cobro como pagado: si hay comprobante, el dinero ya está en la cuenta.',
   /* Carga de archivo */
+  'fo-clas':'Define si la venta se sigue considerando cobrable. En gestión sigue contando en el remanente esperado; las demás opciones la sacan del cálculo cuando la das por perdida.',
+  'fo-mot':'Escribe lo que sepas: con quién lo revisaste, qué te contestaron, qué documento falta. Es lo que va a leer quien retome el caso.',
+  'fo-comp':'Si te dieron una fecha para resolverlo, ponla. El sistema te va a mostrar las que ya se pasaron.',
   'cg-tipo':'Semanal si es el reporte de los miércoles con el anticipo. Mensual si es el archivo de remanentes.',
   'cg-per':'El sistema lo propone leyendo el archivo. Revísalo antes de cargar, porque con esto se evita cargar dos veces el mismo corte.',
   'cg-farch':'El día que llegó el correo con este archivo.',
