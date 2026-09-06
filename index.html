@@ -162,6 +162,29 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
 #toast.on{opacity:1;transform:translateX(-50%)}
 #toast.bad{background:var(--bad)} #toast.ok{background:var(--ok)}
 
+/* ---------- Guía ---------- */
+.guia{max-width:820px}
+.gcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;box-shadow:var(--sh);overflow:hidden}
+.gcard>button{width:100%;display:flex;align-items:center;gap:12px;padding:15px 18px;background:none;border:none;cursor:pointer;text-align:left}
+.gcard>button:hover{background:#FAFBFC}
+.gcard .gn{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;color:#fff;background:var(--teal);
+  width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
+.gcard .gt{flex:1}
+.gcard .gt b{display:block;font-size:15px;font-weight:600}
+.gcard .gt span{color:var(--txt-2);font-size:12.5px}
+.gcard .gx{color:var(--txt-3);font-size:18px;transition:transform .15s}
+.gcard.on .gx{transform:rotate(45deg)}
+.gbody{display:none;padding:0 18px 18px 56px;border-top:1px solid var(--line-2)}
+.gcard.on .gbody{display:block}
+.gbody ol{margin:14px 0 0 18px;display:flex;flex-direction:column;gap:11px}
+.gbody li{line-height:1.55}
+.gbody p{margin-top:13px;line-height:1.6;color:var(--txt-2)}
+.gbody .tip{background:var(--teal-l);border-left:3px solid var(--teal);padding:11px 13px;margin-top:14px;font-size:13px;line-height:1.55;border-radius:0 var(--r) var(--r) 0}
+.gbody .warn{background:var(--warn-l);border-left:3px solid var(--warn);padding:11px 13px;margin-top:14px;font-size:13px;line-height:1.55;border-radius:0 var(--r) var(--r) 0}
+.gbody code{background:#F0F2F5;padding:1px 6px;border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:12.5px}
+.gcal{display:grid;grid-template-columns:88px 1fr;gap:10px 14px;margin-top:14px;font-size:13.5px}
+.gcal b{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--teal);letter-spacing:.04em;padding-top:1px}
+
 /* ---------- Construcción ---------- */
 .soonbox{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:34px;box-shadow:var(--sh);max-width:660px}
 .soonbox .n{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--teal);letter-spacing:.1em;font-weight:600}
@@ -449,6 +472,7 @@ const S = {
 };
 
 const MODULOS = [
+  {id:'guia',       n:'00', t:'Cómo se usa',          lista:true},
   {id:'plantilla',  n:'05', t:'Plantilla',            lista:true},
   {id:'asistencia', n:'01', t:'Asistencia',           bloque:3, desc:'Carga los dos exportes del checador (AT&T y NEZA), cruza los marcajes contra las reglas de horario y califica cada día como asistencia, retardo, falta o descanso. Ajustes manuales quedan firmados con usuario y motivo.', pts:['Lector de los archivos del biométrico con control de duplicados','Reglas por puesto: ejecutivos 10:05 / 10:15, supervisión 10:00 / 10:10, facturación 8:00 / 8:10','Sin checada de salida se marca falta, con opción de justificar','Tablero por quincena y detalle por persona']},
   {id:'nomina',     n:'02', t:'Nómina',               bloque:4, desc:'Calcula la quincena a partir de la asistencia ya calificada, aplica percepciones y deducciones, y cierra el periodo para que no se pueda tocar después de pagado.', pts:['Periodos del 6 al 20 y del 21 al 5','Descuento automático por faltas y retardos','Conceptos manuales: préstamos, equipo, bonos','Cierre de periodo con bitácora de quién cerró']},
@@ -519,8 +543,9 @@ async function iniciar(){
   $('#u-rol').textContent=perfil.rol;
   pintarNav();
   pintarAyudas();
+  S.inicio='guia';
   await cargarCatalogos();
-  irA('plantilla');
+  irA(S.inicio||'plantilla');
 }
 
 /* ============================================================
@@ -536,7 +561,7 @@ function irA(id){
   vistaActual=id;
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
   const m=MODULOS.find(x=>x.id===id);
-  const R={plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos};
+  const R={guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos};
   if(m.lista && R[id]) R[id](); else vistaSoon(m);
   window.scrollTo(0,0);
 }
@@ -1874,6 +1899,125 @@ async function cargarMensual(){
     toast('No se pudo cargar: '+(e.message||e),'bad');
     console.error(e);
   }
+}
+
+/* ============================================================
+   MÓDULO 00 — CÓMO SE USA
+   ============================================================ */
+const GUIA=[
+{t:'El calendario de la semana',d:'Qué pasa cada día y qué hay que capturar',
+ h:`<div class="gcal">
+      <b>MIÉRCOLES</b><div>Llega por correo el archivo de pago de la semana. Se carga al sistema y queda en <b>Archivo recibido</b>.</div>
+      <b>ESE MISMO DÍA</b><div>Se emite la factura. Se capturan folio, fecha y folio fiscal, y se sube el PDF. Pasa a <b>Facturado</b>.</div>
+      <b>MARTES</b><div>Cae el depósito. Se captura la fecha y el monto, se sube el comprobante de la transferencia y pasa a <b>Pagado</b>.</div>
+      <b>DEL 20 AL 25</b><div>Llega el archivo mensual con el remanente del mes anterior. Mismo proceso, pero el archivo trae además los descuentos y los chargebacks.</div>
+    </div>
+    <div class="tip">Si el mes cierra en lunes, el pago semanal se adelanta. Ya pasó: el de la semana 34 cayó el viernes 28 de agosto en vez del martes.</div>`},
+
+{t:'Cargar el archivo de pago',d:'Lo que se hace cada miércoles al llegar el correo',
+ h:`<ol>
+      <li>Entra a <b>Cobros ExpertCell</b> y da clic en <b>Cargar archivo de pago</b>.</li>
+      <li>Arrastra el archivo de Excel que llegó por correo. No importa si es el semanal o el mensual, el sistema lo reconoce solo.</li>
+      <li>Aparece una pantalla de revisión con los totales. <b>Todavía no se ha guardado nada.</b> Revisa que los números coincidan con lo que dice el archivo.</li>
+      <li>En el mensual verás una tabla que compara la cascada del archivo contra lo que calcula el sistema. Cada línea debe decir <b>cuadra</b>.</li>
+      <li>Revisa el periodo que propone el sistema y corrígelo si hace falta.</li>
+      <li>Da clic en <b>Cargar</b>.</li>
+    </ol>
+    <div class="warn"><b>Si alguna línea no dice "cuadra"</b>, no cargues todavía. Toma captura de pantalla y avisa a dirección: puede ser un error de ExpertCell en su propio archivo.</div>
+    <div class="tip">La casilla de "ya está dentro del saldo inicial" solo se usa para cortes viejos que se cargan para tener historia. Para un archivo nuevo <b>no se marca nunca</b>.</div>`},
+
+{t:'Registrar la factura y el pago',d:'Cerrar el ciclo de un cobro',
+ h:`<p><b>Cuando se emite la factura:</b></p>
+    <ol>
+      <li>En la lista de cortes, da clic en <b>Abrir</b> en el renglón que corresponda.</li>
+      <li>En la sección de Factura captura el folio (por ejemplo <code>2199</code>), la fecha y el folio fiscal, esa cadena larga con guiones.</li>
+      <li>Sube el PDF de la factura.</li>
+      <li>Guarda. El estatus cambia solo a <b>Facturado</b>.</li>
+    </ol>
+    <p><b>Cuando cae el depósito:</b></p>
+    <ol>
+      <li>Abre el mismo corte.</li>
+      <li>En la sección de Pago recibido captura la fecha en que apareció en el banco y el monto bruto depositado.</li>
+      <li>Captura la clave de rastreo y <b>sube el comprobante de la transferencia</b>. Sin comprobante el sistema no deja cerrar el cobro.</li>
+      <li>Guarda. El estatus pasa a <b>Pagado</b> y el dinero entra al saldo de la cuenta.</li>
+    </ol>
+    <div class="warn">Una vez en Pagado ya no se pueden cambiar montos ni fechas, porque el movimiento de banco ya quedó registrado. Sí se pueden agregar o reemplazar los archivos de respaldo.</div>`},
+
+{t:'Registrar un gasto',d:'Nómina, renta, base de datos, luz, lo que se pague',
+ h:`<ol>
+      <li>Entra a <b>Gastos</b> y da clic en <b>Nuevo gasto</b>.</li>
+      <li><b>Fecha:</b> el día en que se pagó o se va a pagar.</li>
+      <li><b>Categoría:</b> están agrupadas en fijas, semifijas y variables. Elige la que corresponda.</li>
+      <li><b>Concepto:</b> escríbelo claro, es lo que se va a ver en el estado de cuenta del sistema. Por ejemplo "Nómina segunda quincena de agosto".</li>
+      <li><b>Monto:</b> siempre en positivo, el sistema lo resta solo.</li>
+      <li><b>Estatus:</b> <b>Pendiente</b> si todavía no se paga, <b>Pagado</b> si el dinero ya salió.</li>
+    </ol>
+    <div class="tip">Solo los gastos en <b>Pagado</b> bajan el saldo. Los pendientes sirven para saber cuánto se debe, pero no tocan la cuenta hasta que se marcan como pagados.</div>
+    <div class="warn">La forma de pago <b>Retención en origen</b> es especial: se usa solo para lo que ExpertCell ya descontó del pago. Se registra como costo pero no sale de la cuenta. No la uses para pagos normales.</div>`},
+
+{t:'Revisar el saldo y la salud de la cuenta',d:'Qué mirar antes de autorizar cualquier pago',
+ h:`<p>Entra a <b>Balance financiero</b>. Hay tres números y no significan lo mismo:</p>
+    <ol>
+      <li><b>Saldo real:</b> lo que dice el banco hoy.</li>
+      <li><b>Comprometido:</b> dispersiones ya autorizadas que todavía no salen. Ese dinero está apartado aunque siga en la cuenta.</li>
+      <li><b>Disponible:</b> el saldo real menos lo comprometido. <b>Este es el número contra el que se decide si se puede pagar algo.</b></li>
+    </ol>
+    <p>Más abajo está el resultado por mes y el libro de banco, donde cada renglón viene de un cobro cobrado o de un gasto pagado.</p>
+    <div class="warn">Si el disponible sale en rojo, no se autoriza ningún pago hasta que entre un cobro.</div>`},
+
+{t:'Ventas sin validar en CIS',d:'Ventas hechas que ExpertCell todavía no paga',
+ h:`<p>Son ventas que se hicieron pero que no entraron al pago. Se recorren de un archivo al siguiente hasta que se validan. El sistema lleva la cuenta de cuántos días llevan y cuántas veces se han recorrido.</p>
+    <ol>
+      <li>En <b>Cobros ExpertCell</b>, baja a la tabla de ventas sin validar.</li>
+      <li>Filtra por <b>Sin gestionar</b> para ver las que nadie ha revisado.</li>
+      <li>Da clic en <b>Gestionar</b>. Ahí ves cuánta comisión está en juego.</li>
+      <li>Elige por qué no se ha pagado y escribe el detalle: con quién lo revisaste y qué te contestaron.</li>
+      <li>Si te dieron una fecha para resolverlo, captúrala en fecha de compromiso.</li>
+      <li>Guarda el seguimiento. La venta sigue contando como cobrable.</li>
+    </ol>
+    <p>Si ya sabes con certeza que no se va a pagar, usa <b>Dar por perdida</b>. Sale de la lista y deja de contar en lo que se espera cobrar.</p>
+    <div class="tip">Si una venta dada por perdida después llega pagada, el sistema la reactiva sola y avisa. No se pierde el pago.</div>`},
+
+{t:'Dar de alta o de baja a alguien',d:'Movimientos de personal y datos de pago',
+ h:`<ol>
+      <li>Entra a <b>Plantilla</b> y da clic en <b>Nuevo empleado</b>.</li>
+      <li>El <b>código de dispersión</b> es el número que ya usa el archivo del banco. Una vez asignado no se cambia.</li>
+      <li>El nombre debe ser igual al de la cuenta bancaria, si no el banco rechaza la transferencia.</li>
+      <li>En la pestaña <b>Pago</b> captura banco y CLABE. Son 18 dígitos, sin espacios.</li>
+      <li>Para dar de baja: abre a la persona, cambia el estatus a <b>Baja</b> y captura la fecha y el motivo.</li>
+    </ol>
+    <div class="tip">Los cambios de puesto, sueldo, supervisor o cuenta bancaria quedan registrados solos en la pestaña de Movimientos, con la fecha y quién los hizo. No hay que anotarlos aparte.</div>`},
+
+{t:'Si algo no cuadra',d:'Qué hacer cuando un número se ve raro',
+ h:`<ol>
+      <li><b>El saldo no coincide con el banco.</b> Revisa en Balance financiero los últimos movimientos y compáralos con el estado de cuenta. Casi siempre falta capturar un gasto o marcar un cobro como pagado.</li>
+      <li><b>Un corte marca una diferencia.</b> Si dice "dif" en la columna de estatus, lo depositado no coincide con lo facturado. Diferencias de centavos son normales; de pesos hay que aclararlas con ExpertCell.</li>
+      <li><b>La cascada de un mensual no cuadra.</b> No cargues el archivo. Avisa a dirección con la captura.</li>
+      <li><b>Un dato quedó mal capturado.</b> Si el cobro ya está en Pagado no se puede corregir desde la pantalla. Hay que avisar a dirección.</li>
+    </ol>
+    <div class="warn">Nunca se borra un movimiento para "arreglar" un saldo. Si algo está mal, se avisa. El sistema guarda quién capturó qué y cuándo, y eso es lo que permite encontrar el error.</div>`}
+];
+
+function vistaGuia(){
+  $('#main').innerHTML=`
+    <div class="head"><div><h1>Cómo se usa</h1>
+      <p>Guía de operación del sistema. Toca cualquier tema para desplegarlo.</p></div></div>
+    <div class="guia">${GUIA.map((g,i)=>`
+      <div class="gcard" data-g="${i}">
+        <button><span class="gn">${String(i+1).padStart(2,'0')}</span>
+          <span class="gt"><b>${esc(g.t)}</b><span>${esc(g.d)}</span></span>
+          <span class="gx">+</span></button>
+        <div class="gbody">${g.h}</div>
+      </div>`).join('')}
+      <p style="color:var(--txt-3);font-size:12.5px;margin-top:18px;line-height:1.6">
+        Cada campo del sistema tiene además un signo de interrogación al lado de su nombre.
+        Al tocarlo se explica qué va en ese campo y qué pasa si se llena mal.</p>
+    </div>`;
+  document.querySelectorAll('.gcard>button').forEach(b=>b.onclick=()=>{
+    const c=b.parentElement, ya=c.classList.contains('on');
+    document.querySelectorAll('.gcard').forEach(x=>x.classList.remove('on'));
+    if(!ya) c.classList.add('on');
+  });
 }
 
 /* ============================================================
