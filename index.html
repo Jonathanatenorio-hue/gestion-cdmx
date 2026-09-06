@@ -929,6 +929,7 @@ function procesarFilas(filas,nombre){
       <div><span>Sin CLABE</span><b>${sinClabe}</b></div>
       <div><span>CLABE inválida</span><b>${clabeMala}</b></div>
     </div>
+    ${repetidos?`<div class="note" style="margin-top:14px"><b>${repetidos} folios repetidos en el archivo</b>Se conservó la fila con el anticipo más alto de cada uno.</div>`:''}
     ${sinCodigo?`<div class="note" style="margin-top:14px"><b>${sinCodigo} filas ignoradas</b>No traían código de dispersión. El código es la llave con la que el sistema identifica a cada persona.</div>`:''}
     ${clabeMala?`<div class="note" style="margin-top:14px"><b>${clabeMala} CLABEs con formato inválido</b>Se importan sin cuenta y quedan marcadas como "Falta CLABE". Suelen ser las que traen espacios en el Excel.</div>`:''}
     ${repetidas.length?`<div class="note" style="margin-top:14px;background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16"><b>${repetidas.length} CLABEs repetidas</b>${repetidas.map(([c,v])=>`····${c.slice(-4)}: ${esc(v.join(' / '))}`).join('<br>')}<br>Puede ser una persona con dos códigos o dos cuentas legítimas. Revísalo antes de dispersar.</div>`:''}
@@ -1545,6 +1546,17 @@ function procesarMensual(aoa,nombre){
     }
   }
 
+  // 4b. Un folio puede venir dos veces: una cancelada en cero y otra con la
+  //     venta buena. Nos quedamos con la de mayor importe.
+  const porFolio={}; let dupes=0;
+  ventas.forEach(v=>{
+    const ex=porFolio[v.folio_contrato];
+    if(!ex){ porFolio[v.folio_contrato]=v; return; }
+    dupes++;
+    if(Number(v.total_a_pagar||0) > Number(ex.total_a_pagar||0)) porFolio[v.folio_contrato]=v;
+  });
+  if(dupes){ ventas.length=0; Object.values(porFolio).forEach(v=>ventas.push(v)); }
+
   // 5. Verificación contra nuestro propio cálculo
   const F=3.8;
   const bruto=ventas.reduce((a,b)=>a+Number(b.total_a_pagar||0),0);
@@ -1597,6 +1609,7 @@ function procesarMensual(aoa,nombre){
       <tr><td class="nm">Neto a la cuenta</td><td class="num">—</td><td class="num nm" style="color:var(--teal)">${money(totCalc*0.94)}</td><td></td></tr>
     </tbody></table></div>
 
+    ${dupes?`<div class="note" style="margin-top:14px"><b>${dupes} folios venían repetidos en el archivo</b>Cada uno traía una fila cancelada en cero y otra con la venta buena. Se conservó la de mayor importe.</div>`:''}
     ${anticipos.length?`<div class="note" style="margin-top:14px"><b>Anticipos descontados</b>${anticipos.map(a=>`${esc(a.sem)}: ${money(a.monto)}`).join(' · ')}</div>`:''}
     ${malFactor?`<div class="note" style="margin-top:14px;background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16"><b>${malFactor} ventas con comisión distinta al factor 3.8</b>Van a quedar marcadas en la auditoría para que las revises una por una.</div>`:''}
 
@@ -1660,6 +1673,15 @@ function procesarPago(filas,nombre){
       pct_anticipo:Number(K(row,['ANTICIPOPCT','PORCENTAJEANTICIPO','ANTICIPO'])||0)||null
     });
   });
+
+  const vistos={}; let repetidos=0;
+  ventas.forEach(v=>{
+    const ex=vistos[v.folio_contrato];
+    if(!ex){ vistos[v.folio_contrato]=v; return; }
+    repetidos++;
+    if(Number(v.anticipo_semanal||0) > Number(ex.anticipo_semanal||0)) vistos[v.folio_contrato]=v;
+  });
+  if(repetidos){ ventas.length=0; Object.values(vistos).forEach(v=>ventas.push(v)); }
 
   if(!ventas.length){ $('#carga-res').innerHTML='<div class="note" style="background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16"><b>No encontramos ventas</b>El archivo no trae la columna FOLIODELCONTRATO. Revisa que sea el reporte de pago de ExpertCell.</div>'; return; }
 
