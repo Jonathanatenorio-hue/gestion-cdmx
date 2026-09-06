@@ -335,6 +335,8 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
         <div class="f"><label for="co-farch">Fecha del archivo</label><input id="co-farch" type="date"><small>Cuando llegó el correo</small></div>
         <div class="f"><label for="co-march">Monto del archivo</label><input id="co-march" type="number" step="0.01" class="mono"><small>Total con IVA</small></div>
         <div class="f"><label for="co-fesp">Pago esperado</label><input id="co-fesp" type="date"><small>Se calcula solo si lo dejas vacío</small></div>
+        <div class="f"><label for="co-lim">Fecha límite de la factura</label><input id="co-lim" type="date"></div>
+        <div class="f"><label for="co-limh">Hora límite</label><input id="co-limh" type="time" value="18:00"></div>
         <div class="f"><label for="co-est">Estatus</label><select id="co-est">
           <option value="archivo_recibido">Archivo recibido</option>
           <option value="facturado">Facturado</option>
@@ -345,6 +347,8 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
       <div class="hint" id="co-hint"></div>
       <div style="margin:20px 0 10px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-2);border-top:1px solid var(--line);padding-top:16px">Factura</div>
       <div class="grid">
+        <div class="f full"><label for="co-xml">Cargar el XML del CFDI</label><input id="co-xml" type="file" accept=".xml">
+          <small id="co-xml-msg">Al subirlo se llenan solos el folio, la fecha, el folio fiscal y el monto.</small></div>
         <div class="f"><label for="co-ffol">Folio</label><input id="co-ffol" class="mono"></div>
         <div class="f"><label for="co-ffec">Fecha</label><input id="co-ffec" type="date"></div>
         <div class="f full"><label for="co-fuuid">Folio fiscal (UUID)</label><input id="co-fuuid" class="mono" style="font-size:12px"></div>
@@ -356,12 +360,17 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
         <div class="f"><label for="co-mrec">Monto bruto recibido</label><input id="co-mrec" type="number" step="0.01" class="mono"></div>
         <div class="f"><label for="co-ret">Retención de almacén (%)</label><input id="co-ret" type="number" step="0.001" class="mono" value="6"></div>
         <div class="f"><label>Neto a la cuenta</label><input id="co-neto" class="mono" disabled></div>
+        <div class="f full"><label for="co-pegar">Pegar el texto del comprobante</label>
+          <textarea id="co-pegar" rows="2" placeholder="Copia el correo del banco y pégalo aquí: se llenan solos la clave de rastreo, el monto y la fecha"></textarea>
+          <small id="co-pegar-msg"></small></div>
         <div class="f full"><label for="co-ref">Clave de rastreo o referencia</label><input id="co-ref" class="mono" style="font-size:12px" placeholder="La que trae el comprobante del banco"></div>
         <div class="f full"><label for="co-comp">Comprobante de la transferencia</label>
           <input id="co-comp" type="file" accept=".pdf,.png,.jpg,.jpeg">
           <small id="co-comp-msg"></small></div>
       </div>
       <div id="co-archivos" style="display:none;margin-top:14px;padding:11px 13px;background:#F7F8FA;border:1px solid var(--line);border-radius:var(--r);font-size:12.5px"></div>
+      <div class="f full" id="co-difbox" style="display:none;margin-top:14px"><label for="co-dif">Por qué no coincide el monto</label>
+        <input id="co-dif" placeholder="Qué te dijeron o a qué corresponde la diferencia"></div>
       <div class="note" style="margin-top:16px"><b>Al guardar como pagado</b>Se registran solos el ingreso bruto, el gasto por la retención y el movimiento de banco por el neto. Esto no se puede deshacer desde aquí.</div>
     </div>
     <div class="md-f">
@@ -1078,6 +1087,15 @@ async function vistaIngresos(){
   const porCobrar=S.cobros.filter(c=>['archivo_recibido','facturado','parcial'].includes(c.estatus))
     .reduce((a,b)=>{const d=Number(b.monto_archivo||0)-Number(b.monto_recibido||0);return a+(Math.abs(d)<1?0:d);},0);
   const disp=(sal.data||[])[0];
+  const hoyISO=new Date().toISOString().slice(0,10);
+  const porFacturar=S.cobros.filter(c=>c.estatus==='archivo_recibido'&&!c.factura_folio)
+    .map(c=>{
+      const lim=c.fecha_limite_factura;
+      return {...c, alerta: !lim?'sin_fecha'
+        : lim<hoyISO ? 'vencida' : lim===hoyISO ? 'vence_hoy'
+        : (new Date(lim)-new Date(hoyISO))/86400000<=1 ? 'urgente' : 'a_tiempo'};
+    });
+  const criticas=porFacturar.filter(c=>['vencida','vence_hoy','urgente'].includes(c.alerta));
 
   const anios=[...new Set(S.cobros.map(c=>(c.fecha_archivo||c.periodo_clave||'').slice(0,4)).filter(a=>/^\d{4}$/.test(a)))].sort().reverse();
   const MESES=['01 Enero','02 Febrero','03 Marzo','04 Abril','05 Mayo','06 Junio','07 Julio','08 Agosto','09 Septiembre','10 Octubre','11 Noviembre','12 Diciembre'];
@@ -1099,6 +1117,15 @@ async function vistaIngresos(){
     <div class="kpi"><span>Retención de almacén</span><b>${money(retMes)}</b><small>6% del mes en curso</small></div>
     ${disp?`<div class="kpi"><span>Disponible en cuenta</span><b>${money(disp.disponible)}</b><small>real ${money(disp.saldo_real)}</small></div>`:''}
   </div>
+
+  ${porFacturar.length?`<div class="note" style="${criticas.length?'background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16':''}">
+    <b>${porFacturar.length} corte${porFacturar.length>1?'s':''} sin factura emitida</b>
+    ${porFacturar.map(c=>{
+      const et={vencida:'ya venció, el pago se recorre una semana',vence_hoy:'vence hoy',urgente:'vence mañana',a_tiempo:'a tiempo',sin_fecha:'sin fecha límite capturada'}[c.alerta];
+      return `${esc(c.periodo_clave)} · ${money(c.monto_archivo)} · <b>${et}</b>${c.fecha_limite_factura?` (${fecha(c.fecha_limite_factura)} ${(c.hora_limite_factura||'').slice(0,5)})`:''}
+        <button class="btn btn-sm" data-ics="${c.id}" style="margin-left:8px;padding:2px 8px">Recordarme</button>`;
+    }).join('<br>')}
+  </div>`:''}
 
   <div class="bar">
     <input type="search" id="fc-q" placeholder="Buscar por periodo, semana, folio de factura o descripción" value="${esc(S.fCobro.q)}">
@@ -1152,6 +1179,11 @@ async function vistaIngresos(){
   ['alerta','clas'].forEach(k=>$('#fs-'+k).onchange=e=>{S.fSV[k]=e.target.value;pintarSinval();});
   $('#b-cobro').onclick=()=>abrirCobro(null);
   $('#b-carga').onclick=()=>{ S.cargaPrev=null; $('#carga-res').innerHTML=''; $('#carga-go').disabled=true; $('#ov-carga').classList.add('on'); };
+  document.querySelectorAll('[data-ics]').forEach(b=>b.onclick=()=>{
+    const c=S.cobros.find(x=>x.id===Number(b.dataset.ics));
+    if(!c?.fecha_limite_factura){ toast('Primero captura la fecha límite en el cobro.','bad'); return; }
+    recordatorioFactura(c);
+  });
   pintarCobros(); pintarSinval();
 }
 
@@ -1274,8 +1306,15 @@ function abrirCobro(id){
   $('#co-hint').className='hint';
   calcNeto();
   $('#co-est').value=c?.estatus??'archivo_recibido';
+  $('#co-lim').value=c?.fecha_limite_factura??'';
+  $('#co-limh').value=(c?.hora_limite_factura||'18:00').slice(0,5);
+  $('#co-dif').value=c?.dif_justificacion??'';
+  $('#co-xml').value=''; $('#co-pegar').value=''; $('#co-pegar-msg').textContent='';
+  $('#co-xml-msg').innerHTML='Al subirlo se llenan solos el folio, la fecha, el folio fiscal y el monto.';
+  $('#co-hint').style.background=''; $('#co-hint').style.borderColor=''; $('#co-hint').style.color='';
+  revisarMonto();
   const cerrado = c?.estatus==='pagado';
-  ['co-tipo','co-per','co-farch','co-march','co-fesp','co-est','co-freal','co-mrec','co-ret']
+  ['co-tipo','co-per','co-farch','co-march','co-fesp','co-est','co-freal','co-mrec','co-ret','co-lim','co-limh']
     .forEach(id=>{ const el=$('#'+id); if(el) el.disabled=cerrado; });
   $('#co-save').disabled=false;
   $('#co-save').textContent = cerrado ? 'Actualizar respaldos' : 'Guardar';
@@ -1297,7 +1336,8 @@ $('#co-save').onclick=async()=>{
       factura_folio:$('#co-ffol').value.trim()||null,
       factura_fecha:$('#co-ffec').value||null,
       factura_uuid:$('#co-fuuid').value.trim()||null,
-      comprobante_banco:$('#co-ref').value.trim()||null
+      comprobante_banco:$('#co-ref').value.trim()||null,
+      dif_justificacion:$('#co-dif').value.trim()||null
     }).eq('id',id);
     if(error) toast('No se guardó: '+error.message,'bad');
     await subirRespaldos(id,per);
@@ -1312,6 +1352,10 @@ $('#co-save').onclick=async()=>{
   if(est==='pagado' && !$('#co-comp').files[0] && !S.cobroActual?.comprobante_url){
     toast('Falta el comprobante de la transferencia. Sin él no se marca como pagado.','bad');
     $('#co-comp').focus(); return; }
+  const _dif=Math.round((Number($('#co-mrec').value||0)-Number($('#co-march').value||0))*100)/100;
+  if(est==='pagado' && Math.abs(_dif)>1 && !$('#co-dif').value.trim()){
+    toast('El monto no coincide con lo facturado. Escribe a qué corresponde la diferencia.','bad');
+    $('#co-dif').focus(); return; }
 
   $('#co-save').disabled=true; $('#co-save').textContent='Guardando…';
   const p={
@@ -1327,6 +1371,10 @@ $('#co-save').onclick=async()=>{
     monto_recibido:$('#co-mrec').value?Number($('#co-mrec').value):null,
     retencion_pct:Number($('#co-ret').value||6),
     comprobante_banco:$('#co-ref').value.trim()||null,
+    fecha_limite_factura:$('#co-lim').value||null,
+    hora_limite_factura:$('#co-limh').value||null,
+    monto_esperado:Number($('#co-march').value||0)||null,
+    dif_justificacion:$('#co-dif').value.trim()||null,
     registrado_por:S.perfil.id
   };
   let id=S.cobroActual?.id;
@@ -1428,6 +1476,118 @@ async function guardarFolio(descartar){
 }
 $('#fo-save').onclick=()=>guardarFolio(false);
 $('#fo-desc').onclick=()=>guardarFolio(true);
+
+/* ---------- Lectura del XML del CFDI ---------- */
+$('#co-xml').onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{
+      const doc=new DOMParser().parseFromString(ev.target.result,'application/xml');
+      if(doc.querySelector('parsererror')) throw new Error('el archivo no es un XML válido');
+      const comp=doc.documentElement;
+      const at=k=>comp.getAttribute(k)||'';
+      const uuidNodo=[...doc.getElementsByTagName('*')].find(n=>n.localName==='TimbreFiscalDigital');
+      const uuid=uuidNodo?uuidNodo.getAttribute('UUID'):'';
+      const folio=at('Folio'), fecha=(at('Fecha')||'').slice(0,10), total=Number(at('Total')||0);
+      if(!folio && !uuid) throw new Error('no encontramos los datos de la factura');
+      if(folio) $('#co-ffol').value=folio;
+      if(fecha) $('#co-ffec').value=fecha;
+      if(uuid)  $('#co-fuuid').value=uuid;
+      if(total){
+        $('#co-march').value=total.toFixed(2);
+        if(!$('#co-mrec').value) $('#co-mrec').value=total.toFixed(2);
+      }
+      const receptor=[...doc.getElementsByTagName('*')].find(n=>n.localName==='Receptor');
+      const nom=receptor?receptor.getAttribute('Nombre'):'';
+      $('#co-xml-msg').innerHTML=`<span style="color:var(--ok)">Leído: factura ${esc(folio||'—')} por ${money(total)}${nom?' a '+esc(nom):''}.</span>`;
+      calcNeto(); revisarMonto();
+    }catch(err){
+      $('#co-xml-msg').innerHTML=`<span style="color:var(--bad)">No pudimos leerlo: ${esc(err.message)}. Captura los datos a mano.</span>`;
+    }
+  };
+  r.readAsText(f);
+};
+
+/* ---------- Lectura del texto del comprobante bancario ---------- */
+const MESTXT={ene:'01',feb:'02',mar:'03',abr:'04',may:'05',jun:'06',jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12'};
+$('#co-pegar').oninput=e=>{
+  const t=e.target.value; const msg=$('#co-pegar-msg');
+  if(t.trim().length<20){ msg.textContent=''; return; }
+  const hallazgos=[];
+
+  const mClave=t.match(/clave\s*de\s*rastreo\s*:?\s*([A-Z0-9]{8,})/i)
+             || t.match(/\b([A-Z]{4}\d{20,})\b/);
+  if(mClave){ $('#co-ref').value=mClave[1].trim(); hallazgos.push('clave de rastreo'); }
+  else{
+    const mRef=t.match(/n[uú]mero\s*de\s*referencia\s*:?\s*(\d{4,})/i);
+    if(mRef){ $('#co-ref').value=mRef[1]; hallazgos.push('referencia'); }
+  }
+
+  const mImp=t.match(/importe(?:\s*a\s*transferir)?\s*:?\s*\$?\s*([\d,]+\.\d{2})/i)
+           || t.match(/monto\s*:?\s*\$?\s*([\d,]+\.\d{2})/i);
+  if(mImp){ $('#co-mrec').value=mImp[1].replace(/,/g,''); hallazgos.push('importe'); }
+
+  let iso=null;
+  const mF1=t.match(/fecha\s*de\s*aplicaci[oó]n\s*:?\s*(\d{1,2})\s*\/\s*([A-Za-zÁ-úñ]{3,})\.?\s*\/\s*(\d{4})/i);
+  if(mF1){
+    const mm=MESTXT[mF1[2].slice(0,3).toLowerCase()];
+    if(mm) iso=`${mF1[3]}-${mm}-${mF1[1].padStart(2,'0')}`;
+  }
+  if(!iso){
+    const mF2=t.match(/fecha[^:]*:?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if(mF2) iso=`${mF2[3]}-${mF2[2].padStart(2,'0')}-${mF2[1].padStart(2,'0')}`;
+  }
+  if(iso){ $('#co-freal').value=iso; hallazgos.push('fecha'); }
+
+  msg.innerHTML = hallazgos.length
+    ? `<span style="color:var(--ok)">Detectamos ${hallazgos.join(', ')}. Verifica que sea correcto.</span>`
+    : '<span style="color:var(--warn)">No reconocimos los datos. Captúralos a mano.</span>';
+  calcNeto(); revisarEstatusCobro(); revisarMonto();
+};
+
+/* ---------- Validación del monto depositado ---------- */
+function revisarMonto(){
+  const box=$('#co-difbox'); if(!box) return;
+  const esperado=Number($('#co-march').value||0), recibido=Number($('#co-mrec').value||0);
+  if(!esperado || !recibido){ box.style.display='none'; return; }
+  const dif=Math.round((recibido-esperado)*100)/100;
+  if(Math.abs(dif)<=1){ box.style.display='none'; return; }
+  box.style.display='';
+  const h=$('#co-hint'); h.className='hint on';
+  h.style.background=dif<0?'var(--bad-l)':'var(--warn-l)';
+  h.style.borderColor=dif<0?'#E7C9C6':'#F0DCC0';
+  h.style.color=dif<0?'#7A1E16':'#7C3D06';
+  h.innerHTML = dif<0
+    ? `<b>Faltan ${money(Math.abs(dif))}.</b> Se facturaron ${money(esperado)} y solo cayeron ${money(recibido)}. Antes de cerrar el cobro hay que aclararlo con ExpertCell y escribir a qué corresponde.`
+    : `<b>Llegaron ${money(dif)} de más.</b> Se facturaron ${money(esperado)} y cayeron ${money(recibido)}. Puede ser un ajuste de un corte anterior: anótalo para que quede el rastro.`;
+}
+$('#co-march').oninput=revisarMonto;
+
+/* ---------- Recordatorio para el calendario del celular ---------- */
+function recordatorioFactura(c){
+  if(!c.fecha_limite_factura) return;
+  const h=(c.hora_limite_factura||'18:00').slice(0,5).replace(':','');
+  const f=c.fecha_limite_factura.replace(/-/g,'');
+  const ini=`${f}T${h}00`;
+  const pad=x=>String(x).padStart(2,'0');
+  const dt=new Date(c.fecha_limite_factura+'T'+(c.hora_limite_factura||'18:00'));
+  const alarma=new Date(dt.getTime()-3*3600000);
+  const fin=`${f}T${pad(Number(h.slice(0,2))+0)}${pad(Number(h.slice(2))+15)}00`;
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Gestion CDMX//ES','CALSCALE:GREGORIAN',
+    'BEGIN:VEVENT',`UID:factura-${c.id}@gestion-cdmx`,
+    `DTSTAMP:${new Date().toISOString().replace(/[-:]/g,'').slice(0,15)}Z`,
+    `DTSTART:${ini}`,`DTEND:${fin}`,
+    `SUMMARY:Enviar factura del corte ${c.periodo_clave}`,
+    `DESCRIPTION:Si no se envia a tiempo el pago se recorre una semana. Monto ${money(c.monto_archivo)}.`,
+    'BEGIN:VALARM','TRIGGER:-PT3H','ACTION:DISPLAY','DESCRIPTION:Falta enviar la factura','END:VALARM',
+    'BEGIN:VALARM','TRIGGER:-P1D','ACTION:DISPLAY','DESCRIPTION:Manana vence el envio de la factura','END:VALARM',
+    'END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const url=URL.createObjectURL(new Blob([ics],{type:'text/calendar'}));
+  const a=document.createElement('a'); a.href=url; a.download=`recordatorio_factura_${c.periodo_clave}.ics`;
+  a.click(); URL.revokeObjectURL(url);
+  toast('Recordatorio descargado. Ábrelo para agregarlo al calendario del celular.','ok');
+}
 
 /* ---------- Lector del archivo de pago ---------- */
 $('#drop-pago').onclick=()=>$('#file-pago').click();
@@ -2282,6 +2442,11 @@ const AYUDA={
   'co-march':'El total con IVA que dice el archivo. Es lo que se va a facturar y lo que se espera cobrar.',
   'co-fesp':'Si lo dejas vacío el sistema lo calcula solo: martes siguiente para los semanales, día 22 del mes siguiente para los mensuales.',
   'co-est':'Se mueve solo conforme llenas los datos. Cambia a Pagado únicamente cuando el dinero ya cayó a la cuenta.',
+  'co-lim':'El día en que ExpertCell pide la factura. Si no se envía a tiempo, el pago se recorre una semana completa.',
+  'co-limh':'La hora límite de ese día. El sistema avisa cuando falta poco y marca en rojo si ya pasó.',
+  'co-xml':'Sube el archivo XML que viene junto con el PDF de la factura. Con él se llenan solos folio, fecha, folio fiscal y monto, sin errores de captura.',
+  'co-pegar':'Copia el correo del banco completo y pégalo aquí. El sistema saca la clave de rastreo, el importe y la fecha de aplicación.',
+  'co-dif':'Obligatorio cuando lo depositado no coincide con lo facturado. Explica a qué corresponde la diferencia.',
   'co-ffol':'El número de folio de la factura que emitiste, sin la serie. Por ejemplo 2199.',
   'co-ffec':'La fecha de emisión que aparece en el CFDI.',
   'co-fuuid':'El folio fiscal del SAT, esa cadena larga con guiones. Sirve para localizar la factura si hay una aclaración.',
