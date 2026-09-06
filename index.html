@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
 /* ============================================================
    CONSOLA DE OPERACIÓN — sistema visual
@@ -360,8 +361,8 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
         <div class="f"><label for="co-mrec">Monto bruto recibido</label><input id="co-mrec" type="number" step="0.01" class="mono"></div>
         <div class="f"><label for="co-ret">Retención de almacén (%)</label><input id="co-ret" type="number" step="0.001" class="mono" value="6"></div>
         <div class="f"><label>Neto a la cuenta</label><input id="co-neto" class="mono" disabled></div>
-        <div class="f full"><label for="co-pegar">Pegar el texto del comprobante</label>
-          <textarea id="co-pegar" rows="2" placeholder="Copia el correo del banco y pégalo aquí: se llenan solos la clave de rastreo, el monto y la fecha"></textarea>
+        <div class="f full"><label for="co-pegar">Si en vez de imagen tienes el texto, pégalo aquí</label>
+          <textarea id="co-pegar" rows="2" placeholder="Opcional. Solo si el banco te manda el comprobante como texto"></textarea>
           <small id="co-pegar-msg"></small></div>
         <div class="f full"><label for="co-ref">Clave de rastreo o referencia</label><input id="co-ref" class="mono" style="font-size:12px" placeholder="La que trae el comprobante del banco"></div>
         <div class="f full"><label for="co-comp">Comprobante de la transferencia</label>
@@ -1262,6 +1263,7 @@ function calcNeto(){
   const m=Number($('#co-mrec').value||0), r=Number($('#co-ret').value||0);
   $('#co-neto').value = m ? money(m - Math.round(m*r)/100) : '';
   revisarEstatusCobro();
+  revisarMonto();
 }
 function revisarEstatusCobro(){
   const h=$('#co-hint'), sel=$('#co-est');
@@ -1511,21 +1513,21 @@ $('#co-xml').onchange=e=>{
 
 /* ---------- Lectura del texto del comprobante bancario ---------- */
 const MESTXT={ene:'01',feb:'02',mar:'03',abr:'04',may:'05',jun:'06',jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12'};
-$('#co-pegar').oninput=e=>{
-  const t=e.target.value; const msg=$('#co-pegar-msg');
-  if(t.trim().length<20){ msg.textContent=''; return; }
+function extraerComprobante(t){
   const hallazgos=[];
 
-  const mClave=t.match(/clave\s*de\s*rastreo\s*:?\s*([A-Z0-9]{8,})/i)
+  const mClave=t.match(/c[il1]ave\s*de\s*rastreo\s*:?\s*([A-Z0-9]{8,})/i)
+             || t.match(/\b(\d{4}[A-Z]{3}\d{15,})\b/)
              || t.match(/\b([A-Z]{4}\d{20,})\b/);
   if(mClave){ $('#co-ref').value=mClave[1].trim(); hallazgos.push('clave de rastreo'); }
   else{
-    const mRef=t.match(/n[uú]mero\s*de\s*referencia\s*:?\s*(\d{4,})/i);
+    const mRef=t.match(/n[uú]mero\s*de\s*referenc[il1]a\s*:?\s*(\d{4,})/i);
     if(mRef){ $('#co-ref').value=mRef[1]; hallazgos.push('referencia'); }
   }
 
-  const mImp=t.match(/importe(?:\s*a\s*transferir)?\s*:?\s*\$?\s*([\d,]+\.\d{2})/i)
-           || t.match(/monto\s*:?\s*\$?\s*([\d,]+\.\d{2})/i);
+  const mImp=t.match(/[il1]mporte(?:\s*a\s*transferir)?\s*:?\s*\$?\s*([\d,]+\.\d{2})/i)
+           || t.match(/monto\s*:?\s*\$?\s*([\d,]+\.\d{2})/i)
+           || t.match(/\$\s*([\d,]{4,}\.\d{2})/);
   if(mImp){ $('#co-mrec').value=mImp[1].replace(/,/g,''); hallazgos.push('importe'); }
 
   let iso=null;
@@ -1540,10 +1542,46 @@ $('#co-pegar').oninput=e=>{
   }
   if(iso){ $('#co-freal').value=iso; hallazgos.push('fecha'); }
 
-  msg.innerHTML = hallazgos.length
-    ? `<span style="color:var(--ok)">Detectamos ${hallazgos.join(', ')}. Verifica que sea correcto.</span>`
-    : '<span style="color:var(--warn)">No reconocimos los datos. Captúralos a mano.</span>';
   calcNeto(); revisarEstatusCobro(); revisarMonto();
+  return hallazgos;
+}
+
+$('#co-pegar').oninput=e=>{
+  const t=e.target.value, msg=$('#co-pegar-msg');
+  if(t.trim().length<20){ msg.textContent=''; return; }
+  const h=extraerComprobante(t);
+  msg.innerHTML = h.length
+    ? `<span style="color:var(--ok)">Detectamos ${h.join(', ')}. Verifica que sea correcto.</span>`
+    : '<span style="color:var(--warn)">No reconocimos los datos. Captúralos a mano.</span>';
+};
+
+/* ---------- Lectura de la imagen del comprobante ---------- */
+$('#co-comp').onchange=async e=>{
+  const f=e.target.files[0]; const msg=$('#co-comp-msg');
+  if(!f) return;
+  if(!/^image\//.test(f.type)){
+    msg.innerHTML='<span style="color:var(--txt-2)">Archivo listo para subir. Como no es imagen, captura la clave de rastreo a mano.</span>';
+    return;
+  }
+  if(typeof Tesseract==='undefined'){
+    msg.innerHTML='<span style="color:var(--warn)">No se pudo cargar el lector de imágenes. Captura los datos a mano.</span>';
+    return;
+  }
+  msg.innerHTML='<span style="color:var(--teal)">Leyendo el comprobante… <b id="ocr-p">0%</b></span>';
+  try{
+    const {data}=await Tesseract.recognize(f,'eng',{
+      logger:m=>{ if(m.status==='recognizing text'){ const p=$('#ocr-p'); if(p) p.textContent=Math.round(m.progress*100)+'%'; } }
+    });
+    const texto=(data.text||'').replace(/\u00a0/g,' ');
+    const h=extraerComprobante(texto);
+    const clave=$('#co-ref').value;
+    msg.innerHTML = h.length
+      ? `<span style="color:var(--ok)">Leímos ${h.join(', ')} de la imagen.</span>`
+        + (clave?`<br><span style="color:var(--warn)"><b>Revisa la clave de rastreo carácter por carácter</b> contra la imagen antes de guardar: la lectura automática se puede equivocar en letras y números parecidos.</span>`:'')
+      : '<span style="color:var(--warn)">No reconocimos los datos en la imagen. Captúralos a mano.</span>';
+  }catch(err){
+    msg.innerHTML='<span style="color:var(--warn)">No pudimos leer la imagen. Captura los datos a mano.</span>';
+  }
 };
 
 /* ---------- Validación del monto depositado ---------- */
@@ -2456,7 +2494,7 @@ const AYUDA={
   'co-ret':'El porcentaje que AT&T retiene por uso del almacén. Hoy es 6% sobre el total con IVA. Solo cámbialo si te avisan que subió.',
   'co-neto':'Lo que realmente entra a la cuenta y con lo que se puede pagar. Se calcula solo, no se escribe.',
   'co-ref':'La clave de rastreo SPEI o el número de referencia que viene en el comprobante. Es lo que te pide el banco si hay que aclarar un depósito.',
-  'co-comp':'El comprobante de la transferencia que te manda ExpertCell. Es obligatorio para marcar el cobro como pagado: si hay comprobante, el dinero ya está en la cuenta.',
+  'co-comp':'El comprobante de la transferencia que te manda ExpertCell. Es obligatorio para marcar el cobro como pagado: si hay comprobante, el dinero ya está en la cuenta. Si subes una foto o captura, el sistema intenta leerla y llenar la clave de rastreo, el importe y la fecha.',
   /* Carga de archivo */
   'ga-fecha':'El día en que se hizo o se hará el pago. Con esta fecha entra al balance del mes.',
   'ga-cat':'Fijo es lo que se paga igual cada mes, semifijo lo que varía poco, variable lo que depende de la operación.',
