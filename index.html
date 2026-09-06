@@ -348,6 +348,35 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
   </div>
 </div>
 
+<div class="ov" id="ov-gasto">
+  <div class="md" style="max-width:640px">
+    <div class="md-h"><b id="ga-tit">Gasto</b><button data-close="ov-gasto">&times;</button></div>
+    <div class="md-b">
+      <div class="grid">
+        <div class="f"><label for="ga-fecha">Fecha</label><input id="ga-fecha" type="date"></div>
+        <div class="f"><label for="ga-cat">Categoría</label><select id="ga-cat"></select></div>
+        <div class="f full"><label for="ga-con">Concepto</label><input id="ga-con" placeholder="Qué se pagó"></div>
+        <div class="f"><label for="ga-monto">Monto</label><input id="ga-monto" type="number" step="0.01" class="mono"></div>
+        <div class="f"><label for="ga-forma">Forma de pago</label><select id="ga-forma">
+          <option value="transferencia">Transferencia</option><option value="efectivo">Efectivo</option>
+          <option value="tarjeta">Tarjeta</option><option value="domiciliado">Domiciliado</option>
+          <option value="retencion">Retención en origen</option><option value="otro">Otro</option></select></div>
+        <div class="f"><label for="ga-prov">Proveedor</label><select id="ga-prov"></select></div>
+        <div class="f"><label for="ga-est">Estatus</label><select id="ga-est">
+          <option value="pendiente">Pendiente de pago</option><option value="pagado">Pagado</option>
+          <option value="cancelado">Cancelado</option></select></div>
+        <div class="f full"><label for="ga-nota">Nota</label><input id="ga-nota"></div>
+      </div>
+      <div class="hint" id="ga-hint"></div>
+    </div>
+    <div class="md-f">
+      <button class="btn" data-close="ov-gasto">Cancelar</button>
+      <button class="btn btn-d" id="ga-del" style="display:none">Eliminar</button>
+      <button class="btn btn-p" id="ga-save">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="ov" id="ov-folio">
   <div class="md" style="max-width:620px">
     <div class="md-h"><b id="fo-tit">Gestionar venta</b><button data-close="ov-folio">&times;</button></div>
@@ -426,7 +455,7 @@ const MODULOS = [
   {id:'comisiones', n:'03', t:'Comisiones y bonos',   bloque:6, desc:'Toma las ventas que sí pagó AT&T y las convierte en comisión por agente según el esquema vigente. Se alimenta de la auditoría, no del reporte interno.', pts:['Esquemas con vigencia y rangos por volumen','Factores por plan','Autorización antes de pasar a nómina','Comparativo de lo calculado contra lo pagado']},
   {id:'auditoria',  n:'04', t:'Auditoría de ventas',  bloque:5, desc:'El corazón del control: cruza tu reporte interno contra Global y contra los dos archivos de pago de ExpertCell, el semanal del 50% y el mensual del remanente.', pts:['Cruce por folio y por teléfono, con asignación manual para lo que no empate','Detección de duplicados en el interno','Clasificación: pagada sin comisionar, comisionada sin pagar, solo interno, solo Global','Control del remanente mensual pendiente de cobro']},
   {id:'accesos',    n:'06', t:'Accesos a plataformas',bloque:10,desc:'Padrón de usuarios de AT&T, Bonsaif, Odoo, iVentas y el CRM de leads. Sin contraseñas: solo quién tiene qué y desde cuándo.', pts:['Alta y baja ligada al movimiento de personal','Alerta de accesos activos de gente que ya causó baja','Costo mensual por plataforma','Historial de solicitudes']},
-  {id:'gastos',     n:'07', t:'Gastos',               bloque:7, desc:'Registro de egresos clasificados en fijos, semifijos y variables, con generación automática de los recurrentes.', pts:['Catálogo de categorías y proveedores','Gastos recurrentes que se proponen solos cada periodo','Pendiente de pago contra pagado','Comparativo mes a mes por categoría']},
+  {id:'gastos',     n:'07', t:'Gastos',               lista:true},
   {id:'ingresos',   n:'08', t:'Cobros ExpertCell',    lista:true},
   {id:'balance',    n:'09', t:'Balance financiero',   lista:true},
   {id:'dispersion', n:'10', t:'Dispersión de pagos',  bloque:8, desc:'Arma el archivo que subes al banco, con el mismo layout que hoy ya te acepta, tomando montos de nómina y comisiones.', pts:['Layout idéntico: código, nombre, banco, CLABE, fecha, total','Validación de CLABE antes de exportar','Autorización previa a la dispersión','Historial de lo dispersado con estatus por registro']},
@@ -507,7 +536,7 @@ function irA(id){
   vistaActual=id;
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
   const m=MODULOS.find(x=>x.id===id);
-  const R={plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance};
+  const R={plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos};
   if(m.lista && R[id]) R[id](); else vistaSoon(m);
   window.scrollTo(0,0);
 }
@@ -1826,6 +1855,172 @@ async function cargarMensual(){
 }
 
 /* ============================================================
+   MÓDULO 07 — GASTOS
+   ============================================================ */
+const TIPO_G={fijo:['p-teal','Fijo'],semifijo:['p-warn','Semifijo'],variable:['p-gray','Variable']};
+
+async function vistaGastos(){
+  $('#main').innerHTML='<div class="empty">Cargando gastos…</div>';
+  const [ga,cat,pro]=await Promise.all([
+    sb.from('gastos').select('*, categorias_gasto(id,nombre,tipo,clave), proveedores(id,nombre)')
+      .order('fecha',{ascending:false}).limit(1500),
+    sb.from('categorias_gasto').select('*').eq('activa',true).order('tipo').order('nombre'),
+    sb.from('proveedores').select('*').eq('activo',true).order('nombre')
+  ]);
+  if(ga.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(ga.error.message)}</div>`; return; }
+  S.gastos=ga.data||[]; S.cats=cat.data||[]; S.provs=pro.data||[];
+  S.fG=S.fG||{q:'',cat:'',tipo:'',anio:'',mes:'',est:''};
+
+  const hoy=new Date().toISOString().slice(0,7);
+  const delMes=S.gastos.filter(g=>(g.fecha||'').startsWith(hoy)&&g.estatus!=='cancelado');
+  const totMes=delMes.reduce((a,b)=>a+Number(b.monto||0),0);
+  const porTipo=t=>delMes.filter(g=>g.categorias_gasto?.tipo===t).reduce((a,b)=>a+Number(b.monto||0),0);
+  const pend=S.gastos.filter(g=>g.estatus==='pendiente');
+  const pendTot=pend.reduce((a,b)=>a+Number(b.monto||0),0);
+  const enOrigen=delMes.filter(g=>g.forma_pago==='retencion').reduce((a,b)=>a+Number(b.monto||0),0);
+
+  const anios=[...new Set(S.gastos.map(g=>(g.fecha||'').slice(0,4)).filter(Boolean))].sort().reverse();
+  const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+  $('#main').innerHTML=`
+  <div class="head">
+    <div><h1>Gastos</h1><p>Fijos, semifijos y variables, incluidos los descuentos que AT&amp;T aplica en origen</p></div>
+    <div class="acts">
+      <button class="btn" id="b-recur">Generar recurrentes</button>
+      <button class="btn btn-p" id="b-gasto">Nuevo gasto</button>
+    </div>
+  </div>
+  <div class="kpis">
+    <div class="kpi b"><span>Gasto del mes</span><b>${money(totMes)}</b><small>${delMes.length} movimientos</small></div>
+    <div class="kpi t"><span>Fijos</span><b style="font-size:20px">${money(porTipo('fijo'))}</b><small>del mes en curso</small></div>
+    <div class="kpi"><span>Semifijos</span><b style="font-size:20px">${money(porTipo('semifijo'))}</b><small>del mes en curso</small></div>
+    <div class="kpi"><span>Variables</span><b style="font-size:20px">${money(porTipo('variable'))}</b><small>del mes en curso</small></div>
+    <div class="kpi ${pendTot?'w':''}"><span>Pendiente de pago</span><b style="font-size:20px">${money(pendTot)}</b><small>${pend.length} sin liquidar</small></div>
+    <div class="kpi c"><span>Descontado en origen</span><b style="font-size:20px">${money(enOrigen)}</b><small>no sale de la cuenta</small></div>
+  </div>
+
+  <div class="bar">
+    <input type="search" id="fg-q" placeholder="Buscar por concepto, proveedor o nota" value="${esc(S.fG.q)}">
+    <select id="fg-tipo"><option value="">Todos los tipos</option>
+      <option value="fijo">Fijo</option><option value="semifijo">Semifijo</option><option value="variable">Variable</option></select>
+    <select id="fg-cat"><option value="">Todas las categorías</option>
+      ${S.cats.map(c=>`<option value="${c.id}">${esc(c.nombre)}</option>`).join('')}</select>
+    <select id="fg-anio"><option value="">Todos los años</option>${anios.map(a=>`<option value="${a}">${a}</option>`).join('')}</select>
+    <select id="fg-mes"><option value="">Todos los meses</option>${MESES.map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}">${m}</option>`).join('')}</select>
+    <select id="fg-est"><option value="">Todos</option><option value="pendiente">Pendiente</option>
+      <option value="pagado">Pagado</option><option value="cancelado">Cancelado</option></select>
+    <span class="cnt" id="fg-cnt"></span>
+  </div>
+
+  <div class="tw"><table>
+    <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Tipo</th><th>Proveedor</th>
+      <th>Forma</th><th style="text-align:right">Monto</th><th>Estatus</th><th></th></tr></thead>
+    <tbody id="tb-ga"></tbody>
+  </table></div>`;
+
+  ['tipo','cat','anio','mes','est'].forEach(k=>{ $('#fg-'+k).value=S.fG[k];
+    $('#fg-'+k).onchange=e=>{S.fG[k]=e.target.value;pintarGastos();}; });
+  $('#fg-q').oninput=e=>{S.fG.q=e.target.value;pintarGastos();};
+  $('#b-gasto').onclick=()=>abrirGasto(null);
+  $('#b-recur').onclick=generarRecurrentes;
+  pintarGastos();
+}
+
+function pintarGastos(){
+  const f=S.fG;
+  const rows=S.gastos.filter(g=>{
+    if(f.tipo && g.categorias_gasto?.tipo!==f.tipo) return false;
+    if(f.cat && String(g.categoria_id)!==f.cat) return false;
+    if(f.est && g.estatus!==f.est) return false;
+    if(f.anio && (g.fecha||'').slice(0,4)!==f.anio) return false;
+    if(f.mes  && (g.fecha||'').slice(5,7)!==f.mes)  return false;
+    if(f.q){
+      const t=((g.concepto||'')+' '+(g.proveedores?.nombre||'')+' '+(g.nota||'')).toLowerCase();
+      if(!t.includes(f.q.toLowerCase())) return false;
+    }
+    return true;
+  });
+  const suma=rows.filter(g=>g.estatus!=='cancelado').reduce((a,b)=>a+Number(b.monto||0),0);
+  $('#fg-cnt').innerHTML=`${rows.length} de ${S.gastos.length} · ${money(suma)}`;
+
+  $('#tb-ga').innerHTML=rows.length?rows.map(g=>{
+    const [tc,tt]=TIPO_G[g.categorias_gasto?.tipo]||['p-gray','—'];
+    const est=g.estatus==='pagado'?'p-ok':g.estatus==='pendiente'?'p-warn':'p-bad';
+    return `<tr>
+      <td class="mono" style="font-size:12.5px">${fecha(g.fecha)}</td>
+      <td class="nm">${esc(g.concepto)}${g.recurrente_id?' <span class="p p-gray" style="font-size:10px">recurrente</span>':''}</td>
+      <td>${esc(g.categorias_gasto?.nombre||'—')}</td>
+      <td><span class="p ${tc}">${tt}</span></td>
+      <td style="color:var(--txt-2)">${esc(g.proveedores?.nombre||'—')}</td>
+      <td style="font-size:12.5px;color:var(--txt-2)">${g.forma_pago==='retencion'?'<span class="p p-teal">en origen</span>':esc(g.forma_pago||'—')}</td>
+      <td class="num nm" style="color:var(--bad)">${money(g.monto)}</td>
+      <td><span class="p ${est}">${esc(g.estatus)}</span></td>
+      <td style="text-align:right"><button class="btn btn-sm" data-ga="${g.id}">Abrir</button></td>
+    </tr>`;
+  }).join(''):`<tr><td colspan="9"><div class="empty"><b>${S.gastos.length?'Sin resultados':'Sin gastos registrados'}</b>${S.gastos.length?'Ajusta los filtros.':'Registra el primer gasto o genera los recurrentes del mes.'}</div></td></tr>`;
+  document.querySelectorAll('[data-ga]').forEach(b=>b.onclick=()=>abrirGasto(Number(b.dataset.ga)));
+}
+
+function abrirGasto(id){
+  const g=id?S.gastos.find(x=>x.id===id):null;
+  S.gastoActual=g;
+  $('#ga-cat').innerHTML='<option value="">— elegir —</option>'+
+    ['fijo','semifijo','variable'].map(t=>`<optgroup label="${t}">`+
+      S.cats.filter(c=>c.tipo===t).map(c=>`<option value="${c.id}">${esc(c.nombre)}</option>`).join('')+'</optgroup>').join('');
+  $('#ga-prov').innerHTML='<option value="">— sin proveedor —</option>'+
+    S.provs.map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
+  $('#ga-tit').textContent=g?'Editar gasto':'Nuevo gasto';
+  $('#ga-fecha').value=g?.fecha??new Date().toISOString().slice(0,10);
+  $('#ga-cat').value=g?.categoria_id??''; $('#ga-con').value=g?.concepto??'';
+  $('#ga-monto').value=g?.monto??''; $('#ga-forma').value=g?.forma_pago??'transferencia';
+  $('#ga-prov').value=g?.proveedor_id??''; $('#ga-est').value=g?.estatus??'pendiente';
+  $('#ga-nota').value=g?.nota??'';
+  $('#ga-del').style.display=g?'':'none';
+  const h=$('#ga-hint');
+  if(g && g.afecta_saldo===false){ h.className='hint on';
+    h.innerHTML='<b>Este gasto no toca el saldo.</b> Es un descuento que ExpertCell aplicó en origen o un movimiento anterior al corte de la cuenta.'; }
+  else h.className='hint';
+  $('#ov-gasto').classList.add('on');
+}
+
+$('#ga-save').onclick=async()=>{
+  const con=$('#ga-con').value.trim(), monto=Number($('#ga-monto').value||0);
+  if(!con){ toast('Escribe el concepto.','bad'); return; }
+  if(!monto||monto<=0){ toast('El monto debe ser mayor a cero.','bad'); return; }
+  if(!$('#ga-cat').value){ toast('Elige una categoría.','bad'); return; }
+  const p={ fecha:$('#ga-fecha').value||null, categoria_id:$('#ga-cat').value||null,
+    proveedor_id:$('#ga-prov').value||null, concepto:con, monto,
+    forma_pago:$('#ga-forma').value, estatus:$('#ga-est').value,
+    nota:$('#ga-nota').value.trim()||null, registrado_por:S.perfil.id };
+  $('#ga-save').disabled=true;
+  const r = S.gastoActual
+    ? await sb.from('gastos').update(p).eq('id',S.gastoActual.id)
+    : await sb.from('gastos').insert(p);
+  $('#ga-save').disabled=false;
+  if(r.error){ toast('No se guardó: '+r.error.message,'bad'); return; }
+  cerrar('ov-gasto'); toast(S.gastoActual?'Gasto actualizado.':'Gasto registrado.','ok'); vistaGastos();
+};
+
+$('#ga-del').onclick=async()=>{
+  const g=S.gastoActual; if(!g) return;
+  if(!confirm(`Eliminar el gasto "${g.concepto}" por ${money(g.monto)}?\n\nSi ya estaba pagado, también se quita del libro de banco.`)) return;
+  const {error}=await sb.from('gastos').delete().eq('id',g.id);
+  if(error){ toast('No se pudo eliminar: '+error.message,'bad'); return; }
+  cerrar('ov-gasto'); toast('Gasto eliminado.','ok'); vistaGastos();
+};
+
+async function generarRecurrentes(){
+  const hoy=new Date();
+  const mes=prompt('Mes a generar (formato AAAA-MM)', hoy.toISOString().slice(0,7));
+  if(!mes||!/^\d{4}-\d{2}$/.test(mes)){ if(mes) toast('Formato inválido. Usa AAAA-MM.','bad'); return; }
+  const [a,m]=mes.split('-').map(Number);
+  const {data,error}=await sb.rpc('generar_recurrentes',{p_anio:a,p_mes:m});
+  if(error){ toast('No se pudo generar: '+error.message,'bad'); return; }
+  toast(data ? `${data} gastos recurrentes creados como pendientes.` : 'No había recurrentes por generar para ese mes.', data?'ok':'');
+  if(data) vistaGastos();
+}
+
+/* ============================================================
    MÓDULO 09 — BALANCE FINANCIERO
    ============================================================ */
 async function vistaBalance(){
@@ -1932,6 +2127,14 @@ const AYUDA={
   'co-ref':'La clave de rastreo SPEI o el número de referencia que viene en el comprobante. Es lo que te pide el banco si hay que aclarar un depósito.',
   'co-comp':'El comprobante de la transferencia que te manda ExpertCell. Es obligatorio para marcar el cobro como pagado: si hay comprobante, el dinero ya está en la cuenta.',
   /* Carga de archivo */
+  'ga-fecha':'El día en que se hizo o se hará el pago. Con esta fecha entra al balance del mes.',
+  'ga-cat':'Fijo es lo que se paga igual cada mes, semifijo lo que varía poco, variable lo que depende de la operación.',
+  'ga-con':'Descripción corta y clara. Es lo que vas a ver en el listado y en el estado de cuenta del sistema.',
+  'ga-monto':'Siempre en positivo. El sistema lo resta solo del saldo cuando el estatus sea Pagado.',
+  'ga-forma':'Retención en origen es para lo que ExpertCell ya te descontó del pago: se registra como gasto pero no sale de la cuenta.',
+  'ga-prov':'A quién se le paga. Opcional, pero permite ver cuánto le has pagado a cada uno en el año.',
+  'ga-est':'Pendiente todavía no toca el saldo. En cuanto lo pongas Pagado, el egreso entra al libro de banco.',
+  'ga-nota':'Cualquier aclaración: número de factura, quién autorizó, a qué corresponde.',
   'fo-clas':'Define si la venta se sigue considerando cobrable. En gestión sigue contando en el remanente esperado; las demás opciones la sacan del cálculo cuando la das por perdida.',
   'fo-mot':'Escribe lo que sepas: con quién lo revisaste, qué te contestaron, qué documento falta. Es lo que va a leer quien retome el caso.',
   'fo-comp':'Si te dieron una fecha para resolverlo, ponla. El sistema te va a mostrar las que ya se pasaron.',
