@@ -10,6 +10,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <style>
 /* ============================================================
    CONSOLA DE OPERACIÓN — sistema visual
@@ -465,6 +466,17 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
   </div>
 </div>
 
+<div class="ov" id="ov-nom">
+  <div class="md" style="max-width:680px">
+    <div class="md-h"><b id="nd-tit">Detalle de nómina</b><button data-close="ov-nom">&times;</button></div>
+    <div class="md-b"><div id="nd-cuerpo"></div></div>
+    <div class="md-f">
+      <button class="btn" data-close="ov-nom">Cerrar</button>
+      <button class="btn btn-p" id="nd-save">Guardar ajustes</button>
+    </div>
+  </div>
+</div>
+
 <div class="ov" id="ov-bio">
   <div class="md" style="max-width:820px">
     <div class="md-h"><b>Cargar archivo del checador</b><button data-close="ov-bio">&times;</button></div>
@@ -675,7 +687,8 @@ const MODULOS = [
   {id:'plantilla',  n:'05', t:'Plantilla',            lista:true},
   {id:'asistencia', n:'01', t:'Asistencia',           lista:true},
   {id:'asistencia_old', n:'01b', t:'Asistencia (guía)', bloque:3, desc:'Carga los dos exportes del checador (AT&T y NEZA), cruza los marcajes contra las reglas de horario y califica cada día como asistencia, retardo, falta o descanso. Ajustes manuales quedan firmados con usuario y motivo.', pts:['Lector de los archivos del biométrico con control de duplicados','Reglas por puesto: ejecutivos 10:05 / 10:15, supervisión 10:00 / 10:10, facturación 8:00 / 8:10','Sin checada de salida se marca falta, con opción de justificar','Tablero por quincena y detalle por persona']},
-  {id:'nomina',     n:'02', t:'Nómina',               bloque:4, desc:'Calcula la quincena a partir de la asistencia ya calificada, aplica percepciones y deducciones, y cierra el periodo para que no se pueda tocar después de pagado.', pts:['Periodos del 6 al 20 y del 21 al 5','Descuento automático por faltas y retardos','Conceptos manuales: préstamos, equipo, bonos','Cierre de periodo con bitácora de quién cerró']},
+  {id:'nomina',     n:'02', t:'Nómina',               lista:true},
+  {id:'nomina_old', n:'02b', t:'Nómina (guía)',       bloque:4, desc:'Calcula la quincena a partir de la asistencia ya calificada, aplica percepciones y deducciones, y cierra el periodo para que no se pueda tocar después de pagado.', pts:['Periodos del 6 al 20 y del 21 al 5','Descuento automático por faltas y retardos','Conceptos manuales: préstamos, equipo, bonos','Cierre de periodo con bitácora de quién cerró']},
   {id:'comisiones', n:'03', t:'Comisiones y bonos',   bloque:6, desc:'Toma las ventas que sí pagó AT&T y las convierte en comisión por agente según el esquema vigente. Se alimenta de la auditoría, no del reporte interno.', pts:['Esquemas con vigencia y rangos por volumen','Factores por plan','Autorización antes de pasar a nómina','Comparativo de lo calculado contra lo pagado']},
   {id:'ventas',     n:'04', t:'Ventas',                 lista:true},
   {id:'auditoria',  n:'04b', t:'Auditoría de ventas',  bloque:5, desc:'El corazón del control: cruza tu reporte interno contra Global y contra los dos archivos de pago de ExpertCell, el semanal del 50% y el mensual del remanente.', pts:['Cruce por folio y por teléfono, con asignación manual para lo que no empate','Detección de duplicados en el interno','Clasificación: pagada sin comisionar, comisionada sin pagar, solo interno, solo Global','Control del remanente mensual pendiente de cobro']},
@@ -765,7 +778,7 @@ function irA(id){
   vistaActual=id;
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
   const m=MODULOS.find(x=>x.id===id);
-  const R={guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia};
+  const R={guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina};
   if(m.lista && R[id]) R[id](); else vistaSoon(m);
   window.scrollTo(0,0);
 }
@@ -2654,6 +2667,240 @@ function vistaGuia(){
     document.querySelectorAll('.gcard').forEach(x=>x.classList.remove('on'));
     if(!ya) c.classList.add('on');
   });
+}
+
+/* ============================================================
+   MÓDULO 02 — NÓMINA
+   ============================================================ */
+const EST_N={abierto:['p-gray','Abierto'],calculado:['p-teal','Calculado'],
+  en_revision:['p-warn','En revisión'],confirmado:['p-ok','Confirmado'],
+  dispersado:['p-ok','Dispersado'],pagado:['p-ok','Pagado'],cancelado:['p-bad','Cancelado']};
+
+async function vistaNomina(){
+  $('#main').innerHTML='<div class="empty">Cargando nómina…</div>';
+  const {data:per,error}=await sb.from('v_nomina_resumen').select('*').order('fecha_inicio',{ascending:false}).limit(40);
+  if(error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(error.message)}<br><span style="font-size:12.5px">Si dice que falta la vista, corre el SQL 26.</span></div>`; return; }
+  S.periodos=per||[];
+  S.perSel = S.perSel || (S.periodos.find(p=>p.estatus!=='pagado')?.id ?? S.periodos[0]?.id);
+  const P=S.periodos.find(p=>p.id===S.perSel);
+  if(!P){ $('#main').innerHTML='<div class="empty"><b>Sin periodos</b>Corre el SQL 26 para generar el calendario.</div>'; return; }
+
+  const {data:det}=await sb.from('v_nomina_detalle').select('*').eq('periodo',P.clave).order('nombre_completo');
+  S.nomDet=det||[];
+  const [ec,et]=EST_N[P.estatus]||['p-gray',P.estatus];
+
+  $('#main').innerHTML=`
+  <div class="head">
+    <div><h1>Nómina</h1><p>${esc(P.clave)} · del ${fecha(P.fecha_inicio)} al ${fecha(P.fecha_fin)} · se paga el ${fecha(P.fecha_pago)}</p></div>
+    <div class="acts">
+      <select id="n-per" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--r)">
+        ${S.periodos.map(p=>`<option value="${p.id}" ${p.id===S.perSel?'selected':''}>${esc(p.clave)} · ${p.tipo}</option>`).join('')}
+      </select>
+      ${['abierto','calculado','en_revision'].includes(P.estatus)?'<button class="btn" id="n-calc">Calcular</button>':''}
+      ${S.nomDet.length?'<button class="btn" id="n-xls">Excel para revisión</button>':''}
+      ${P.estatus==='calculado'?'<button class="btn" id="n-rev">Enviar a revisión</button>':''}
+      ${['calculado','en_revision'].includes(P.estatus)&&S.direccion?'<button class="btn btn-p" id="n-conf">Confirmar</button>':''}
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><span>Estatus</span><b style="font-size:17px"><span class="p ${ec}">${et}</span></b><small>${esc(P.metodo_sueldo==='quincenal_viejo'?'método quincenal anterior':'método semanal')}</small></div>
+    <div class="kpi t"><span>Personas</span><b>${P.personas||0}</b><small>en este periodo</small></div>
+    <div class="kpi"><span>Percepciones</span><b style="font-size:20px">${money(P.percepciones)}</b><small>antes de descuentos</small></div>
+    <div class="kpi b"><span>Deducciones</span><b style="font-size:20px">${money(P.deducciones)}</b><small>faltas y descuentos</small></div>
+    <div class="kpi c"><span>Neto a pagar</span><b style="font-size:20px">${money(P.neto)}</b><small>lo que sale de la cuenta</small></div>
+    <div class="kpi ${P.sin_clabe?'b':''}"><span>Sin CLABE</span><b>${P.sin_clabe||0}</b><small>no se pueden dispersar</small></div>
+  </div>
+
+  ${P.estatus==='confirmado'?'<div class="note"><b>Nómina confirmada</b>Ya no se puede recalcular. El siguiente paso es generar el archivo de dispersión.</div>':''}
+  ${Number(P.neto||0)>0?`<div class="note" style="${Number(P.neto)>0?'':''}"><b>Contra el disponible de la cuenta</b>Esta nómina son ${money(P.neto)}. Revisa en Balance financiero que el disponible alcance antes de confirmar.</div>`:''}
+
+  <div class="tw"><table>
+    <thead><tr><th>Cód.</th><th>Nombre</th><th>Puesto</th><th>Esquema</th>
+      <th style="text-align:right">Días</th><th style="text-align:right">Faltas</th><th style="text-align:right">Ret.</th>
+      <th style="text-align:right">Percepciones</th><th style="text-align:right">Deducciones</th>
+      <th style="text-align:right">Neto</th><th>Pago</th><th></th></tr></thead>
+    <tbody>${S.nomDet.length?S.nomDet.map(d=>`<tr>
+      <td class="mono" style="color:var(--txt-2)">${d.codigo??'—'}</td>
+      <td class="nm">${esc(d.nombre_completo)}</td>
+      <td style="font-size:12.5px;color:var(--txt-2)">${esc(d.puesto||'—')}</td>
+      <td style="font-size:12px">${esc((d.esquema_pago||'').replace(/_/g,' '))}</td>
+      <td class="num">${d.dias_pagados}</td>
+      <td class="num" style="${Number(d.faltas)?'color:var(--bad);font-weight:600':''}">${d.faltas}</td>
+      <td class="num" style="${Number(d.retardos)?'color:var(--warn)':''}">${d.retardos}</td>
+      <td class="num">${money(d.total_percepciones)}</td>
+      <td class="num" style="color:var(--bad)">${Number(d.total_deducciones)?money(d.total_deducciones):'—'}</td>
+      <td class="num nm">${money(d.neto)}</td>
+      <td>${d.clabe?`<span class="mono" style="font-size:11.5px">····${esc(String(d.clabe).slice(-4))}</span>`:'<span class="p p-bad">falta</span>'}</td>
+      <td style="text-align:right"><button class="btn btn-sm" data-nd="${d.detalle_id}">Abrir</button></td>
+    </tr>`).join(''):'<tr><td colspan="12"><div class="empty"><b>Sin calcular</b>Dale a Calcular para generar la nómina de este periodo a partir de la asistencia.</div></td></tr>'}
+    </tbody>
+  </table></div>`;
+
+  $('#n-per').onchange=e=>{ S.perSel=Number(e.target.value); vistaNomina(); };
+  if($('#n-calc')) $('#n-calc').onclick=()=>calcularNomina(P);
+  if($('#n-xls'))  $('#n-xls').onclick=()=>excelNomina(P);
+  if($('#n-rev'))  $('#n-rev').onclick=()=>avanzar(P,'en_revision');
+  if($('#n-conf')) $('#n-conf').onclick=()=>{
+    if(!confirm(`Confirmar la nómina ${P.clave} por ${money(P.neto)}?\n\nDespués de confirmar ya no se puede recalcular.`)) return;
+    avanzar(P,'confirmado');
+  };
+  document.querySelectorAll('[data-nd]').forEach(b=>b.onclick=()=>abrirDetalle(Number(b.dataset.nd)));
+}
+
+async function calcularNomina(P){
+  const b=$('#n-calc'); b.disabled=true; b.textContent='Calculando…';
+  const {data,error}=await sb.rpc('calcular_nomina',{p_periodo_id:P.id});
+  b.disabled=false; b.textContent='Calcular';
+  if(error){ toast('No se pudo: '+error.message,'bad'); return; }
+  toast(`${data} personas calculadas a partir de la asistencia.`,'ok');
+  vistaNomina();
+}
+
+async function avanzar(P,est){
+  const {data,error}=await sb.rpc('avanzar_periodo',{p_periodo:P.id,p_estatus:est});
+  if(error){ toast('No se pudo: '+error.message,'bad'); return; }
+  toast(data,'ok'); vistaNomina();
+}
+
+async function abrirDetalle(id){
+  const d=S.nomDet.find(x=>x.detalle_id===id); if(!d) return;
+  S.ndActual=d;
+  $('#nd-tit').textContent=d.nombre_completo;
+  $('#nd-cuerpo').innerHTML='<div class="empty">Cargando…</div>';
+  $('#ov-nom').classList.add('on');
+  const {data:c}=await sb.from('v_nomina_conceptos').select('*').eq('nomina_detalle_id',id).order('orden');
+  const esBD=d.esquema_pago==='base_datos';
+  $('#nd-cuerpo').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 18px;background:#F7F8FA;border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:16px;font-size:13px">
+      <div><span style="color:var(--txt-2)">Puesto</span><br><b>${esc(d.puesto||'—')}</b></div>
+      <div><span style="color:var(--txt-2)">Días pagados</span><br><b>${d.dias_pagados} de ${d.dias_periodo}</b></div>
+      <div><span style="color:var(--txt-2)">Faltas y retardos</span><br><b>${d.faltas} · ${d.retardos}</b></div>
+    </div>
+    ${esBD?`<div class="f full" style="margin-bottom:16px"><label for="nd-reg">Registros capturados en el periodo</label>
+      <input id="nd-reg" type="number" class="mono" value="${(c||[]).find(x=>x.clave==='REGISTROS')?.cantidad||0}">
+      <small>Se multiplican por su tarifa para calcular el pago.</small></div>`:''}
+    <div class="tw"><table><thead><tr><th>Concepto</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Importe</th><th>Detalle</th></tr></thead>
+      <tbody>${(c||[]).map(x=>`<tr>
+        <td class="nm">${esc(x.concepto)}</td>
+        <td class="num">${x.cantidad??'—'}</td>
+        <td class="num" style="color:${x.tipo==='deduccion'?'var(--bad)':'var(--ok)'}">${x.tipo==='deduccion'?'−':''}${money(x.importe)}</td>
+        <td style="font-size:12px;color:var(--txt-2)">${esc(x.referencia||'')}</td></tr>`).join('')}
+      </tbody></table></div>
+    <div style="display:flex;justify-content:flex-end;gap:26px;margin-top:14px;font-size:14px">
+      <span style="color:var(--txt-2)">Percepciones <b class="mono">${money(d.total_percepciones)}</b></span>
+      <span style="color:var(--txt-2)">Deducciones <b class="mono" style="color:var(--bad)">${money(d.total_deducciones)}</b></span>
+      <span><b>Neto</b> <b class="mono" style="font-size:16px">${money(d.neto)}</b></span>
+    </div>`;
+  $('#nd-save').style.display=esBD?'':'none';
+}
+
+$('#nd-save').onclick=async()=>{
+  const d=S.ndActual; if(!d) return;
+  const n=Number($('#nd-reg')?.value||0);
+  const {error}=await sb.rpc('registros_base_datos',{p_detalle:d.detalle_id,p_registros:n});
+  if(error){ toast('No se pudo: '+error.message,'bad'); return; }
+  cerrar('ov-nom'); toast('Registros capturados.','ok'); vistaNomina();
+};
+
+/* ---------- Excel con formato para revisión ---------- */
+async function excelNomina(P){
+  if(typeof ExcelJS==='undefined'){ toast('No se pudo cargar el generador de Excel.','bad'); return; }
+  const b=$('#n-xls'); b.disabled=true; b.textContent='Generando…';
+  try{
+    const {data:det}=await sb.from('v_nomina_detalle').select('*').eq('periodo',P.clave).order('nombre_completo');
+    const ids=(det||[]).map(d=>d.detalle_id);
+    const {data:con}=await sb.from('v_nomina_conceptos').select('*').in('nomina_detalle_id',ids);
+    const porDet={}; (con||[]).forEach(c=>{ (porDet[c.nomina_detalle_id]=porDet[c.nomina_detalle_id]||[]).push(c); });
+
+    const wb=new ExcelJS.Workbook();
+    wb.creator='Gestión CDMX'; wb.created=new Date();
+    const ws=wb.addWorksheet('Nómina',{views:[{state:'frozen',ySplit:6}]});
+
+    const INK='FF101720', TEAL='FF0B6E6E', LINEA='FFD9DEE5';
+    ws.mergeCells('A1:K1');
+    ws.getCell('A1').value=`NÓMINA ${P.clave}`;
+    ws.getCell('A1').font={bold:true,size:15,color:{argb:'FFFFFFFF'}};
+    ws.getCell('A1').fill={type:'pattern',pattern:'solid',fgColor:{argb:INK}};
+    ws.getCell('A1').alignment={vertical:'middle'};
+    ws.getRow(1).height=28;
+
+    ws.mergeCells('A2:K2');
+    ws.getCell('A2').value=`Del ${P.fecha_inicio} al ${P.fecha_fin} · se paga el ${P.fecha_pago} · `
+      +`${P.metodo_sueldo==='quincenal_viejo'?'sueldo mensual entre dos':'sueldo mensual x12 entre 52'}`;
+    ws.getCell('A2').font={size:10,color:{argb:'FF5A6673'}};
+    ws.mergeCells('A3:K3');
+    ws.getCell('A3').value=`Generado el ${new Date().toLocaleString('es-MX')} · revisar y devolver a dirección antes del ${P.fecha_confirmacion||P.fecha_pago}`;
+    ws.getCell('A3').font={size:9,italic:true,color:{argb:'FF8A95A2'}};
+
+    const enc=['Cód.','Nombre','Puesto','Esquema','Días','Faltas','Retardos','Percepciones','Deducciones','Neto','Banco · CLABE'];
+    const hr=ws.getRow(5);
+    enc.forEach((h,i)=>{ const c=hr.getCell(i+1);
+      c.value=h; c.font={bold:true,size:10,color:{argb:'FFFFFFFF'}};
+      c.fill={type:'pattern',pattern:'solid',fgColor:{argb:TEAL}};
+      c.alignment={vertical:'middle',horizontal:i>3?'center':'left',wrapText:true};
+      c.border={bottom:{style:'thin',color:{argb:LINEA}}};
+    });
+    hr.height=24;
+
+    let r=6;
+    (det||[]).forEach(d=>{
+      const row=ws.getRow(r);
+      row.values=[d.codigo, d.nombre_completo, d.puesto, (d.esquema_pago||'').replace(/_/g,' '),
+        d.dias_pagados, Number(d.faltas), Number(d.retardos),
+        Number(d.total_percepciones), Number(d.total_deducciones), Number(d.neto),
+        d.clabe?`${d.banco_texto||''} ${d.clabe}`:'SIN CLABE'];
+      if(r%2===0) row.eachCell(c=>c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFAFBFC'}});
+      [8,9,10].forEach(i=>row.getCell(i).numFmt='"$"#,##0.00');
+      row.getCell(10).font={bold:true};
+      if(Number(d.faltas)>0){ row.getCell(6).font={bold:true,color:{argb:'FFB42318'}};
+        row.getCell(6).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFDEBE9'}}; }
+      if(Number(d.retardos)>0){ row.getCell(7).font={color:{argb:'FFB45309'}};
+        row.getCell(7).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFDF0DF'}}; }
+      if(Number(d.total_deducciones)>0) row.getCell(9).font={color:{argb:'FFB42318'}};
+      if(!d.clabe){ row.getCell(11).font={bold:true,color:{argb:'FFB42318'}};
+        row.getCell(11).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFDEBE9'}}; }
+      row.eachCell(c=>c.border={bottom:{style:'hair',color:{argb:LINEA}}});
+      r++;
+    });
+
+    const tr=ws.getRow(r+1);
+    tr.getCell(2).value='TOTAL';
+    tr.getCell(2).font={bold:true,size:11};
+    [8,9,10].forEach(i=>{
+      const col=String.fromCharCode(64+i);
+      tr.getCell(i).value={formula:`SUM(${col}6:${col}${r-1})`};
+      tr.getCell(i).numFmt='"$"#,##0.00';
+      tr.getCell(i).font={bold:true,size:11};
+      tr.getCell(i).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE4F1F0'}};
+      tr.getCell(i).border={top:{style:'medium',color:{argb:TEAL}}};
+    });
+    tr.getCell(6).value={formula:`SUM(F6:F${r-1})`}; tr.getCell(6).font={bold:true};
+    tr.getCell(7).value={formula:`SUM(G6:G${r-1})`}; tr.getCell(7).font={bold:true};
+
+    ws.columns=[{width:7},{width:36},{width:20},{width:16},{width:8},{width:9},{width:10},
+                {width:15},{width:15},{width:15},{width:30}];
+    ws.autoFilter={from:{row:5,column:1},to:{row:r-1,column:11}};
+
+    // Hoja de detalle por concepto
+    const w2=wb.addWorksheet('Desglose');
+    w2.addRow(['Nombre','Concepto','Tipo','Cantidad','Importe','Detalle']);
+    w2.getRow(1).eachCell(c=>{ c.font={bold:true,color:{argb:'FFFFFFFF'}};
+      c.fill={type:'pattern',pattern:'solid',fgColor:{argb:TEAL}}; });
+    (det||[]).forEach(d=>(porDet[d.detalle_id]||[]).forEach(c=>{
+      const row=w2.addRow([d.nombre_completo,c.concepto,c.tipo,c.cantidad,Number(c.importe),c.referencia||'']);
+      row.getCell(5).numFmt='"$"#,##0.00';
+      if(c.tipo==='deduccion') row.getCell(5).font={color:{argb:'FFB42318'}};
+    }));
+    w2.columns=[{width:36},{width:26},{width:12},{width:10},{width:14},{width:46}];
+
+    const buf=await wb.xlsx.writeBuffer();
+    const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+    const a=document.createElement('a'); a.href=url; a.download=`nomina_${P.clave}.xlsx`; a.click();
+    URL.revokeObjectURL(url);
+    toast('Excel generado.','ok');
+  }catch(e){ toast('No se pudo generar: '+e.message,'bad'); }
+  b.disabled=false; b.textContent='Excel para revisión';
 }
 
 /* ============================================================
