@@ -251,53 +251,112 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
 
 <!-- ================= MODALES ================= -->
 <div class="ov" id="ov-emp">
-  <div class="md">
+  <div class="md" style="max-width:760px">
     <div class="md-h"><b id="emp-tit">Empleado</b><button data-close="ov-emp">&times;</button></div>
     <div class="md-b">
       <div class="tabs">
-        <button class="on" data-tab="gen">Datos generales</button>
-        <button data-tab="ban">Pago</button>
+        <button class="on" data-tab="gen">Datos</button>
+        <button data-tab="pue">Puesto y pago</button>
+        <button data-tab="asi">Asistencia</button>
+        <button data-tab="ban">Banco</button>
+        <button data-tab="exp">Expediente</button>
         <button data-tab="mov">Movimientos</button>
       </div>
+
       <div id="tab-gen">
         <div class="grid">
-          <div class="f"><label for="e-cod">Código de dispersión</label><input id="e-cod" type="number" class="mono"><small>El que ya usa tu layout bancario.</small></div>
-          <div class="f"><label for="e-nom">Nombre completo</label><input id="e-nom"></div>
+          <div class="f"><label for="e-tipo">Tipo de registro</label><select id="e-tipo">
+            <option value="empleado">Empleado</option>
+            <option value="destino_pago">Destino de pago, no es personal</option></select></div>
+          <div class="f"><label for="e-cod">Código de dispersión</label><input id="e-cod" type="number" class="mono"></div>
+          <div class="f full"><label for="e-nom">Nombre completo</label><input id="e-nom" placeholder="Nombres y apellidos, como en la cuenta bancaria"></div>
+          <div class="f"><label for="e-fnac">Fecha de nacimiento</label><input id="e-fnac" type="date"></div>
+          <div class="f"><label for="e-tel">Teléfono</label><input id="e-tel" class="mono"></div>
+          <div class="f full"><label for="e-cor">Correo</label><input id="e-cor" type="email"></div>
+          <div class="f full" style="background:#F7F8FA;border:1px solid var(--line);border-radius:var(--r);padding:12px">
+            <label style="margin-bottom:9px">Cálculo del RFC</label>
+            <div class="grid" style="gap:9px">
+              <div class="f"><input id="e-apat" placeholder="Apellido paterno"></div>
+              <div class="f"><input id="e-amat" placeholder="Apellido materno"></div>
+              <div class="f full"><input id="e-nombres" placeholder="Nombre o nombres"></div>
+            </div>
+            <button class="btn btn-sm" id="e-calcrfc" style="margin-top:9px">Calcular RFC</button>
+            <small id="e-rfc-msg" style="display:block;margin-top:7px"></small>
+          </div>
+          <div class="f"><label for="e-rfc">RFC</label><input id="e-rfc" class="mono" style="text-transform:uppercase"></div>
+          <div class="f"><label for="e-curp">CURP</label><input id="e-curp" class="mono" style="text-transform:uppercase"></div>
+          <div class="f full"><label for="e-not">Notas</label><textarea id="e-not" rows="2"></textarea></div>
+        </div>
+      </div>
+
+      <div id="tab-pue" style="display:none">
+        <div class="grid">
           <div class="f"><label for="e-pue">Puesto</label><select id="e-pue"></select></div>
           <div class="f"><label for="e-cen">Centro</label><select id="e-cen"></select></div>
           <div class="f"><label for="e-sup">Supervisor</label><select id="e-sup"></select></div>
-          <div class="f"><label for="e-esq">Esquema de pago</label><select id="e-esq">
-            <option value="quincenal">Quincenal</option><option value="semanal">Semanal</option>
-            <option value="honorarios">Honorarios</option><option value="comision_pura">Comisión pura</option></select></div>
-          <div class="f"><label for="e-sue">Sueldo quincenal</label><input id="e-sue" type="number" step="0.01" class="mono"></div>
           <div class="f"><label for="e-ing">Fecha de ingreso</label><input id="e-ing" type="date"></div>
           <div class="f"><label for="e-est">Estatus</label><select id="e-est">
             <option value="activo">Activo</option><option value="incapacidad">Incapacidad</option>
             <option value="permiso">Permiso</option><option value="vacaciones">Vacaciones</option>
             <option value="baja">Baja</option></select></div>
           <div class="f"><label for="e-baja">Fecha de baja</label><input id="e-baja" type="date"></div>
-          <div class="f"><label for="e-tel">Teléfono</label><input id="e-tel" class="mono"></div>
-          <div class="f"><label for="e-cor">Correo</label><input id="e-cor" type="email"></div>
-          <div class="f"><label for="e-rfc">RFC</label><input id="e-rfc" class="mono" style="text-transform:uppercase"></div>
-          <div class="f"><label for="e-curp">CURP</label><input id="e-curp" class="mono" style="text-transform:uppercase"></div>
-          <div class="f full"><label for="e-mot">Motivo de baja</label><input id="e-mot" placeholder="Solo si el estatus es baja"></div>
-          <div class="f full"><label for="e-not">Notas</label><textarea id="e-not" rows="2"></textarea></div>
+          <div class="f full"><label for="e-mot">Motivo de baja</label><input id="e-mot"></div>
+          <div class="f full"><label for="e-esq">Esquema de pago</label><select id="e-esq">
+            <option value="sueldo_semanal">Sueldo semanal con horario</option>
+            <option value="base_datos">Base de datos, por registro</option>
+            <option value="comisionista">Comisionista, solo comisión</option>
+            <option value="capacitacion">En capacitación</option></select></div>
+          <div class="f" id="box-sueldo"><label for="e-sue">Sueldo semanal</label><input id="e-sue" type="number" step="0.01" class="mono"></div>
+          <div class="f" id="box-tarifa" style="display:none"><label for="e-tar">Pago por registro</label><input id="e-tar" type="number" step="0.01" class="mono"></div>
+          <div class="f full"><label for="e-fcap">Termina capacitación</label><input id="e-fcap" type="date">
+            <small>El sistema propone el inicio de producción para el lunes siguiente.</small></div>
+          <div class="f"><label for="e-fprod">Empieza a producir</label><input id="e-fprod" type="date"></div>
+          <div class="f"><label for="e-capap">Capacitación aprobada</label><select id="e-capap">
+            <option value="">Sin definir</option><option value="si">Sí</option><option value="no">No</option></select></div>
         </div>
       </div>
+
+      <div id="tab-asi" style="display:none">
+        <div class="note" id="asi-aviso" style="display:none"></div>
+        <div class="grid">
+          <div class="f"><label for="e-desc">Día de descanso</label><select id="e-desc">
+            <option value="7">Domingo</option><option value="1">Lunes</option><option value="2">Martes</option>
+            <option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option>
+            <option value="6">Sábado</option></select></div>
+          <div class="f"><label for="e-sab">¿Trabaja sábado?</label><select id="e-sab">
+            <option value="si">Sí</option><option value="no">No, el puesto no lo requiere</option></select></div>
+        </div>
+        <div style="margin:18px 0 10px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-2);border-top:1px solid var(--line);padding-top:16px">Huellas registradas</div>
+        <div id="e-bio"></div>
+      </div>
+
       <div id="tab-ban" style="display:none">
-        <div class="note"><b>Información restringida</b>Solo dirección y administración ven esta pestaña. La CLABE debe tener exactamente 18 dígitos, sin espacios.</div>
+        <div class="note"><b>Información restringida</b>Solo dirección y administración ven esta pestaña. La CLABE debe tener 18 dígitos, sin espacios.</div>
         <div class="grid">
           <div class="f"><label for="b-ban">Banco</label><select id="b-ban"></select></div>
           <div class="f"><label for="b-tit">Titular de la cuenta</label><input id="b-tit" placeholder="Si es distinto al empleado"></div>
-          <div class="f full"><label for="b-cla">CLABE interbancaria</label><input id="b-cla" class="mono" maxlength="18" placeholder="18 dígitos"><small id="b-cla-msg"></small></div>
+          <div class="f full"><label for="b-cla">CLABE interbancaria</label><input id="b-cla" class="mono" maxlength="18"><small id="b-cla-msg"></small></div>
           <div class="f full"><label style="display:flex;flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px">
             <input type="checkbox" id="b-ver" style="width:auto"> Cuenta verificada con el banco</label></div>
         </div>
       </div>
+
+      <div id="tab-exp" style="display:none">
+        <div class="grid">
+          <div class="f full"><label for="e-dom">Domicilio</label><input id="e-dom" placeholder="Calle, número, colonia, alcaldía, CP"></div>
+          <div class="f"><label for="e-emnom">Contacto de emergencia</label><input id="e-emnom"></div>
+          <div class="f"><label for="e-emtel">Teléfono de emergencia</label><input id="e-emtel" class="mono"></div>
+          <div class="f full"><label for="e-empar">Parentesco</label><input id="e-empar"></div>
+        </div>
+        <div style="margin:18px 0 10px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-2);border-top:1px solid var(--line);padding-top:16px">Documentos</div>
+        <div id="e-docs"></div>
+      </div>
+
       <div id="tab-mov" style="display:none"></div>
     </div>
     <div class="md-f">
       <button class="btn" data-close="ov-emp">Cancelar</button>
+      <button class="btn btn-d" id="emp-del" style="display:none;margin-right:auto">Eliminar registro</button>
       <button class="btn btn-p" id="emp-save">Guardar</button>
     </div>
   </div>
@@ -476,13 +535,14 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const S = {
   perfil:null, direccion:false,
   empleados:[], puestos:[], centros:[], bancos:[],
-  filtros:{q:'',estatus:'activo',puesto:''},
+  filtros:{q:'',estatus:'activo',puesto:'',tipo:'empleado',esq:''},
   orden:{col:'nombre_completo',dir:1},
   empActual:null, impFilas:[]
 };
 
 const MODULOS = [
   {id:'guia',       n:'00', t:'Cómo se usa',          lista:true},
+  {id:'config',     n:'99', t:'Configuración',         lista:true, soloDir:true},
   {id:'plantilla',  n:'05', t:'Plantilla',            lista:true},
   {id:'asistencia', n:'01', t:'Asistencia',           bloque:3, desc:'Carga los dos exportes del checador (AT&T y NEZA), cruza los marcajes contra las reglas de horario y califica cada día como asistencia, retardo, falta o descanso. Ajustes manuales quedan firmados con usuario y motivo.', pts:['Lector de los archivos del biométrico con control de duplicados','Reglas por puesto: ejecutivos 10:05 / 10:15, supervisión 10:00 / 10:10, facturación 8:00 / 8:10','Sin checada de salida se marca falta, con opción de justificar','Tablero por quincena y detalle por persona']},
   {id:'nomina',     n:'02', t:'Nómina',               bloque:4, desc:'Calcula la quincena a partir de la asistencia ya calificada, aplica percepciones y deducciones, y cierra el periodo para que no se pueda tocar después de pagado.', pts:['Periodos del 6 al 20 y del 21 al 5','Descuento automático por faltas y retardos','Conceptos manuales: préstamos, equipo, bonos','Cierre de periodo con bitácora de quién cerró']},
@@ -563,7 +623,7 @@ async function iniciar(){
    ============================================================ */
 let vistaActual='plantilla';
 function pintarNav(){
-  $('#nav').innerHTML=MODULOS.map(m=>
+  $('#nav').innerHTML=MODULOS.filter(m=>!m.soloDir||S.direccion).map(m=>
     `<a data-ir="${m.id}" class="${m.lista?'':'soon'}"><i>${m.n}</i><span>${esc(m.t)}</span></a>`).join('');
   $('#nav').querySelectorAll('a').forEach(a=>a.onclick=()=>irA(a.dataset.ir));
 }
@@ -571,7 +631,7 @@ function irA(id){
   vistaActual=id;
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
   const m=MODULOS.find(x=>x.id===id);
-  const R={guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos};
+  const R={guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig};
   if(m.lista && R[id]) R[id](); else vistaSoon(m);
   window.scrollTo(0,0);
 }
@@ -615,8 +675,10 @@ async function cargarEmpleados(){
 }
 
 function filtrar(){
-  const {q,estatus,puesto}=S.filtros;
+  const {q,estatus,puesto,tipo,esq}=S.filtros;
   let r=S.empleados.filter(e=>{
+    if(tipo!==undefined && tipo!=='' && (e.tipo_registro||'empleado')!==tipo) return false;
+    if(esq && e.esquema_pago!==esq) return false;
     if(estatus==='activos_todos'){ if(e.estatus==='baja') return false; }
     else if(estatus && e.estatus!==estatus) return false;
     if(puesto && String(e.puesto_id)!==puesto) return false;
@@ -643,10 +705,12 @@ async function vistaPlantilla(){
 }
 
 function pintarPlantilla(){
-  const act=S.empleados.filter(e=>e.estatus==='activo').length;
-  const baja=S.empleados.filter(e=>e.estatus==='baja').length;
-  const otros=S.empleados.filter(e=>['incapacidad','permiso','vacaciones'].includes(e.estatus)).length;
-  const sinPuesto=S.empleados.filter(e=>!e.puesto_id&&e.estatus!=='baja').length;
+  const emp=S.empleados.filter(e=>e.tipo_registro!=='destino_pago');
+  const dest=S.empleados.filter(e=>e.tipo_registro==='destino_pago').length;
+  const act=emp.filter(e=>e.estatus==='activo').length;
+  const baja=emp.filter(e=>e.estatus==='baja').length;
+  const otros=emp.filter(e=>['incapacidad','permiso','vacaciones'].includes(e.estatus)).length;
+  const sinPuesto=emp.filter(e=>!e.puesto_id&&e.estatus!=='baja').length;
   const sinClabe=S.direccion?S.empleados.filter(e=>e.estatus!=='baja'&&(!e._banco||!e._banco.clabe)).length:null;
   const hoy=new Date(), mesIni=new Date(hoy.getFullYear(),hoy.getMonth(),1).toISOString().slice(0,10);
   const altasMes=S.empleados.filter(e=>e.fecha_ingreso&&e.fecha_ingreso>=mesIni).length;
@@ -655,6 +719,7 @@ function pintarPlantilla(){
   <div class="head">
     <div><h1>Plantilla</h1><p>Personal, movimientos y datos de pago de la operación CDMX</p></div>
     <div class="acts">
+      ${S.direccion?'<button class="btn btn-d" id="b-del" style="display:none">Eliminar seleccionados</button>':''}
       ${S.direccion?'<button class="btn" id="b-imp">Importar Excel</button>':''}
       <button class="btn" id="b-exp">Exportar Excel</button>
       ${S.direccion?'<button class="btn btn-p" id="b-new">Nuevo empleado</button>':''}
@@ -666,6 +731,7 @@ function pintarPlantilla(){
     <div class="kpi"><span>En incidencia</span><b>${otros}</b><small>permiso, vacaciones o incapacidad</small></div>
     <div class="kpi"><span>Altas del mes</span><b>${altasMes}</b><small>ingresos desde el día 1</small></div>
     <div class="kpi"><span>Bajas históricas</span><b>${baja}</b><small>acumuladas</small></div>
+    <div class="kpi"><span>Destinos de pago</span><b>${dest}</b><small>no son personal</small></div>
     <div class="kpi ${sinPuesto?'w':''}"><span>Sin puesto</span><b>${sinPuesto}</b><small>requieren clasificación</small></div>
     ${sinClabe!==null?`<div class="kpi ${sinClabe?'b':''}"><span>Sin CLABE</span><b>${sinClabe}</b><small>no se pueden dispersar</small></div>`:''}
   </div>
@@ -681,6 +747,11 @@ function pintarPlantilla(){
       <option value="vacaciones">Vacaciones</option>
       <option value="">Todos</option>
     </select>
+    <select id="f-tipo"><option value="empleado">Solo personal</option>
+      <option value="destino_pago">Destinos de pago</option><option value="">Todos</option></select>
+    <select id="f-esq"><option value="">Todos los esquemas</option>
+      <option value="sueldo_semanal">Sueldo semanal</option><option value="base_datos">Base de datos</option>
+      <option value="comisionista">Comisionista</option><option value="capacitacion">Capacitación</option></select>
     <select id="f-pue"><option value="">Todos los puestos</option>
       ${S.puestos.map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join('')}</select>
     <span class="cnt" id="f-cnt"></span>
@@ -688,12 +759,14 @@ function pintarPlantilla(){
 
   <div class="tw"><table>
     <thead><tr>
+      <th style="width:30px"><input type="checkbox" id="chk-all" title="Seleccionar todo lo filtrado"></th>
       <th class="s" data-o="codigo">Cód.</th>
       <th class="s" data-o="nombre_completo">Nombre</th>
       <th class="s" data-o="puesto">Puesto</th>
+      <th>Esquema</th>
       <th class="s" data-o="fecha_ingreso">Ingreso</th>
       <th>Antigüedad</th>
-      ${S.direccion?'<th class="s" data-o="sueldo_quincenal" style="text-align:right">Sueldo quinc.</th>':''}
+      ${S.direccion?'<th class="s" data-o="sueldo_semanal" style="text-align:right">Sueldo sem.</th>':''}
       ${S.direccion?'<th>Pago</th>':''}
       <th>Estatus</th>
       <th></th>
@@ -706,12 +779,18 @@ function pintarPlantilla(){
   $('#f-q').oninput=e=>{S.filtros.q=e.target.value;pintarFilas();};
   $('#f-est').onchange=e=>{S.filtros.estatus=e.target.value;pintarFilas();};
   $('#f-pue').onchange=e=>{S.filtros.puesto=e.target.value;pintarFilas();};
+  $('#f-tipo').value=S.filtros.tipo; $('#f-esq').value=S.filtros.esq;
+  $('#f-tipo').onchange=e=>{S.filtros.tipo=e.target.value;pintarFilas();};
+  $('#f-esq').onchange=e=>{S.filtros.esq=e.target.value;pintarFilas();};
   document.querySelectorAll('th.s').forEach(th=>th.onclick=()=>{
     const c=th.dataset.o;
     S.orden.dir = S.orden.col===c ? -S.orden.dir : 1;
     S.orden.col=c; pintarFilas();
   });
   if($('#b-new')) $('#b-new').onclick=()=>abrirEmpleado(null);
+  if($('#chk-all')) $('#chk-all').onchange=e=>{
+    document.querySelectorAll('.chk-e').forEach(c=>c.checked=e.target.checked); refrescarSeleccion(); };
+  if($('#b-del')) $('#b-del').onclick=eliminarSeleccionados;
   if($('#b-imp')) $('#b-imp').onclick=()=>{ S.impFilas=[]; $('#imp-res').innerHTML=''; $('#imp-go').disabled=true; $('#ov-imp').classList.add('on'); };
   $('#b-exp').onclick=exportarPlantilla;
   pintarFilas();
@@ -728,12 +807,13 @@ function antiguedad(f){
   return a+' a '+(m%12?(m%12)+' m':'');
 }
 const PILL={activo:'p-ok',baja:'p-bad',incapacidad:'p-warn',permiso:'p-warn',vacaciones:'p-teal'};
+const ESQ_P={sueldo_semanal:'p-teal',base_datos:'p-warn',comisionista:'p-gray',capacitacion:'p-ok'};
 
 function pintarFilas(){
   const rows=filtrar();
   $('#f-cnt').textContent=rows.length+' de '+S.empleados.length+' registros';
   if(!rows.length){
-    $('#tb').innerHTML=`<tr><td colspan="9"><div class="empty"><b>Sin resultados</b>Ajusta los filtros o registra al primer empleado.</div></td></tr>`;
+    $('#tb').innerHTML=`<tr><td colspan="11"><div class="empty"><b>Sin resultados</b>Ajusta los filtros o registra al primer empleado.</div></td></tr>`;
     return;
   }
   $('#tb').innerHTML=rows.map(e=>{
@@ -742,56 +822,167 @@ function pintarFilas(){
       ? `<span class="mono" style="font-size:12px" title="${esc(cl)}">${esc(e._banco.banco_texto||'')} ····${esc(cl.slice(-4))}</span>`
       : '<span class="p p-bad">Falta CLABE</span>'}</td>`;
     return `<tr>
+      <td><input type="checkbox" class="chk-e" value="${e.id}"></td>
       <td class="mono" style="color:var(--txt-2)">${e.codigo??'—'}</td>
       <td class="nm">${esc(e.nombre_completo)}</td>
       <td>${esc(e.puestos?.nombre||'<sin asignar>')}</td>
+      <td>${e.tipo_registro==='destino_pago'
+            ? '<span class="p p-gray">destino de pago</span>'
+            : `<span class="p ${ESQ_P[e.esquema_pago]||'p-gray'}">${esc((e.esquema_pago||'').replace(/_/g,' '))}</span>`}</td>
       <td class="mono" style="font-size:12.5px">${fecha(e.fecha_ingreso)}</td>
       <td style="color:var(--txt-2)">${antiguedad(e.fecha_ingreso)}</td>
-      ${S.direccion?`<td class="num">${e.sueldo_quincenal?money(e.sueldo_quincenal):'—'}</td>`:''}
+      ${S.direccion?`<td class="num">${e.sueldo_semanal?money(e.sueldo_semanal):(e.esquema_pago==='base_datos'&&e.tarifa_registro?money(e.tarifa_registro)+'/reg':'—')}</td>`:''}
       ${pago}
       <td><span class="p ${PILL[e.estatus]||'p-gray'}">${esc(e.estatus)}</span></td>
       <td style="text-align:right"><button class="btn btn-sm" data-ver="${e.id}">${S.direccion?'Editar':'Ver'}</button></td>
     </tr>`;
   }).join('');
   document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=()=>abrirEmpleado(Number(b.dataset.ver)));
+  document.querySelectorAll('.chk-e').forEach(c=>c.onchange=refrescarSeleccion);
+  refrescarSeleccion();
 }
 
 /* ---------- Modal empleado ---------- */
-document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
-  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
-  ['gen','ban','mov'].forEach(t=>$('#tab-'+t).style.display = t===b.dataset.tab?'':'none');
+document.querySelectorAll('#ov-emp .tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#ov-emp .tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  ['gen','pue','asi','ban','exp','mov'].forEach(t=>$('#tab-'+t).style.display = t===b.dataset.tab?'':'none');
   if(b.dataset.tab==='mov') cargarMovimientos();
+  if(b.dataset.tab==='exp') cargarDocumentos();
+  if(b.dataset.tab==='asi') cargarBiometricos();
 });
 
+/* ---------- Cálculo de RFC ---------- */
+const RFC_MAP={'0':'00','1':'01','2':'02','3':'03','4':'04','5':'05','6':'06','7':'07','8':'08','9':'09',
+'&':'10','A':'11','B':'12','C':'13','D':'14','E':'15','F':'16','G':'17','H':'18','I':'19','J':'21','K':'22',
+'L':'23','M':'24','N':'25','O':'26','P':'27','Q':'28','R':'29','S':'32','T':'33','U':'34','V':'35','W':'36',
+'X':'37','Y':'38','Z':'39',' ':'00','Ñ':'40'};
+const RFC_T='0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ';
+const RFC_DIC='0123456789ABCDEFGHIJKLMN&OPQRSTUVWXYZ ';
+const RFC_MALAS=['BACA','BAKA','BUEI','BUEY','CACA','CACO','CAGA','CAGO','CAKA','CAKO','COGE','COGI','COJA',
+'COJE','COJI','COJO','COLA','CULO','FALO','FETO','GETA','GUEI','GUEY','JOTO','KACA','KACO','KAGA','KAGO',
+'KAKA','KAKO','KOGE','KOGI','KOJA','KOJE','KOJI','KOJO','KOLA','KULO','LILO','LOCA','LOCO','LOKA','LOKO',
+'MAME','MAMO','MEAR','MEAS','MEON','MIAR','MION','MOCO','MOKO','MULA','MULO','NACA','NACO','PEDA','PEDO',
+'PENE','PIPI','PITO','POPO','PUTA','PUTO','QULO','RATA','ROBA','ROBE','ROBO','RUIN','SENO','TETA','VACA',
+'VAGA','VAGO','VAKA','VUEI','VUEY','WUEI','WUEY'];
+const RFC_PART=['DE','LA','LAS','LOS','DEL','Y','MC','MAC','VON','VAN','MI'];
+
+function limpiaRFC(t){
+  return (t||'').toUpperCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/Ñ/g,'Ñ').replace(/[^A-ZÑ& ]/g,'').trim().replace(/\s+/g,' ');
+}
+function quitaParticulas(t){
+  return limpiaRFC(t).split(' ').filter(w=>!RFC_PART.includes(w)).join(' ').trim();
+}
+function calcularRFC(nombres, paterno, materno, fnac){
+  const P=quitaParticulas(paterno), M=quitaParticulas(materno);
+  let N=quitaParticulas(nombres).split(' ').filter(Boolean);
+  if(N.length>1 && ['JOSE','MARIA','MA','J','MA.','J.'].includes(N[0])) N=N.slice(1);
+  const n1=N[0]||'';
+  if(!P || !n1 || !fnac) return null;
+  const vocal=(P.slice(1).match(/[AEIOU]/)||['X'])[0];
+  let letras=(P[0]||'X')+vocal+(M?M[0]:'X')+(n1[0]||'X');
+  letras=letras.replace(/Ñ/g,'X');
+  if(RFC_MALAS.includes(letras)) letras=letras.slice(0,3)+'X';
+  const d=new Date(fnac+'T12:00:00');
+  const fecha=String(d.getFullYear()).slice(2)+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+  const completo=(P+' '+(M||'')+' '+N.join(' ')).trim().replace(/\s+/g,' ');
+  let cad='0'; for(const ch of completo) cad+= RFC_MAP[ch]!==undefined?RFC_MAP[ch]:'00';
+  let suma=0;
+  for(let i=0;i<cad.length-1;i++) suma += parseInt(cad.substr(i,2),10)*parseInt(cad[i+1],10);
+  const r=suma%1000;
+  const homo=RFC_T[Math.floor(r/34)]+RFC_T[r%34];
+  const base=letras+fecha+homo;
+  let s2=0;
+  for(let i=0;i<12;i++){ const v=RFC_DIC.indexOf(base[i]); s2 += (v<0?0:v)*(13-i); }
+  const m=s2%11;
+  const dv = m===0?'0' : m===1?'A' : String(11-m);
+  return base+dv;
+}
+function partirNombre(nom){
+  const w=limpiaRFC(nom).split(' ').filter(Boolean);
+  if(w.length<3) return {nombres:w[0]||'', paterno:w[1]||'', materno:''};
+  return {nombres:w.slice(0,w.length-2).join(' '), paterno:w[w.length-2], materno:w[w.length-1]};
+}
+$('#e-nom').oninput=()=>{
+  if($('#e-apat').value || $('#e-amat').value) return;
+  const x=partirNombre($('#e-nom').value);
+  $('#e-nombres').value=x.nombres; $('#e-apat').value=x.paterno; $('#e-amat').value=x.materno;
+};
+$('#e-calcrfc').onclick=e=>{
+  e.preventDefault();
+  const r=calcularRFC($('#e-nombres').value,$('#e-apat').value,$('#e-amat').value,$('#e-fnac').value);
+  const msg=$('#e-rfc-msg');
+  if(!r){ msg.innerHTML='<span style="color:var(--bad)">Faltan apellido paterno, nombre o fecha de nacimiento.</span>'; return; }
+  $('#e-rfc').value=r; S.rfcCalculado=true;
+  msg.innerHTML=`<span style="color:var(--warn)"><b>${r}</b> — calculado, no verificado. Confírmalo contra la constancia fiscal antes de usarlo para facturar.</span>`;
+};
+
+/* ---------- Selects y apertura ---------- */
 function llenarSelects(){
   $('#e-pue').innerHTML='<option value="">— sin asignar —</option>'+S.puestos.map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
   $('#e-cen').innerHTML='<option value="">— sin asignar —</option>'+S.centros.map(c=>`<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
-  $('#e-sup').innerHTML='<option value="">— sin asignar —</option>'+S.empleados.filter(e=>e.estatus!=='baja').map(e=>`<option value="${e.id}">${esc(e.nombre_completo)}</option>`).join('');
+  $('#e-sup').innerHTML='<option value="">— sin asignar —</option>'+S.empleados.filter(e=>e.estatus!=='baja'&&e.tipo_registro!=='destino_pago').map(e=>`<option value="${e.id}">${esc(e.nombre_completo)}</option>`).join('');
   $('#b-ban').innerHTML='<option value="">— elegir banco —</option>'+S.bancos.map(b=>`<option value="${b.id}">${esc(b.nombre)}</option>`).join('');
 }
+
+function ajustarPorEsquema(){
+  const q=$('#e-esq').value, tipo=$('#e-tipo').value;
+  $('#box-sueldo').style.display = q==='sueldo_semanal'?'':'none';
+  $('#box-tarifa').style.display = q==='base_datos'?'':'none';
+  const av=$('#asi-aviso');
+  if(tipo==='destino_pago'){
+    av.style.display=''; av.innerHTML='<b>No es personal</b>Este registro solo existe para dispersar pagos. No entra a nómina, asistencia ni comisiones.';
+  }else if(q==='comisionista'){
+    av.style.display=''; av.innerHTML='<b>Comisionista</b>No tiene horario ni se le califica asistencia. Se le paga solo por las ventas que ExpertCell ya pagó.';
+  }else if(q==='capacitacion'){
+    av.style.display=''; av.innerHTML='<b>En capacitación</b>Se paga la semana completa a tarifa fija. Si falta un día queda fuera del programa y no se le paga.';
+  }else av.style.display='none';
+}
+$('#e-esq').onchange=ajustarPorEsquema;
+$('#e-tipo').onchange=ajustarPorEsquema;
+$('#e-fcap').onchange=()=>{
+  const v=$('#e-fcap').value; if(!v||$('#e-fprod').value) return;
+  const d=new Date(v+'T12:00:00');
+  d.setDate(d.getDate()+((8-d.getDay())%7||7));
+  $('#e-fprod').value=d.toISOString().slice(0,10);
+};
 
 function abrirEmpleado(id){
   llenarSelects();
   const e = id ? S.empleados.find(x=>x.id===id) : null;
-  S.empActual=e;
-  $('#emp-tit').textContent = e ? e.nombre_completo : 'Nuevo empleado';
-  $('#e-cod').value=e?.codigo??''; $('#e-nom').value=e?.nombre_completo??'';
-  $('#e-pue').value=e?.puesto_id??''; $('#e-cen').value=e?.centro_id??(S.centros[0]?.id??'');
-  $('#e-sup').value=e?.supervisor_id??''; $('#e-esq').value=e?.esquema_pago??'quincenal';
-  $('#e-sue').value=e?.sueldo_quincenal??''; $('#e-ing').value=e?.fecha_ingreso??'';
-  $('#e-est').value=e?.estatus??'activo'; $('#e-baja').value=e?.fecha_baja??'';
-  $('#e-tel').value=e?.telefono??''; $('#e-cor').value=e?.correo??'';
-  $('#e-rfc').value=e?.rfc??''; $('#e-curp').value=e?.curp??'';
-  $('#e-mot').value=e?.motivo_baja??''; $('#e-not').value=e?.notas??'';
+  S.empActual=e; S.rfcCalculado=false;
+  $('#emp-tit').textContent = e ? e.nombre_completo : 'Nuevo registro';
+  const v=(k,d='')=>e?.[k]??d;
+  $('#e-tipo').value=v('tipo_registro','empleado'); $('#e-cod').value=v('codigo');
+  $('#e-nom').value=v('nombre_completo'); $('#e-fnac').value=v('fecha_nacimiento');
+  $('#e-tel').value=v('telefono'); $('#e-cor').value=v('correo');
+  $('#e-rfc').value=v('rfc'); $('#e-curp').value=v('curp'); $('#e-not').value=v('notas');
+  const par=partirNombre(v('nombre_completo'));
+  $('#e-nombres').value=par.nombres; $('#e-apat').value=par.paterno; $('#e-amat').value=par.materno;
+  $('#e-rfc-msg').innerHTML = e?.rfc_calculado ? '<span style="color:var(--warn)">El RFC guardado fue calculado, no verificado.</span>' : '';
+  $('#e-pue').value=v('puesto_id'); $('#e-cen').value=v('centro_id',S.centros[0]?.id||'');
+  $('#e-sup').value=v('supervisor_id'); $('#e-ing').value=v('fecha_ingreso');
+  $('#e-est').value=v('estatus','activo'); $('#e-baja').value=v('fecha_baja'); $('#e-mot').value=v('motivo_baja');
+  $('#e-esq').value=v('esquema_pago','sueldo_semanal');
+  $('#e-sue').value=v('sueldo_semanal')||v('sueldo_quincenal');
+  $('#e-tar').value=v('tarifa_registro',0.30);
+  $('#e-fcap').value=v('fecha_fin_capacitacion'); $('#e-fprod').value=v('fecha_inicio_produccion');
+  $('#e-capap').value = e?.capacitacion_aprobada===true?'si':e?.capacitacion_aprobada===false?'no':'';
+  $('#e-desc').value=v('dia_descanso',7); $('#e-sab').value = e?.trabaja_sabado===false?'no':'si';
+  $('#e-dom').value=v('domicilio'); $('#e-emnom').value=v('emergencia_nombre');
+  $('#e-emtel').value=v('emergencia_telefono'); $('#e-empar').value=v('emergencia_parentesco');
   const b=e?._banco;
   $('#b-ban').value=b?.banco_id??''; $('#b-tit').value=b?.titular??'';
   $('#b-cla').value=b?.clabe??''; $('#b-ver').checked=!!b?.verificada; $('#b-cla-msg').textContent='';
+  ajustarPorEsquema();
 
-  document.querySelectorAll('.tabs button').forEach((x,i)=>x.classList.toggle('on',i===0));
-  $('#tab-gen').style.display=''; $('#tab-ban').style.display='none'; $('#tab-mov').style.display='none';
-  document.querySelector('[data-tab="ban"]').style.display=S.direccion?'':'none';
+  document.querySelectorAll('#ov-emp .tabs button').forEach((x,i)=>x.classList.toggle('on',i===0));
+  ['gen','pue','asi','ban','exp','mov'].forEach((t,i)=>$('#tab-'+t).style.display=i===0?'':'none');
+  document.querySelector('#ov-emp [data-tab="ban"]').style.display=S.direccion?'':'none';
   $('#emp-save').style.display=S.direccion?'':'none';
-  $('#tab-gen').querySelectorAll('input,select,textarea').forEach(i=>i.disabled=!S.direccion);
+  $('#emp-del').style.display=(S.direccion&&e)?'':'none';
+  document.querySelectorAll('#ov-emp input,#ov-emp select,#ov-emp textarea').forEach(i=>i.disabled=!S.direccion);
   $('#ov-emp').classList.add('on');
 }
 
@@ -803,9 +994,57 @@ $('#b-cla').oninput=e=>{
   else { m.textContent=`Van ${v.length} de 18 dígitos.`; m.style.color='var(--warn)'; }
 };
 
+function seleccionados(){
+  return [...document.querySelectorAll('.chk-e:checked')].map(c=>Number(c.value));
+}
+function refrescarSeleccion(){
+  const n=seleccionados().length, b=$('#b-del');
+  if(!b) return;
+  b.style.display=n?'':'none';
+  b.textContent=`Eliminar ${n} seleccionado${n===1?'':'s'}`;
+}
+
+async function eliminarSeleccionados(){
+  const ids=seleccionados(); if(!ids.length) return;
+  const noms=ids.map(id=>S.empleados.find(e=>e.id===id)?.nombre_completo).filter(Boolean);
+  if(!confirm(`Eliminar ${ids.length} registro${ids.length===1?'':'s'} de la plantilla?\n\n`
+    +noms.slice(0,10).join('\n')+(noms.length>10?`\n… y ${noms.length-10} más`:'')
+    +`\n\nLos que ya tengan nómina, asistencia o ventas atribuidas NO se van a borrar: se conservan como historia.`)) return;
+  const b=$('#b-del'); b.disabled=true; b.textContent='Eliminando…';
+  const {data,error}=await sb.rpc('eliminar_empleados',{p_ids:ids});
+  b.disabled=false;
+  if(error){ toast('No se pudo: '+error.message,'bad'); return; }
+  const ok=(data||[]).filter(r=>r.resultado==='eliminado').length;
+  const cons=(data||[]).filter(r=>r.resultado!=='eliminado');
+  toast(`${ok} eliminados${cons.length?`, ${cons.length} conservados por tener historia`:''}.`, cons.length?'':'ok');
+  if(cons.length) console.table(cons);
+  await cargarEmpleados(); pintarPlantilla();
+}
+
+$('#emp-del').onclick=async()=>{
+  const e=S.empActual; if(!e) return;
+  const {data:dep}=await sb.rpc('dependencias_empleado',{p_id:e.id});
+  const conHistoria=(dep||[]).filter(d=>Number(d.registros)>0);
+  const bloqueo=conHistoria.filter(d=>d.concepto!=='Personas a su cargo');
+  if(bloqueo.length){
+    alert(`No se puede eliminar a ${e.nombre_completo}.\n\nTiene historia en el sistema:\n`
+      +bloqueo.map(d=>`  · ${d.concepto}: ${d.registros}`).join('\n')
+      +`\n\nCámbialo a estatus Baja para conservar el registro sin que aparezca en la operación.`);
+    return;
+  }
+  const aCargo=conHistoria.find(d=>d.concepto==='Personas a su cargo');
+  if(!confirm(`Eliminar definitivamente a ${e.nombre_completo}?\n\n`
+    +(aCargo?`Tiene ${aCargo.registros} persona(s) a su cargo, que quedarán sin supervisor asignado.\n\n`:'')
+    +`Esta acción no se puede deshacer.`)) return;
+  const {data,error}=await sb.rpc('eliminar_empleado',{p_id:e.id});
+  if(error){ toast(error.message,'bad'); return; }
+  cerrar('ov-emp'); toast(data||'Registro eliminado.','ok');
+  await cargarEmpleados(); pintarPlantilla();
+};
+
 async function cargarMovimientos(){
   const c=$('#tab-mov');
-  if(!S.empActual){ c.innerHTML='<div class="empty">Guarda al empleado para registrar movimientos.</div>'; return; }
+  if(!S.empActual){ c.innerHTML='<div class="empty">Guarda al registro para ver sus movimientos.</div>'; return; }
   c.innerHTML='<div class="empty">Cargando…</div>';
   const {data}=await sb.from('movimientos_personal').select('*')
     .eq('empleado_id',S.empActual.id).order('fecha_efectiva',{ascending:false}).limit(80);
@@ -819,38 +1058,103 @@ async function cargarMovimientos(){
   </tbody></table></div>`;
 }
 
+async function cargarDocumentos(){
+  const c=$('#e-docs');
+  if(!S.empActual){ c.innerHTML='<div style="color:var(--txt-2);font-size:13px">Guarda al empleado para registrar sus documentos.</div>'; return; }
+  c.innerHTML='<div style="color:var(--txt-2);font-size:13px">Cargando…</div>';
+  const [dr,ed]=await Promise.all([
+    sb.from('documentos_requeridos').select('*').eq('activo',true).order('orden'),
+    sb.from('empleado_documentos').select('*').eq('empleado_id',S.empActual.id)
+  ]);
+  const mapa={}; (ed.data||[]).forEach(x=>mapa[x.documento_id]=x);
+  c.innerHTML=(dr.data||[]).map(d=>`
+    <label style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line-2);font-size:13.5px;cursor:pointer">
+      <input type="checkbox" data-doc="${d.id}" ${mapa[d.id]?.entregado?'checked':''} style="width:auto">
+      <span style="flex:1">${esc(d.nombre)}${d.obligatorio?'':' <span style="color:var(--txt-3);font-size:12px">(opcional)</span>'}</span>
+      ${mapa[d.id]?.entregado?`<span class="p p-ok">entregado</span>`:`<span class="p ${d.obligatorio?'p-bad':'p-gray'}">${d.obligatorio?'falta':'pendiente'}</span>`}
+    </label>`).join('');
+  c.querySelectorAll('[data-doc]').forEach(ch=>ch.onchange=async()=>{
+    const {error}=await sb.from('empleado_documentos').upsert({
+      empleado_id:S.empActual.id, documento_id:Number(ch.dataset.doc),
+      entregado:ch.checked, fecha_entrega:ch.checked?new Date().toISOString().slice(0,10):null
+    },{onConflict:'empleado_id,documento_id'});
+    if(error) toast('No se guardó: '+error.message,'bad'); else cargarDocumentos();
+  });
+}
+
+async function cargarBiometricos(){
+  const c=$('#e-bio');
+  if(!S.empActual){ c.innerHTML='<div style="color:var(--txt-2);font-size:13px">Guarda al empleado para registrar sus huellas.</div>'; return; }
+  const [te,eb]=await Promise.all([
+    sb.from('terminales').select('*').eq('activa',true).order('nombre'),
+    sb.from('empleado_biometrico').select('*').eq('empleado_id',S.empActual.id)
+  ]);
+  const mapa={}; (eb.data||[]).forEach(x=>mapa[x.terminal_id]=x);
+  c.innerHTML=(te.data||[]).map(t=>`
+    <div class="f" style="margin-bottom:11px"><label>${esc(t.nombre)}</label>
+      <input class="mono" data-bio="${t.id}" value="${esc(mapa[t.id]?.id_biometrico||'')}"
+        placeholder="ID con el que aparece en ese checador"></div>`).join('')
+    + '<button class="btn btn-sm" id="bio-save">Guardar huellas</button>';
+  const btn=$('#bio-save');
+  if(btn) btn.onclick=async e=>{
+    e.preventDefault();
+    for(const inp of c.querySelectorAll('[data-bio]')){
+      const val=inp.value.trim(); const tid=Number(inp.dataset.bio);
+      if(!val){ await sb.from('empleado_biometrico').delete().eq('empleado_id',S.empActual.id).eq('terminal_id',tid); continue; }
+      await sb.from('empleado_biometrico').upsert({
+        empleado_id:S.empActual.id, terminal_id:tid, id_biometrico:val, activo:true
+      },{onConflict:'terminal_id,id_biometrico'});
+    }
+    toast('Huellas guardadas.','ok');
+  };
+}
+
 $('#emp-save').onclick=async()=>{
   if(!S.direccion) return;
   const nom=$('#e-nom').value.trim();
   if(!nom){ toast('El nombre completo es obligatorio.','bad'); return; }
   const clabe=clabeLimpia($('#b-cla').value);
   if(clabe && clabe.length!==18){ toast('La CLABE debe tener 18 dígitos.','bad'); return; }
+  const est=$('#e-est').value, esq=$('#e-esq').value, tipo=$('#e-tipo').value;
+  if(est==='baja' && !$('#e-baja').value){ toast('Una baja necesita fecha de baja.','bad'); return; }
+  if(tipo==='empleado' && esq==='sueldo_semanal' && !Number($('#e-sue').value||0)){
+    toast('Un sueldo semanal necesita monto. Si no lleva sueldo, cambia el esquema.','bad'); return; }
 
-  const est=$('#e-est').value;
   const payload={
+    tipo_registro:tipo,
     codigo: $('#e-cod').value?Number($('#e-cod').value):null,
     nombre_completo: nom,
+    fecha_nacimiento: $('#e-fnac').value||null,
     puesto_id: $('#e-pue').value||null,
     centro_id: $('#e-cen').value||null,
     supervisor_id: $('#e-sup').value||null,
-    esquema_pago: $('#e-esq').value,
-    sueldo_quincenal: $('#e-sue').value?Number($('#e-sue').value):0,
+    esquema_pago: esq,
+    sueldo_semanal: Number($('#e-sue').value||0),
+    tarifa_registro: esq==='base_datos' ? Number($('#e-tar').value||0) : null,
     fecha_ingreso: $('#e-ing').value||null,
     estatus: est,
     fecha_baja: $('#e-baja').value||null,
+    motivo_baja: $('#e-mot').value.trim()||null,
     telefono: $('#e-tel').value.trim()||null,
     correo: $('#e-cor').value.trim()||null,
     rfc: $('#e-rfc').value.trim().toUpperCase()||null,
+    rfc_calculado: !!S.rfcCalculado,
     curp: $('#e-curp').value.trim().toUpperCase()||null,
-    motivo_baja: $('#e-mot').value.trim()||null,
+    dia_descanso: Number($('#e-desc').value||7),
+    trabaja_sabado: $('#e-sab').value==='si',
+    fecha_fin_capacitacion: $('#e-fcap').value||null,
+    fecha_inicio_produccion: $('#e-fprod').value||null,
+    capacitacion_aprobada: $('#e-capap').value===''?null:$('#e-capap').value==='si',
+    domicilio: $('#e-dom').value.trim()||null,
+    emergencia_nombre: $('#e-emnom').value.trim()||null,
+    emergencia_telefono: $('#e-emtel').value.trim()||null,
+    emergencia_parentesco: $('#e-empar').value.trim()||null,
     notas: $('#e-not').value.trim()||null,
     actualizado_en: new Date().toISOString()
   };
-  if(est==='baja' && !payload.fecha_baja){ toast('Una baja necesita fecha de baja.','bad'); return; }
 
   $('#emp-save').disabled=true;
-  const prev=S.empActual;
-  let empId=prev?.id;
+  const prev=S.empActual; let empId=prev?.id;
   if(prev){
     const {error}=await sb.from('empleados').update(payload).eq('id',prev.id);
     if(error){ $('#emp-save').disabled=false; toast('No se guardó: '+error.message,'bad'); return; }
@@ -860,7 +1164,6 @@ $('#emp-save').onclick=async()=>{
     empId=data.id;
   }
 
-  // Bitácora de cambios relevantes
   const movs=[]; const hoy=new Date().toISOString().slice(0,10);
   const nomPuesto=id=>S.puestos.find(p=>String(p.id)===String(id))?.nombre||'sin asignar';
   if(!prev){
@@ -869,8 +1172,10 @@ $('#emp-save').onclick=async()=>{
   }else{
     if(String(prev.puesto_id??'')!==String(payload.puesto_id??''))
       movs.push({empleado_id:empId,tipo:'cambio_puesto',fecha_efectiva:hoy,valor_anterior:nomPuesto(prev.puesto_id),valor_nuevo:nomPuesto(payload.puesto_id),registrado_por:S.perfil.id});
-    if(Number(prev.sueldo_quincenal||0)!==Number(payload.sueldo_quincenal||0))
-      movs.push({empleado_id:empId,tipo:'cambio_sueldo',fecha_efectiva:hoy,valor_anterior:money(prev.sueldo_quincenal),valor_nuevo:money(payload.sueldo_quincenal),registrado_por:S.perfil.id});
+    if(Number(prev.sueldo_semanal||0)!==Number(payload.sueldo_semanal||0))
+      movs.push({empleado_id:empId,tipo:'cambio_sueldo',fecha_efectiva:hoy,valor_anterior:money(prev.sueldo_semanal),valor_nuevo:money(payload.sueldo_semanal),registrado_por:S.perfil.id});
+    if(prev.esquema_pago!==payload.esquema_pago)
+      movs.push({empleado_id:empId,tipo:'otro',fecha_efectiva:hoy,valor_anterior:prev.esquema_pago,valor_nuevo:payload.esquema_pago,motivo:'Cambio de esquema de pago',registrado_por:S.perfil.id});
     if(prev.estatus!==payload.estatus)
       movs.push({empleado_id:empId,tipo:payload.estatus==='baja'?'baja':(prev.estatus==='baja'?'reingreso':'otro'),
         fecha_efectiva:payload.estatus==='baja'?(payload.fecha_baja||hoy):hoy,
@@ -882,7 +1187,6 @@ $('#emp-save').onclick=async()=>{
   }
   if(movs.length) await sb.from('movimientos_personal').insert(movs);
 
-  // Datos de pago
   if(clabe || $('#b-ban').value){
     const bancoNom=S.bancos.find(b=>String(b.id)===$('#b-ban').value)?.nombre||null;
     const antes=prev?._banco?.clabe;
@@ -891,7 +1195,7 @@ $('#emp-save').onclick=async()=>{
       clabe:clabe||null, titular:$('#b-tit').value.trim()||null,
       verificada:$('#b-ver').checked, actualizado_en:new Date().toISOString()
     },{onConflict:'empleado_id'});
-    if(error) toast('El empleado se guardó, pero los datos de pago no: '+error.message,'bad');
+    if(error) toast('El registro se guardó, pero los datos de pago no: '+error.message,'bad');
     else if(antes && clabe && antes!==clabe)
       await sb.from('movimientos_personal').insert({empleado_id:empId,tipo:'cambio_banco',fecha_efectiva:hoy,
         valor_anterior:'····'+antes.slice(-4),valor_nuevo:'····'+clabe.slice(-4),registrado_por:S.perfil.id});
@@ -899,7 +1203,7 @@ $('#emp-save').onclick=async()=>{
 
   $('#emp-save').disabled=false;
   cerrar('ov-emp');
-  toast(prev?'Cambios guardados.':'Empleado registrado.','ok');
+  toast(prev?'Cambios guardados.':'Registro creado.','ok');
   await cargarEmpleados(); pintarPlantilla();
 };
 
@@ -2219,6 +2523,78 @@ function vistaGuia(){
 }
 
 /* ============================================================
+   MÓDULO 99 — CONFIGURACIÓN
+   ============================================================ */
+async function vistaConfig(){
+  if(!S.direccion){ $('#main').innerHTML='<div class="empty"><b>Solo dirección</b>Esta sección ajusta los valores con los que se calcula todo.</div>'; return; }
+  $('#main').innerHTML='<div class="empty">Cargando parámetros…</div>';
+  const [pa,hi]=await Promise.all([
+    sb.from('parametros').select('*').order('grupo').order('orden'),
+    sb.from('parametros_historial').select('*').order('creado_en',{ascending:false}).limit(15)
+  ]);
+  if(pa.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(pa.error.message)}</div>`; return; }
+  S.params=pa.data||[];
+  const grupos=[...new Set(S.params.map(p=>p.grupo))];
+
+  $('#main').innerHTML=`
+  <div class="head"><div><h1>Configuración</h1>
+    <p>Los valores con los que el sistema calcula todo. Cada cambio queda registrado.</p></div></div>
+
+  <div class="note"><b>Cuidado con lo que cambias aquí</b>Estos números afectan cálculos ya hechos y los que vienen. Cambiar el factor de comisión o el porcentaje de retención altera lo que el sistema espera cobrar. Si no estás seguro, no lo muevas.</div>
+
+  ${grupos.map(g=>`
+    <div class="head" style="margin:22px 0 10px"><div><h1 style="font-size:17px">${esc(g)}</h1></div></div>
+    <div class="tw"><table>
+      <thead><tr><th style="width:32%">Parámetro</th><th style="width:16%">Valor</th><th>Qué controla</th><th></th></tr></thead>
+      <tbody>${S.params.filter(p=>p.grupo===g).map(p=>`<tr>
+        <td class="nm">${esc(p.clave.replace(/_/g,' '))}</td>
+        <td><div style="display:flex;align-items:center;gap:6px">
+          <input class="mono" id="pv-${esc(p.clave)}" value="${esc(p.valor)}"
+            style="width:100px;padding:5px 8px;border:1px solid var(--line);border-radius:var(--r)"
+            ${p.editable?'':'disabled'}>
+          ${p.unidad?`<span style="color:var(--txt-3);font-size:12px">${esc(p.unidad)}</span>`:''}
+        </div></td>
+        <td style="color:var(--txt-2);font-size:12.5px;line-height:1.5">${esc(p.descripcion||'')}</td>
+        <td style="text-align:right"><button class="btn btn-sm" data-pg="${esc(p.clave)}" ${p.editable?'':'disabled'}>Guardar</button></td>
+      </tr>`).join('')}</tbody>
+    </table></div>`).join('')}
+
+  <div class="head" style="margin:26px 0 10px"><div><h1 style="font-size:17px">Últimos cambios</h1>
+    <p>Quién movió qué y cuándo</p></div></div>
+  <div class="tw"><table>
+    <thead><tr><th>Fecha</th><th>Parámetro</th><th>Antes</th><th>Después</th></tr></thead>
+    <tbody>${(hi.data||[]).length?(hi.data||[]).map(h=>`<tr>
+      <td class="mono" style="font-size:12.5px">${new Date(h.creado_en).toLocaleString('es-MX')}</td>
+      <td>${esc(h.clave.replace(/_/g,' '))}</td>
+      <td class="mono" style="color:var(--txt-2)">${esc(h.valor_anterior||'—')}</td>
+      <td class="mono nm">${esc(h.valor_nuevo||'—')}</td>
+    </tr>`).join(''):'<tr><td colspan="4"><div class="empty"><b>Sin cambios</b>Nadie ha modificado ningún parámetro.</div></td></tr>'}
+    </tbody></table></div>`;
+
+  document.querySelectorAll('[data-pg]').forEach(b=>b.onclick=()=>guardarParametro(b.dataset.pg,b));
+}
+
+async function guardarParametro(clave,btn){
+  const p=S.params.find(x=>x.clave===clave);
+  const nuevo=$('#pv-'+CSS.escape(clave)).value.trim();
+  if(nuevo===p.valor){ toast('No cambió nada.',''); return; }
+  if(!nuevo){ toast('El valor no puede quedar vacío.','bad'); return; }
+  if(['numero','porcentaje'].includes(p.tipo)){
+    const n=Number(nuevo);
+    if(isNaN(n)){ toast('Ese parámetro tiene que ser un número.','bad'); return; }
+    if(p.minimo!==null && n<Number(p.minimo)){ toast(`No puede ser menor que ${p.minimo}.`,'bad'); return; }
+    if(p.maximo!==null && n>Number(p.maximo)){ toast(`No puede ser mayor que ${p.maximo}.`,'bad'); return; }
+  }
+  if(!confirm(`Cambiar "${clave.replace(/_/g,' ')}"\n\nDe: ${p.valor}\nA: ${nuevo}\n\n${p.descripcion||''}`)) return;
+  btn.disabled=true; btn.textContent='…';
+  const {error}=await sb.from('parametros').update({valor:nuevo}).eq('clave',clave);
+  btn.disabled=false; btn.textContent='Guardar';
+  if(error){ toast('No se guardó: '+error.message,'bad'); return; }
+  toast('Parámetro actualizado.','ok');
+  vistaConfig();
+}
+
+/* ============================================================
    MÓDULO 07 — GASTOS
    ============================================================ */
 const TIPO_G={fijo:['p-teal','Fijo'],semifijo:['p-warn','Semifijo'],variable:['p-gray','Variable']};
@@ -2456,7 +2832,17 @@ const AYUDA={
   'e-pue':'Define las reglas de horario que se le aplican al calcular asistencia. Si lo dejas sin asignar, la persona no se califica.',
   'e-cen':'A qué call center pertenece. Sirve para separar reportes y costos por sede.',
   'e-sup':'Quién lo supervisa. Se usa para agrupar resultados por equipo.',
-  'e-esq':'Quincenal es el estándar. Comisión pura es para quien no tiene sueldo base y solo cobra por venta.',
+  'e-tipo':'Empleado es personal de la operación. Destino de pago es alguien a quien transfieres pero no es tu trabajador: socios, proveedores, la propia ExpertCell. Los destinos no entran a nómina ni a asistencia.',
+  'e-esq':'Define qué se le calcula. Sueldo semanal lleva asistencia y descuentos. Base de datos se paga por registro capturado. Comisionista no tiene horario. Capacitación es la semana de prueba a tarifa fija.',
+  'e-tar':'Lo que se paga por cada registro capturado. El valor general se ajusta en Configuración; aquí solo si esta persona tiene una tarifa distinta.',
+  'e-fcap':'Último día de la semana de capacitación. Si aprueba, empieza a producir el lunes siguiente.',
+  'e-fprod':'Desde esta fecha se le mide productividad. Antes de ella no cuenta como agente activo para los promedios.',
+  'e-capap':'Si no aprueba, queda fuera del programa. Si faltó algún día de la capacitación, no se le paga.',
+  'e-desc':'Hoy todos descansan domingo. Si alguien descansa otro día, cámbialo aquí o el sistema le marcará falta.',
+  'e-sab':'Marca no cuando el puesto no se requiere en fin de semana. Así no aparece con falta los sábados.',
+  'e-fnac':'Se usa para calcular el RFC y para el expediente.',
+  'e-dom':'Domicilio completo para el expediente y el contrato.',
+  'e-emnom':'A quién llamar si le pasa algo durante su jornada.',
   'e-sue':'Lo que se paga por quincena, sin comisiones ni bonos. De aquí se calculan los descuentos por falta.',
   'e-ing':'Primer día que entró a trabajar. Se usa para antigüedad y para saber cuándo termina su capacitación.',
   'e-est':'Activo cuenta en nómina. Permiso, vacaciones e incapacidad siguen en plantilla pero se califican distinto. Baja lo saca de la operación.',
