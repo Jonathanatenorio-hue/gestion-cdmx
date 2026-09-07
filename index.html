@@ -440,6 +440,58 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
   </div>
 </div>
 
+<div class="ov" id="ov-venta">
+  <div class="md" style="max-width:700px">
+    <div class="md-h"><b id="vt-tit">Nueva venta</b><button data-close="ov-venta">&times;</button></div>
+    <div class="md-b">
+      <div id="vt-estado"></div>
+      <div style="margin:0 0 10px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--teal)">1 · Lo captura el agente</div>
+      <div class="grid">
+        <div class="f"><label for="vt-dn">Teléfono</label><input id="vt-dn" class="mono" inputmode="numeric" maxlength="14" placeholder="10 dígitos"><small id="vt-dn-msg"></small></div>
+        <div class="f"><label for="vt-plazo">Plazo</label><select id="vt-plazo">
+          <option value="">— elegir —</option><option value="12">12 meses</option><option value="18">18 meses</option>
+          <option value="24">24 meses</option><option value="30">30 meses</option><option value="36">36 meses</option></select></div>
+        <div class="f full"><label for="vt-cli">Nombre del cliente</label><input id="vt-cli"></div>
+        <div class="f"><label for="vt-rfc">RFC del cliente</label><input id="vt-rfc" class="mono" style="text-transform:uppercase"></div>
+        <div class="f"><label for="vt-plan">Plan</label><select id="vt-plan"></select></div>
+        <div class="f full"><label for="vt-eq">Equipo</label><input id="vt-eq" placeholder="Marca, modelo y color"></div>
+        <div class="f full"><label for="vt-dir">Dirección de entrega</label><textarea id="vt-dir" rows="2" placeholder="Calle, número, colonia, municipio, estado, CP"></textarea></div>
+        <div class="f full" id="vt-box-ag"><label for="vt-ag">Agente que vendió</label><select id="vt-ag"></select></div>
+      </div>
+
+      <div id="vt-mesa" style="display:none">
+        <div style="margin:20px 0 10px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--copper);border-top:1px solid var(--line);padding-top:16px">2 · Lo devuelve mesa de control</div>
+        <div class="grid">
+          <div class="f"><label for="vt-pt">PT de Global</label><input id="vt-pt" class="mono" placeholder="PT16970"></div>
+          <div class="f"><label for="vt-orden">Orden</label><input id="vt-orden" class="mono" placeholder="4025203745A"><small id="vt-folio-msg"></small></div>
+          <div class="f full"><label style="display:flex;flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px">
+            <input type="checkbox" id="vt-odoo" style="width:auto"> Capturada también en Odoo</label></div>
+        </div>
+      </div>
+
+      <div id="vt-log" style="display:none">
+        <div style="margin:20px 0 10px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-2);border-top:1px solid var(--line);padding-top:16px">3 · Logística</div>
+        <div class="grid">
+          <div class="f"><label for="vt-hub">Hub</label><select id="vt-hub"></select></div>
+          <div class="f"><label for="vt-est">Estatus</label><select id="vt-est">
+            <option value="capturada">Capturada</option><option value="facturada">Facturada</option>
+            <option value="en_preparacion">En preparación</option><option value="en_entrega">En entrega</option>
+            <option value="entregada">Entregada</option><option value="back">Back</option>
+            <option value="cancelada">Cancelada</option></select></div>
+          <div class="f"><label for="vt-fent">Fecha de entrega</label><input id="vt-fent" type="date"></div>
+        </div>
+      </div>
+
+      <div class="f full" style="margin-top:14px"><label for="vt-nota">Notas</label><input id="vt-nota"></div>
+      <div id="vt-oficial"></div>
+    </div>
+    <div class="md-f">
+      <button class="btn" data-close="ov-venta">Cancelar</button>
+      <button class="btn btn-p" id="vt-save">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="ov" id="ov-gasto">
   <div class="md" style="max-width:640px">
     <div class="md-h"><b id="ga-tit">Gasto</b><button data-close="ov-gasto">&times;</button></div>
@@ -547,7 +599,8 @@ const MODULOS = [
   {id:'asistencia', n:'01', t:'Asistencia',           bloque:3, desc:'Carga los dos exportes del checador (AT&T y NEZA), cruza los marcajes contra las reglas de horario y califica cada día como asistencia, retardo, falta o descanso. Ajustes manuales quedan firmados con usuario y motivo.', pts:['Lector de los archivos del biométrico con control de duplicados','Reglas por puesto: ejecutivos 10:05 / 10:15, supervisión 10:00 / 10:10, facturación 8:00 / 8:10','Sin checada de salida se marca falta, con opción de justificar','Tablero por quincena y detalle por persona']},
   {id:'nomina',     n:'02', t:'Nómina',               bloque:4, desc:'Calcula la quincena a partir de la asistencia ya calificada, aplica percepciones y deducciones, y cierra el periodo para que no se pueda tocar después de pagado.', pts:['Periodos del 6 al 20 y del 21 al 5','Descuento automático por faltas y retardos','Conceptos manuales: préstamos, equipo, bonos','Cierre de periodo con bitácora de quién cerró']},
   {id:'comisiones', n:'03', t:'Comisiones y bonos',   bloque:6, desc:'Toma las ventas que sí pagó AT&T y las convierte en comisión por agente según el esquema vigente. Se alimenta de la auditoría, no del reporte interno.', pts:['Esquemas con vigencia y rangos por volumen','Factores por plan','Autorización antes de pasar a nómina','Comparativo de lo calculado contra lo pagado']},
-  {id:'auditoria',  n:'04', t:'Auditoría de ventas',  bloque:5, desc:'El corazón del control: cruza tu reporte interno contra Global y contra los dos archivos de pago de ExpertCell, el semanal del 50% y el mensual del remanente.', pts:['Cruce por folio y por teléfono, con asignación manual para lo que no empate','Detección de duplicados en el interno','Clasificación: pagada sin comisionar, comisionada sin pagar, solo interno, solo Global','Control del remanente mensual pendiente de cobro']},
+  {id:'ventas',     n:'04', t:'Ventas',                 lista:true},
+  {id:'auditoria',  n:'04b', t:'Auditoría de ventas',  bloque:5, desc:'El corazón del control: cruza tu reporte interno contra Global y contra los dos archivos de pago de ExpertCell, el semanal del 50% y el mensual del remanente.', pts:['Cruce por folio y por teléfono, con asignación manual para lo que no empate','Detección de duplicados en el interno','Clasificación: pagada sin comisionar, comisionada sin pagar, solo interno, solo Global','Control del remanente mensual pendiente de cobro']},
   {id:'accesos',    n:'06', t:'Accesos a plataformas',bloque:10,desc:'Padrón de usuarios de AT&T, Bonsaif, Odoo, iVentas y el CRM de leads. Sin contraseñas: solo quién tiene qué y desde cuándo.', pts:['Alta y baja ligada al movimiento de personal','Alerta de accesos activos de gente que ya causó baja','Costo mensual por plataforma','Historial de solicitudes']},
   {id:'gastos',     n:'07', t:'Gastos',               lista:true},
   {id:'ingresos',   n:'08', t:'Cobros ExpertCell',    lista:true},
@@ -631,7 +684,7 @@ function irA(id){
   vistaActual=id;
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
   const m=MODULOS.find(x=>x.id===id);
-  const R={guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig};
+  const R={guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas};
   if(m.lista && R[id]) R[id](); else vistaSoon(m);
   window.scrollTo(0,0);
 }
@@ -2523,6 +2576,238 @@ function vistaGuia(){
 }
 
 /* ============================================================
+   MÓDULO 04 — VENTAS
+   ============================================================ */
+const EST_V={capturada:['p-teal','Capturada'],facturada:['p-warn','Facturada'],
+  en_preparacion:['p-gray','En preparación'],en_entrega:['p-gray','En entrega'],
+  entregada:['p-ok','Entregada'],validada:['p-ok','Validada por AT&T'],
+  back:['p-bad','Back'],cancelada:['p-bad','Cancelada']};
+const MATCH_V={pendiente:['p-gray','sin cruzar'],confirmada:['p-ok','cruzada'],
+  no_encontrada:['p-bad','no aparece'],discrepancia:['p-warn','discrepancia'],cancelada:['p-bad','cancelada']};
+
+async function vistaVentas(){
+  $('#main').innerHTML='<div class="empty">Cargando ventas…</div>';
+  if(!S.empleados||!S.empleados.length) await cargarEmpleados();
+  const [vt,pl,hb]=await Promise.all([
+    sb.from('v_pipeline_ventas').select('*').order('capturada',{ascending:false}).limit(3000),
+    sb.from('planes').select('*').eq('activo',true).order('orden'),
+    sb.from('hubs').select('*').eq('activo',true).order('nombre')
+  ]);
+  if(vt.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(vt.error.message)}<br><span style="font-size:12.5px">Si dice que no existe la vista, falta correr el SQL 22.</span></div>`; return; }
+  S.ventas=vt.data||[]; S.planes=pl.data||[]; S.hubs=hb.data||[];
+  S.fV=S.fV||{q:'',est:'',match:'',ag:'',mes:''};
+
+  const hoy=new Date().toISOString().slice(0,10);
+  const mes=hoy.slice(0,7);
+  const capHoy=S.ventas.filter(v=>v.capturada===hoy).length;
+  const porFacturar=S.ventas.filter(v=>v.estatus==='capturada').length;
+  const enCamino=S.ventas.filter(v=>['facturada','en_preparacion','en_entrega'].includes(v.estatus)).length;
+  const validadasMes=S.ventas.filter(v=>(v.fecha_facturacion||'').startsWith(mes)).length;
+  const disc=S.ventas.filter(v=>v.estatus_match==='discrepancia').length;
+  const noAparece=S.ventas.filter(v=>v.estatus_match==='no_encontrada').length;
+  const agentes=[...new Set(S.ventas.map(v=>v.agente).filter(Boolean))].sort();
+  const meses=[...new Set(S.ventas.map(v=>(v.capturada||'').slice(0,7)).filter(Boolean))].sort().reverse();
+
+  $('#main').innerHTML=`
+  <div class="head">
+    <div><h1>Ventas</h1><p>Del cierre de la venta a la validación de AT&amp;T, en un solo lugar</p></div>
+    <div class="acts">
+      ${S.direccion?'<button class="btn" id="b-cruzar">Cruzar con AT&amp;T</button>':''}
+      <button class="btn btn-p" id="b-venta">Nueva venta</button>
+    </div>
+  </div>
+  <div class="kpis">
+    <div class="kpi t"><span>Capturadas hoy</span><b>${capHoy}</b><small>${new Date().toLocaleDateString('es-MX',{day:'numeric',month:'long'})}</small></div>
+    <div class="kpi ${porFacturar?'w':''}"><span>Por facturar</span><b>${porFacturar}</b><small>esperan a mesa de control</small></div>
+    <div class="kpi"><span>En camino</span><b>${enCamino}</b><small>facturadas sin entregar</small></div>
+    <div class="kpi c"><span>Validadas este mes</span><b>${validadasMes}</b><small>ya facturó AT&amp;T</small></div>
+    <div class="kpi ${disc?'b':''}"><span>Con discrepancia</span><b>${disc}</b><small>lo capturado no cuadra</small></div>
+    <div class="kpi ${noAparece?'b':''}"><span>No aparecen</span><b>${noAparece}</b><small>capturadas que AT&amp;T no reporta</small></div>
+  </div>
+
+  <div class="bar">
+    <input type="search" id="fv-q" placeholder="Buscar por teléfono, cliente, PT, folio o equipo" value="${esc(S.fV.q)}">
+    <select id="fv-est"><option value="">Todos los estatus</option>
+      ${Object.entries(EST_V).map(([k,v])=>`<option value="${k}">${v[1]}</option>`).join('')}</select>
+    <select id="fv-match"><option value="">Todo el cruce</option>
+      ${Object.entries(MATCH_V).map(([k,v])=>`<option value="${k}">${v[1]}</option>`).join('')}</select>
+    <select id="fv-ag"><option value="">Todos los agentes</option>
+      ${agentes.map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('')}</select>
+    <select id="fv-mes"><option value="">Todos los meses</option>
+      ${meses.map(m=>`<option value="${m}">${m}</option>`).join('')}</select>
+    <span class="cnt" id="fv-cnt"></span>
+  </div>
+
+  <div class="tw"><table>
+    <thead><tr><th>Teléfono</th><th>Cliente</th><th>Plan</th><th>Agente</th>
+      <th>PT</th><th>Folio</th><th>Capturada</th><th>Estatus</th><th>Cruce</th><th></th></tr></thead>
+    <tbody id="tb-v"></tbody>
+  </table></div>`;
+
+  ['est','match','ag','mes'].forEach(k=>{ $('#fv-'+k).value=S.fV[k];
+    $('#fv-'+k).onchange=e=>{S.fV[k]=e.target.value;pintarVentas();}; });
+  $('#fv-q').oninput=e=>{S.fV.q=e.target.value;pintarVentas();};
+  $('#b-venta').onclick=()=>abrirVenta(null);
+  if($('#b-cruzar')) $('#b-cruzar').onclick=cruzarVentas;
+  pintarVentas();
+}
+
+function pintarVentas(){
+  const f=S.fV;
+  const rows=S.ventas.filter(v=>{
+    if(f.est && v.estatus!==f.est) return false;
+    if(f.match && v.estatus_match!==f.match) return false;
+    if(f.ag && v.agente!==f.ag) return false;
+    if(f.mes && !(v.capturada||'').startsWith(f.mes)) return false;
+    if(f.q){
+      const t=((v.dn||'')+' '+(v.cliente||'')+' '+(v.pt||'')+' '+(v.folio_contrato||'')+' '+(v.equipo||'')).toLowerCase();
+      if(!t.includes(f.q.toLowerCase())) return false;
+    }
+    return true;
+  });
+  $('#fv-cnt').textContent=`${rows.length} de ${S.ventas.length} ventas`;
+  $('#tb-v').innerHTML=rows.length?rows.slice(0,600).map(v=>{
+    const [ec,et]=EST_V[v.estatus]||['p-gray',v.estatus];
+    const [mc,mt]=MATCH_V[v.estatus_match]||['p-gray',v.estatus_match];
+    return `<tr>
+      <td class="mono nm" style="font-size:12.5px">${esc(v.dn)}</td>
+      <td>${esc(v.cliente||'—')}</td>
+      <td style="font-size:12.5px">${esc(v.plan_declarado||'—')}</td>
+      <td style="font-size:12.5px">${esc(v.agente||'—')}</td>
+      <td class="mono" style="font-size:12px">${esc(v.pt||'—')}</td>
+      <td class="mono" style="font-size:12px">${esc(v.folio_contrato||'—')}</td>
+      <td class="mono" style="font-size:12.5px">${fecha(v.capturada)}</td>
+      <td><span class="p ${ec}">${et}</span></td>
+      <td><span class="p ${mc}" title="${esc(v.discrepancias||'')}">${mt}</span></td>
+      <td style="text-align:right"><button class="btn btn-sm" data-vt="${v.id}">Abrir</button></td>
+    </tr>`;
+  }).join(''):`<tr><td colspan="10"><div class="empty"><b>${S.ventas.length?'Sin resultados':'Sin ventas capturadas'}</b>${S.ventas.length?'Ajusta los filtros.':'Captura la primera venta con el botón de arriba.'}</div></td></tr>`;
+  document.querySelectorAll('[data-vt]').forEach(b=>b.onclick=()=>abrirVenta(Number(b.dataset.vt)));
+}
+
+async function abrirVenta(id){
+  const v = id ? S.ventas.find(x=>x.id===id) : null;
+  S.ventaActual=v;
+  $('#vt-plan').innerHTML='<option value="">— elegir —</option>'+S.planes.map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
+  $('#vt-hub').innerHTML='<option value="">— sin asignar —</option>'+S.hubs.map(h=>`<option value="${h.id}">${esc(h.nombre)}</option>`).join('');
+  $('#vt-ag').innerHTML=S.empleados.filter(e=>e.estatus==='activo'&&e.tipo_registro!=='destino_pago')
+    .map(e=>`<option value="${e.id}">${esc(e.nombre_completo)}</option>`).join('');
+
+  const mesa=['director','admin','coordinador'].includes(S.perfil.rol) || S.perfil.puesto_mesa;
+  $('#vt-mesa').style.display = (v||mesa)?'':'none';
+  $('#vt-log').style.display  = v?'':'none';
+  $('#vt-box-ag').style.display = S.direccion||!v?'':'none';
+
+  $('#vt-tit').textContent = v ? `Venta ${v.dn}` : 'Nueva venta';
+  $('#vt-dn').value=v?.dn??''; $('#vt-dn').disabled=!!v;
+  $('#vt-cli').value=v?.cliente??''; $('#vt-rfc').value='';
+  $('#vt-eq').value=v?.equipo??''; $('#vt-plazo').value=v?.plazo??'';
+  $('#vt-dir').value=''; $('#vt-nota').value='';
+  $('#vt-pt').value=v?.pt??''; $('#vt-orden').value='';
+  $('#vt-odoo').checked=!!v?.odoo; $('#vt-est').value=v?.estatus??'capturada';
+  $('#vt-fent').value=v?.fecha_entrega??''; $('#vt-dn-msg').textContent=''; $('#vt-folio-msg').textContent='';
+  $('#vt-estado').innerHTML=''; $('#vt-oficial').innerHTML='';
+
+  if(v){
+    const {data}=await sb.from('ventas_capturadas').select('*').eq('id',v.id).single();
+    if(data){
+      $('#vt-rfc').value=data.rfc_cliente??''; $('#vt-dir').value=data.direccion??'';
+      $('#vt-nota').value=data.nota??''; $('#vt-orden').value=data.orden??'';
+      $('#vt-plan').value=data.plan_id??''; $('#vt-hub').value=data.hub_id??'';
+      $('#vt-ag').value=data.empleado_id??'';
+      if(data.discrepancias){
+        $('#vt-estado').innerHTML=`<div class="note" style="background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16">
+          <b>Lo capturado no coincide con AT&T</b>${esc(data.discrepancias)}</div>`;
+      }
+      if(data.fecha_facturacion){
+        $('#vt-oficial').innerHTML=`<div style="margin-top:16px;padding:12px 14px;background:#F7F8FA;border:1px solid var(--line);border-radius:var(--r);font-size:13px">
+          <b style="display:block;margin-bottom:7px">Lo que reporta AT&T</b>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 18px">
+            <div><span style="color:var(--txt-2)">Plan</span><br>${esc(data.plan_oficial||'—')}</div>
+            <div><span style="color:var(--txt-2)">Renta</span><br>${data.renta_total?money(data.renta_total):'—'}</div>
+            <div><span style="color:var(--txt-2)">Facturación</span><br>${fecha(data.fecha_facturacion)}</div>
+            <div><span style="color:var(--txt-2)">Días en facturar</span><br>${data.dias_a_facturar??'—'}</div>
+          </div></div>`;
+      }
+    }
+  }else{
+    const mio=S.empleados.find(e=>e.id===S.perfil.empleado_id);
+    if(mio) $('#vt-ag').value=mio.id;
+  }
+  $('#ov-venta').classList.add('on');
+  if(!v) setTimeout(()=>$('#vt-dn').focus(),80);
+}
+
+$('#vt-dn').oninput=async e=>{
+  const v=e.target.value.replace(/\D/g,'').slice(0,10);
+  e.target.value=v;
+  const m=$('#vt-dn-msg');
+  if(v.length<10){ m.textContent=`Van ${v.length} de 10 dígitos.`; m.style.color='var(--txt-3)'; return; }
+  m.textContent='Verificando…'; m.style.color='var(--txt-3)';
+  const {data}=await sb.from('v_pipeline_ventas').select('cliente,agente,capturada').eq('dn',v).maybeSingle();
+  if(data){ m.innerHTML=`<span style="color:var(--bad)"><b>Ya está capturada</b> por ${esc(data.agente)} el ${fecha(data.capturada)}${data.cliente?', cliente '+esc(data.cliente):''}.</span>`; }
+  else { m.innerHTML='<span style="color:var(--ok)">Teléfono disponible.</span>'; }
+};
+
+$('#vt-orden').oninput=e=>{
+  const f=e.target.value.toUpperCase().replace(/[A-Z]+$/,'');
+  $('#vt-folio-msg').textContent = f ? 'Folio de contrato: '+f : '';
+};
+
+$('#vt-save').onclick=async()=>{
+  const dn=$('#vt-dn').value.replace(/\D/g,'');
+  if(dn.length!==10){ toast('El teléfono debe tener 10 dígitos.','bad'); $('#vt-dn').focus(); return; }
+  if(!$('#vt-cli').value.trim()){ toast('Falta el nombre del cliente.','bad'); return; }
+  if(!$('#vt-ag').value){ toast('Falta el agente que vendió.','bad'); return; }
+  const p={
+    dn, cliente:$('#vt-cli').value.trim(),
+    rfc_cliente:$('#vt-rfc').value.trim().toUpperCase()||null,
+    direccion:$('#vt-dir').value.trim()||null,
+    plan_id:$('#vt-plan').value||null,
+    plan_declarado:$('#vt-plan').selectedOptions[0]?.textContent!=='— elegir —'?$('#vt-plan').selectedOptions[0]?.textContent:null,
+    equipo:$('#vt-eq').value.trim()||null,
+    plazo:$('#vt-plazo').value?Number($('#vt-plazo').value):null,
+    empleado_id:Number($('#vt-ag').value),
+    pt:$('#vt-pt').value.trim()||null,
+    orden:$('#vt-orden').value.trim().toUpperCase()||null,
+    odoo:$('#vt-odoo').checked,
+    hub_id:$('#vt-hub').value||null,
+    fecha_entrega:$('#vt-fent').value||null,
+    nota:$('#vt-nota').value.trim()||null
+  };
+  if(S.ventaActual) p.estatus=$('#vt-est').value;
+
+  $('#vt-save').disabled=true;
+  const r = S.ventaActual
+    ? await sb.from('ventas_capturadas').update(p).eq('id',S.ventaActual.id)
+    : await sb.from('ventas_capturadas').insert(p);
+  $('#vt-save').disabled=false;
+  if(r.error){
+    toast(/ux_venta_dn|duplicate/i.test(r.error.message)
+      ? 'Ese teléfono ya está capturado por alguien más.'
+      : 'No se guardó: '+r.error.message, 'bad');
+    return;
+  }
+  cerrar('ov-venta');
+  toast(S.ventaActual?'Venta actualizada.':'Venta capturada.','ok');
+  vistaVentas();
+};
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter' && (e.ctrlKey||e.metaKey) && $('#ov-venta').classList.contains('on')) $('#vt-save').click();
+});
+
+async function cruzarVentas(){
+  const b=$('#b-cruzar'); b.disabled=true; b.textContent='Cruzando…';
+  const {data,error}=await sb.rpc('cruzar_ventas_capturadas');
+  b.disabled=false; b.textContent='Cruzar con AT&T';
+  if(error){ toast('No se pudo cruzar: '+error.message,'bad'); return; }
+  const r=(data||[])[0]||{};
+  toast(`${r.confirmadas||0} ventas cruzadas · ${r.sin_agente||0} folios con agente asignado · ${r.no_encontradas||0} marcadas como no encontradas.`,'ok');
+  vistaVentas();
+}
+
+/* ============================================================
    MÓDULO 99 — CONFIGURACIÓN
    ============================================================ */
 async function vistaConfig(){
@@ -2882,6 +3167,19 @@ const AYUDA={
   'co-ref':'La clave de rastreo SPEI o el número de referencia que viene en el comprobante. Es lo que te pide el banco si hay que aclarar un depósito.',
   'co-comp':'El comprobante de la transferencia que te manda ExpertCell. Es obligatorio para marcar el cobro como pagado: si hay comprobante, el dinero ya está en la cuenta. Si subes una foto o captura, el sistema intenta leerla y llenar la clave de rastreo, el importe y la fecha.',
   /* Carga de archivo */
+  'vt-dn':'El número de la línea contratada, 10 dígitos. Es la llave de toda la venta: con él se cruza contra el archivo de AT&T. Si ya existe, el sistema te dice quién lo capturó.',
+  'vt-cli':'Nombre completo del titular, como va en el contrato.',
+  'vt-rfc':'Lo necesita mesa de control para capturar en Global.',
+  'vt-plan':'El plan que contrató. Cuando llegue el archivo de AT&T se compara: si no coincide, la venta se marca porque cambia la comisión.',
+  'vt-eq':'Marca, modelo, capacidad y color, como aparece en el pedido.',
+  'vt-plazo':'Meses de plazo forzoso del contrato.',
+  'vt-dir':'Dirección completa a donde se entrega. No viene en el archivo de AT&T, solo existe aquí.',
+  'vt-ag':'Quién cerró la venta. De aquí sale su comisión, así que no se cambia después sin autorización.',
+  'vt-pt':'El folio que genera Global al facturar. Es el identificador oficial de ExpertCell.',
+  'vt-orden':'El número de orden. El sistema le quita la letra final para obtener el folio de contrato con el que cruza contra AT&T.',
+  'vt-hub':'De qué hub sale el equipo.',
+  'vt-est':'Avanza solo conforme se captura el PT y la fecha de entrega. Back es cuando el equipo regresa.',
+  'vt-fent':'El día en que el cliente recibió el equipo.',
   'ga-fecha':'El día en que se hizo o se hará el pago. Con esta fecha entra al balance del mes.',
   'ga-cat':'Fijo es lo que se paga igual cada mes, semifijo lo que varía poco, variable lo que depende de la operación.',
   'ga-con':'Descripción corta y clara. Es lo que vas a ver en el listado y en el estado de cuenta del sistema.',
