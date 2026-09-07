@@ -243,6 +243,7 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
     <nav id="nav"></nav>
     <div class="auser">
       <b id="u-nom">—</b><span id="u-rol">—</span>
+      <button id="u-pass">Cambiar mi contraseña</button>
       <button id="u-out">Cerrar sesión</button>
     </div>
   </aside>
@@ -440,6 +441,38 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
   </div>
 </div>
 
+<div class="ov" id="ov-pass">
+  <div class="md" style="max-width:440px">
+    <div class="md-h"><b id="pw-tit">Cambia tu contraseña</b><button data-close="ov-pass" id="pw-x">&times;</button></div>
+    <div class="md-b">
+      <div class="note" id="pw-aviso"><b>Es tu primera entrada</b>Antes de continuar necesitas poner una contraseña que solo tú conozcas. La que te dieron la conoce quien te dio de alta.</div>
+      <div class="grid">
+        <div class="f full"><label for="pw-1">Nueva contraseña</label><input id="pw-1" type="password" autocomplete="new-password"><small>Mínimo 8 caracteres.</small></div>
+        <div class="f full"><label for="pw-2">Repítela</label><input id="pw-2" type="password" autocomplete="new-password"><small id="pw-msg"></small></div>
+      </div>
+    </div>
+    <div class="md-f">
+      <button class="btn" data-close="ov-pass" id="pw-cancel">Cancelar</button>
+      <button class="btn btn-p" id="pw-save">Guardar contraseña</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="ov-creds">
+  <div class="md" style="max-width:640px">
+    <div class="md-h"><b>Accesos generados</b><button data-close="ov-creds">&times;</button></div>
+    <div class="md-b">
+      <div class="note" style="background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16">
+        <b>Esta lista se muestra una sola vez</b>Cópiala o descárgala antes de cerrar. Las contraseñas no se guardan en ningún lado; si las pierdes hay que reponerlas una por una.</div>
+      <div id="creds-tabla"></div>
+    </div>
+    <div class="md-f">
+      <button class="btn" id="creds-copy">Copiar al portapapeles</button>
+      <button class="btn btn-p" id="creds-csv">Descargar lista</button>
+    </div>
+  </div>
+</div>
+
 <div class="ov" id="ov-venta">
   <div class="md" style="max-width:700px">
     <div class="md-h"><b id="vt-tit">Nueva venta</b><button data-close="ov-venta">&times;</button></div>
@@ -594,6 +627,7 @@ const S = {
 
 const MODULOS = [
   {id:'guia',       n:'00', t:'Cómo se usa',          lista:true},
+  {id:'usuarios',   n:'98', t:'Usuarios y accesos',    lista:true, soloDir:true},
   {id:'config',     n:'99', t:'Configuración',         lista:true, soloDir:true},
   {id:'plantilla',  n:'05', t:'Plantilla',            lista:true},
   {id:'asistencia', n:'01', t:'Asistencia',           bloque:3, desc:'Carga los dos exportes del checador (AT&T y NEZA), cruza los marcajes contra las reglas de horario y califica cada día como asistencia, retardo, falta o descanso. Ajustes manuales quedan firmados con usuario y motivo.', pts:['Lector de los archivos del biométrico con control de duplicados','Reglas por puesto: ejecutivos 10:05 / 10:15, supervisión 10:00 / 10:10, facturación 8:00 / 8:10','Sin checada de salida se marca falta, con opción de justificar','Tablero por quincena y detalle por persona']},
@@ -647,6 +681,7 @@ async function entrar(){
 $('#li-btn').onclick=entrar;
 $('#li-pass').onkeydown=e=>{ if(e.key==='Enter') entrar(); };
 $('#li-mail').onkeydown=e=>{ if(e.key==='Enter') $('#li-pass').focus(); };
+$('#u-pass').onclick=()=>abrirCambioPass(false);
 $('#u-out').onclick=async()=>{ await sb.auth.signOut(); location.reload(); };
 
 async function iniciar(){
@@ -667,6 +702,8 @@ async function iniciar(){
   pintarNav();
   pintarAyudas();
   S.inicio='guia';
+  sb.rpc('registrar_acceso');
+  if(perfil.debe_cambiar_password){ setTimeout(()=>abrirCambioPass(true),400); }
   await cargarCatalogos();
   irA(S.inicio||'plantilla');
 }
@@ -684,7 +721,7 @@ function irA(id){
   vistaActual=id;
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
   const m=MODULOS.find(x=>x.id===id);
-  const R={guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas};
+  const R={guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios};
   if(m.lista && R[id]) R[id](); else vistaSoon(m);
   window.scrollTo(0,0);
 }
@@ -2808,6 +2845,225 @@ async function cruzarVentas(){
 }
 
 /* ============================================================
+   MÓDULO 98 — USUARIOS Y ACCESOS
+   ============================================================ */
+const ROLES={director:'Dirección · ve y hace todo',admin:'Administración · dinero y nómina',
+  coordinador:'Coordinador · ve toda la operación',supervisor:'Supervisor · su equipo',
+  agente:'Agente · solo sus ventas'};
+
+async function vistaUsuarios(){
+  if(!S.direccion){ $('#main').innerHTML='<div class="empty"><b>Solo dirección</b>Esta sección administra el acceso al sistema.</div>'; return; }
+  $('#main').innerHTML='<div class="empty">Cargando accesos…</div>';
+  const [us,pc]=await Promise.all([
+    sb.from('v_usuarios_sistema').select('*').order('nombre_completo'),
+    sb.from('v_usuarios_por_crear').select('*')
+  ]);
+  if(us.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(us.error.message)}</div>`; return; }
+  S.usuarios=us.data||[]; S.porCrear=pc.data||[];
+  const con=S.usuarios.filter(u=>u.correo).length;
+  const sin=S.porCrear.length;
+  const porRol=r=>S.usuarios.filter(u=>u.rol===r).length;
+
+  $('#main').innerHTML=`
+  <div class="head">
+    <div><h1>Usuarios y accesos</h1><p>Quién puede entrar al sistema y con qué permisos</p></div>
+    <div class="acts">
+      ${sin?`<button class="btn btn-p" id="b-crear">Dar acceso a ${sin} persona${sin===1?'':'s'}</button>`:''}
+    </div>
+  </div>
+  <div class="kpis">
+    <div class="kpi t"><span>Con acceso</span><b>${con}</b><small>pueden entrar hoy</small></div>
+    <div class="kpi ${sin?'w':''}"><span>Sin acceso</span><b>${sin}</b><small>personal activo sin usuario</small></div>
+    <div class="kpi"><span>Dirección</span><b>${porRol('director')+porRol('admin')}</b><small>ven dinero y nómina</small></div>
+    <div class="kpi"><span>Supervisión</span><b>${porRol('supervisor')+porRol('coordinador')}</b><small>ven equipos</small></div>
+    <div class="kpi"><span>Agentes</span><b>${porRol('agente')}</b><small>capturan sus ventas</small></div>
+  </div>
+
+  ${sin?`<div class="note"><b>${sin} personas del personal activo todavía no tienen acceso</b>
+    Al darles acceso el sistema genera una contraseña para cada quien y te la muestra una sola vez.
+    Puedes elegir a quiénes dar de alta primero.</div>`:''}
+
+  <div class="tw"><table>
+    <thead><tr><th>Nombre</th><th>Puesto</th><th>Correo de acceso</th><th>Permiso</th><th>Estado</th><th></th></tr></thead>
+    <tbody>
+      ${S.usuarios.map(u=>`<tr>
+        <td class="nm">${esc(u.nombre_completo)}</td>
+        <td style="color:var(--txt-2)">${esc(u.puesto||'—')}</td>
+        <td class="mono" style="font-size:12.5px">${u.correo?esc(u.correo):'<span style="color:var(--txt-3)">sin acceso</span>'}</td>
+        <td>${u.rol?`<span class="p p-teal">${esc(u.rol)}</span>`:'—'}</td>
+        <td>${u.correo
+             ? (u.acceso_activo?'<span class="p p-ok">activo</span>':'<span class="p p-bad">desactivado</span>')
+             : '<span class="p p-gray">pendiente</span>'}</td>
+        <td style="text-align:right">${u.correo
+          ? `<button class="btn btn-sm" data-reset="${u.empleado_id}">Reponer contraseña</button>`
+          : `<button class="btn btn-sm" data-alta="${u.empleado_id}">Dar acceso</button>`}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table></div>`;
+
+  if($('#b-crear')) $('#b-crear').onclick=abrirAltaMasiva;
+  document.querySelectorAll('[data-alta]').forEach(b=>b.onclick=()=>altaUno(Number(b.dataset.alta)));
+  document.querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>resetPassword(Number(b.dataset.reset)));
+}
+
+async function llamarAdmin(body){
+  const {data,error}=await sb.functions.invoke('admin-usuarios',{body});
+  if(error){
+    let msg=error.message;
+    try{ const j=await error.context?.json?.(); if(j?.error) msg=j.error; }catch(e){}
+    throw new Error(msg);
+  }
+  if(data?.error) throw new Error(data.error);
+  return data;
+}
+
+function abrirAltaMasiva(){
+  const grupos=[...new Set(S.porCrear.map(p=>p.rol_sugerido))];
+  const lista=S.porCrear.map(p=>`
+    <label style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--line-2);font-size:13.5px;cursor:pointer">
+      <input type="checkbox" class="chk-u" value="${p.empleado_id}"
+        data-nom="${esc(p.nombre_completo)}" data-cor="${esc(p.correo_sugerido)}" data-rol="${p.rol_sugerido}"
+        ${p.rol_sugerido!=='agente'?'checked':''} style="width:auto">
+      <span style="flex:1">${esc(p.nombre_completo)}<br><span class="mono" style="font-size:11.5px;color:var(--txt-3)">${esc(p.correo_sugerido)}</span></span>
+      <span class="p p-gray">${p.rol_sugerido}</span>
+    </label>`).join('');
+  $('#creds-tabla').innerHTML=`
+    <div style="font-size:13px;color:var(--txt-2);margin-bottom:12px">
+      Vienen preseleccionados dirección, supervisión y mesa de control. Los agentes van sin marcar:
+      conviene arrancar con pocos y abrir al resto cuando el flujo esté probado.
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      ${grupos.map(g=>`<button class="btn btn-sm" data-grupo="${g}">Todos los ${g}</button>`).join('')}
+      <button class="btn btn-sm" data-grupo="__none">Ninguno</button>
+    </div>
+    <div style="max-height:340px;overflow:auto">${lista}</div>`;
+  $('#creds-copy').style.display='none'; $('#creds-csv').style.display='none';
+  const pie=$('#ov-creds .md-f');
+  if(!$('#creds-go')){
+    const b=document.createElement('button');
+    b.className='btn btn-p'; b.id='creds-go'; pie.appendChild(b);
+  }
+  const go=$('#creds-go'); go.style.display='';
+  const contar=()=>{ const n=document.querySelectorAll('.chk-u:checked').length;
+    go.textContent=`Crear ${n} acceso${n===1?'':'s'}`; go.disabled=!n; };
+  document.querySelectorAll('.chk-u').forEach(c=>c.onchange=contar);
+  document.querySelectorAll('[data-grupo]').forEach(b=>b.onclick=e=>{
+    e.preventDefault();
+    document.querySelectorAll('.chk-u').forEach(c=>{
+      if(b.dataset.grupo==='__none') c.checked=false;
+      else if(c.dataset.rol===b.dataset.grupo) c.checked=true;
+    });
+    contar();
+  });
+  contar();
+  go.onclick=async()=>{
+    const sel=[...document.querySelectorAll('.chk-u:checked')];
+    if(!sel.length) return;
+    go.disabled=true; go.textContent='Creando…';
+    const res=[];
+    for(const c of sel){
+      try{
+        const r=await llamarAdmin({accion:'crear_uno', empleado_id:Number(c.value),
+          nombre:c.dataset.nom, correo:c.dataset.cor, rol:c.dataset.rol});
+        res.push(...(r.usuarios||[]));
+      }catch(e){ res.push({nombre:c.dataset.nom, correo:c.dataset.cor, estado:'error', detalle:e.message}); }
+    }
+    go.disabled=false;
+    mostrarCredenciales(res);
+  };
+  $('#ov-creds').classList.add('on');
+}
+
+async function altaUno(empId){
+  const p=S.porCrear.find(x=>x.empleado_id===empId); if(!p) return;
+  if(!confirm(`Dar acceso a ${p.nombre_completo}?\n\nCorreo: ${p.correo_sugerido}\nPermiso: ${p.rol_sugerido}`)) return;
+  try{
+    const r=await llamarAdmin({accion:'crear_uno', empleado_id:empId,
+      nombre:p.nombre_completo, correo:p.correo_sugerido, rol:p.rol_sugerido});
+    mostrarCredenciales(r.usuarios||[]);
+  }catch(e){ toast('No se pudo: '+e.message,'bad'); }
+}
+
+async function resetPassword(empId){
+  const u=S.usuarios.find(x=>x.empleado_id===empId); if(!u) return;
+  if(!confirm(`Reponer la contraseña de ${u.nombre_completo}?\n\nLa actual deja de servir de inmediato y tendrá que cambiarla al entrar.`)) return;
+  const {data:ua}=await sb.from('usuarios_app').select('id').eq('empleado_id',empId).maybeSingle();
+  if(!ua){ toast('No encontramos su usuario.','bad'); return; }
+  try{
+    const r=await llamarAdmin({accion:'reset_password', usuario_id:ua.id});
+    mostrarCredenciales([{nombre:r.nombre, correo:r.correo, password:r.password, estado:'contraseña repuesta'}]);
+  }catch(e){ toast('No se pudo: '+e.message,'bad'); }
+}
+
+function mostrarCredenciales(lista){
+  S.creds=lista;
+  const ok=lista.filter(x=>!/error/i.test(x.estado||''));
+  const mal=lista.filter(x=>/error/i.test(x.estado||''));
+  $('#creds-tabla').innerHTML=`
+    ${ok.length?`<div class="tw"><table><thead><tr><th>Nombre</th><th>Correo</th><th>Contraseña</th></tr></thead>
+      <tbody>${ok.map(u=>`<tr><td class="nm">${esc(u.nombre)}</td>
+        <td class="mono" style="font-size:12.5px">${esc(u.correo)}</td>
+        <td class="mono nm" style="font-size:14px;letter-spacing:.5px">${esc(u.password||'—')}</td></tr>`).join('')}
+      </tbody></table></div>`:''}
+    ${mal.length?`<div class="note" style="margin-top:14px;background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16">
+      <b>${mal.length} no se pudieron crear</b>${mal.map(x=>`${esc(x.nombre)}: ${esc(x.detalle||'')}`).join('<br>')}</div>`:''}`;
+  if($('#creds-go')) $('#creds-go').style.display='none';
+  $('#creds-copy').style.display=ok.length?'':'none';
+  $('#creds-csv').style.display=ok.length?'':'none';
+  $('#ov-creds').classList.add('on');
+  vistaUsuarios();
+}
+
+$('#creds-copy').onclick=()=>{
+  const t=(S.creds||[]).filter(u=>u.password)
+    .map(u=>`${u.nombre}\t${u.correo}\t${u.password}`).join('\n');
+  navigator.clipboard.writeText(t).then(()=>toast('Copiado.','ok'),()=>toast('No se pudo copiar.','bad'));
+};
+$('#creds-csv').onclick=()=>{
+  const t='Nombre,Correo,Contrasena\n'+(S.creds||[]).filter(u=>u.password)
+    .map(u=>`"${u.nombre}","${u.correo}","${u.password}"`).join('\n');
+  const url=URL.createObjectURL(new Blob([t],{type:'text/csv;charset=utf-8'}));
+  const a=document.createElement('a'); a.href=url;
+  a.download=`accesos_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  URL.revokeObjectURL(url);
+};
+
+/* ---------- Cambio de contraseña propia ---------- */
+function abrirCambioPass(obligatorio){
+  S.passObligatorio=!!obligatorio;
+  $('#pw-1').value=''; $('#pw-2').value=''; $('#pw-msg').textContent='';
+  $('#pw-aviso').style.display=obligatorio?'':'none';
+  $('#pw-x').style.display=obligatorio?'none':'';
+  $('#pw-cancel').style.display=obligatorio?'none':'';
+  $('#pw-tit').textContent=obligatorio?'Cambia tu contraseña':'Cambiar mi contraseña';
+  $('#ov-pass').classList.add('on');
+  setTimeout(()=>$('#pw-1').focus(),80);
+}
+
+$('#pw-2').oninput=()=>{
+  const a=$('#pw-1').value, b=$('#pw-2').value, m=$('#pw-msg');
+  if(!b){ m.textContent=''; return; }
+  if(a!==b){ m.textContent='No coinciden.'; m.style.color='var(--bad)'; }
+  else if(a.length<8){ m.textContent='Muy corta, mínimo 8 caracteres.'; m.style.color='var(--warn)'; }
+  else { m.textContent='Lista.'; m.style.color='var(--ok)'; }
+};
+
+$('#pw-save').onclick=async()=>{
+  const a=$('#pw-1').value, b=$('#pw-2').value;
+  if(a.length<8){ toast('La contraseña debe tener al menos 8 caracteres.','bad'); return; }
+  if(a!==b){ toast('Las dos contraseñas no coinciden.','bad'); return; }
+  $('#pw-save').disabled=true; $('#pw-save').textContent='Guardando…';
+  const {error}=await sb.auth.updateUser({password:a});
+  if(error){ $('#pw-save').disabled=false; $('#pw-save').textContent='Guardar contraseña';
+    toast('No se pudo: '+error.message,'bad'); return; }
+  await sb.rpc('marcar_password_cambiado');
+  $('#pw-save').disabled=false; $('#pw-save').textContent='Guardar contraseña';
+  S.perfil.debe_cambiar_password=false;
+  cerrar('ov-pass');
+  toast('Contraseña actualizada. Es la que vas a usar de ahora en adelante.','ok');
+};
+
+/* ============================================================
    MÓDULO 99 — CONFIGURACIÓN
    ============================================================ */
 async function vistaConfig(){
@@ -3167,6 +3423,7 @@ const AYUDA={
   'co-ref':'La clave de rastreo SPEI o el número de referencia que viene en el comprobante. Es lo que te pide el banco si hay que aclarar un depósito.',
   'co-comp':'El comprobante de la transferencia que te manda ExpertCell. Es obligatorio para marcar el cobro como pagado: si hay comprobante, el dinero ya está en la cuenta. Si subes una foto o captura, el sistema intenta leerla y llenar la clave de rastreo, el importe y la fecha.',
   /* Carga de archivo */
+  'pw-1':'Elige algo que recuerdes pero que nadie adivine. Mínimo 8 caracteres. Nadie más la va a saber, ni dirección.',
   'vt-dn':'El número de la línea contratada, 10 dígitos. Es la llave de toda la venta: con él se cruza contra el archivo de AT&T. Si ya existe, el sistema te dice quién lo capturó.',
   'vt-cli':'Nombre completo del titular, como va en el contrato.',
   'vt-rfc':'Lo necesita mesa de control para capturar en Global.',
