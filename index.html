@@ -752,6 +752,7 @@ async function iniciar(){
   }
   S.perfil=perfil;
   S.direccion=['director','admin'].includes(perfil.rol);
+  S.rh = S.direccion || perfil.acceso_rh === true;
   $('#login').style.display='none';
   $('#app').classList.add('on');
   $('#u-nom').textContent=perfil.nombre;
@@ -869,7 +870,7 @@ function pintarPlantilla(){
       ${S.direccion?'<button class="btn btn-d" id="b-del" style="display:none">Eliminar seleccionados</button>':''}
       ${S.direccion?'<button class="btn" id="b-imp">Importar Excel</button>':''}
       <button class="btn" id="b-exp">Exportar Excel</button>
-      ${S.direccion?'<button class="btn btn-p" id="b-new">Nuevo empleado</button>':''}
+      ${S.rh?'<button class="btn btn-p" id="b-new">Nuevo empleado</button>':''}
     </div>
   </div>
 
@@ -1257,6 +1258,39 @@ async function cargarBiometricos(){
 }
 
 $('#emp-save').onclick=async()=>{
+  if(S.rh && !S.direccion){
+    const nom=$('#e-nom').value.trim();
+    if(!nom){ toast('El nombre completo es obligatorio.','bad'); return; }
+    $('#emp-save').disabled=true;
+    if(!S.empActual){
+      const {data,error}=await sb.rpc('alta_empleado_rh',{
+        p_nombre:nom, p_puesto:'EJEC', p_centro:'ATLIXCO',
+        p_fecha_ingreso:$('#e-ing').value||null, p_supervisor:null,
+        p_telefono:$('#e-tel').value.trim()||null});
+      $('#emp-save').disabled=false;
+      if(error){ toast('No se pudo dar de alta: '+error.message,'bad'); return; }
+      cerrar('ov-emp');
+      toast('Alta registrada. Dirección tiene que definir su puesto, esquema y sueldo.','ok');
+      await cargarEmpleados(); pintarPlantilla(); return;
+    }
+    const {data,error}=await sb.rpc('guardar_expediente',{
+      p_empleado:S.empActual.id, p_nombre:nom,
+      p_fecha_nacimiento:$('#e-fnac').value||null,
+      p_telefono:$('#e-tel').value.trim()||null,
+      p_correo:$('#e-cor').value.trim()||null,
+      p_rfc:$('#e-rfc').value.trim().toUpperCase()||null,
+      p_rfc_calculado:!!S.rfcCalculado,
+      p_curp:$('#e-curp').value.trim().toUpperCase()||null,
+      p_domicilio:$('#e-dom').value.trim()||null,
+      p_emergencia_nombre:$('#e-emnom').value.trim()||null,
+      p_emergencia_telefono:$('#e-emtel').value.trim()||null,
+      p_emergencia_parentesco:$('#e-empar').value.trim()||null,
+      p_notas:$('#e-not').value.trim()||null});
+    $('#emp-save').disabled=false;
+    if(error){ toast('No se guardó: '+error.message,'bad'); return; }
+    cerrar('ov-emp'); toast(data||'Expediente actualizado.','ok');
+    await cargarEmpleados(); pintarPlantilla(); return;
+  }
   if(!S.direccion) return;
   const nom=$('#e-nom').value.trim();
   if(!nom){ toast('El nombre completo es obligatorio.','bad'); return; }
@@ -2962,6 +2996,10 @@ async function cargarRejilla(){
     <div class="kpi"><span>Calificados a mano</span><b>${manual}</b><small>por auditoría</small></div>
   </div>
 
+  ${sinDatos?`<div class="note"><b>${sinDatos} días sin registro del checador</b>
+    Son días hábiles en que la persona no tiene ninguna marca. Revísalos contra Bonsaif y márcalos en la cuadrícula.
+    Puedes tocar el nombre de una persona para marcarle de golpe todos sus días sin dato.</div>`:''}
+
   <div class="bar">
     <label style="font-size:12.5px;color:var(--txt-2)">Del</label>
     <input type="date" id="fa-d" value="${f.desde}">
@@ -2993,7 +3031,8 @@ async function cargarRejilla(){
         return `<td><div class="cel c-${v}${man}" data-e="${e.id}" data-f="${x}" title="${esc(t)}">${v==='_'?'':v}</div></td>`;
       }).join('');
       const c=t=>dias.filter(x=>mapa[e.id+'|'+x]?.estatus_final===t).length;
-      return `<tr><td class="nom">${esc(e.nombre_completo)}</td>${cel}
+      return `<tr><td class="nom" data-fila="${e.id}" title="Toca el nombre para pintar todos sus días sin dato o con falta"
+        style="cursor:pointer">${esc(e.nombre_completo)}</td>${cel}
         <td style="text-align:center;color:var(--ok);font-weight:600">${c('A')}</td>
         <td style="text-align:center;color:var(--warn);font-weight:600">${c('R')}</td>
         <td style="text-align:center;color:var(--bad);font-weight:600">${c('F')}</td></tr>`;
@@ -3010,6 +3049,23 @@ async function cargarRejilla(){
     const v=S.fA.pincel;
     S.pendientes[k]={empleado_id:Number(c.dataset.e), fecha:c.dataset.f, estatus:v};
     c.className='cel c-'+v+' man'; c.textContent=v;
+    const n=Object.keys(S.pendientes).length;
+    const g=$('#fa-guardar'); g.disabled=false; g.textContent=`Guardar ${n} cambio${n===1?'':'s'}`;
+  });
+  document.querySelectorAll('[data-fila]').forEach(td=>td.onclick=()=>{
+    const eid=Number(td.dataset.fila), v=S.fA.pincel;
+    const objetivo=dias.filter(x=>{ const a=mapa[eid+'|'+x];
+      return !a || a.estatus_final==='F' || a.estatus_final==='SS'; })
+      .filter(x=>{ const a=mapa[eid+'|'+x]; return !a || a.estatus_final!=='D'; });
+    if(!objetivo.length){ toast('Esa persona no tiene días sin dato ni faltas.',''); return; }
+    const nom=S.empleados.find(x=>x.id===eid)?.nombre_completo||'';
+    if(!confirm(`Marcar como ${EST_A[v]} los ${objetivo.length} días sin dato o con falta de ${nom}?\n\n`
+      +`Los descansos y los días que el checador sí registró bien no se tocan.`)) return;
+    objetivo.forEach(x=>{
+      S.pendientes[eid+'|'+x]={empleado_id:eid, fecha:x, estatus:v};
+      const c=document.querySelector(`.cel[data-e="${eid}"][data-f="${x}"]`);
+      if(c){ c.className='cel c-'+v+' man'; c.textContent=v; }
+    });
     const n=Object.keys(S.pendientes).length;
     const g=$('#fa-guardar'); g.disabled=false; g.textContent=`Guardar ${n} cambio${n===1?'':'s'}`;
   });
@@ -3044,24 +3100,46 @@ async function calcularPeriodo(){
 }
 
 /* ---------- Mapeo de huellas ---------- */
+function normNom(x){
+  return (x||'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^A-Z ]/g,' ').replace(/\s+/g,' ').trim();
+}
+function proponerPersona(nomChecador, gente){
+  const pal=normNom(nomChecador).split(' ').filter(w=>w.length>2);
+  if(!pal.length) return null;
+  let mejor=null, sc=0;
+  gente.forEach(e=>{
+    const n=normNom(e.nombre_completo);
+    let s=0; pal.forEach(w=>{ if(n.includes(w)) s+=w.length; });
+    if(s>sc){ sc=s; mejor=e; }
+  });
+  return sc>=8 ? {emp:mejor, score:sc} : null;
+}
+
 async function abrirMapeo(){
   const gente=S.empleados.filter(e=>e.estatus!=='baja'&&e.tipo_registro==='empleado')
     .sort((a,b)=>a.nombre_completo.localeCompare(b.nombre_completo,'es'));
   const {data:te}=await sb.from('terminales').select('*');
+  const prop={}; let auto=0;
+  S.sinMapear.forEach(m=>{ const p=proponerPersona(m.nombre_en_checador,gente); if(p){ prop[m.id_biometrico]=p; auto++; } });
+
   $('#bio-res').innerHTML=`
-    <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-2);margin:4px 0 10px">Huellas sin asignar</div>
-    <div style="max-height:400px;overflow:auto">
-    ${S.sinMapear.map(m=>`
-      <div style="display:grid;grid-template-columns:80px 1fr 1.3fr;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line-2)">
+    <div class="note">${auto
+      ? `<b>${auto} de ${S.sinMapear.length} se reconocieron por el nombre</b>Vienen preseleccionadas. Revísalas antes de guardar: el checador trunca los nombres y puede confundir a dos personas con apellidos parecidos.`
+      : '<b>No se pudo reconocer ninguna por el nombre</b>Asígnalas a mano.'}</div>
+    <div style="max-height:380px;overflow:auto">
+    ${S.sinMapear.map(m=>{
+      const p=prop[m.id_biometrico];
+      return `<div style="display:grid;grid-template-columns:70px 1fr 1.3fr;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line-2)">
         <span class="mono nm">${esc(m.id_biometrico)}</span>
         <span style="font-size:12.5px;color:var(--txt-2)">${esc(m.nombre_en_checador||'—')}<br>
-          <span style="font-size:11.5px;color:var(--txt-3)">${m.marcajes} marcajes · ${esc(m.terminal||'')}</span></span>
+          <span style="font-size:11.5px;color:var(--txt-3)">${m.marcajes} marcajes · ${esc(m.terminal||'')} · ${fecha(m.desde)} a ${fecha(m.hasta)}</span></span>
         <select data-map="${esc(m.id_biometrico)}" data-term="${esc(m.terminal||'')}"
-          style="padding:6px 9px;border:1px solid var(--line);border-radius:var(--r)">
+          style="padding:6px 9px;border:1px solid ${p?'var(--ok)':'var(--line)'};border-radius:var(--r);background:${p?'var(--ok-l)':'#fff'}">
           <option value="">— sin asignar —</option>
-          ${gente.map(e=>`<option value="${e.id}">${esc(e.nombre_completo)}</option>`).join('')}
+          ${gente.map(e=>`<option value="${e.id}" ${p&&p.emp.id===e.id?'selected':''}>${esc(e.nombre_completo)}</option>`).join('')}
         </select>
-      </div>`).join('')}</div>`;
+      </div>`;}).join('')}</div>`;
   $('#bio-go').disabled=false;
   $('#bio-go').textContent='Guardar asignaciones';
   $('#bio-go').onclick=async()=>{
@@ -3478,12 +3556,14 @@ async function vistaUsuarios(){
         <td class="nm">${esc(u.nombre_completo)}</td>
         <td style="color:var(--txt-2)">${esc(u.puesto||'—')}</td>
         <td class="mono" style="font-size:12.5px">${u.correo?esc(u.correo):'<span style="color:var(--txt-3)">sin acceso</span>'}</td>
-        <td>${u.rol?`<span class="p p-teal">${esc(u.rol)}</span>`:'—'}</td>
+        <td>${u.rol?`<span class="p p-teal">${esc(u.rol)}</span>`:'—'}
+            ${u.acceso_rh?'<br><span class="p p-warn" style="margin-top:3px">recursos humanos</span>':''}</td>
         <td>${u.correo
              ? (u.acceso_activo?'<span class="p p-ok">activo</span>':'<span class="p p-bad">desactivado</span>')
              : '<span class="p p-gray">pendiente</span>'}</td>
         <td style="text-align:right">${u.correo
-          ? `<button class="btn btn-sm" data-reset="${u.empleado_id}">Reponer contraseña</button>`
+          ? `<button class="btn btn-sm" data-rh="${u.empleado_id}" data-on="${u.acceso_rh?1:0}">${u.acceso_rh?'Quitar RH':'Dar RH'}</button>
+             <button class="btn btn-sm" data-reset="${u.empleado_id}">Reponer contraseña</button>`
           : `<button class="btn btn-sm" data-alta="${u.empleado_id}">Dar acceso</button>`}</td>
       </tr>`).join('')}
     </tbody>
@@ -3492,6 +3572,16 @@ async function vistaUsuarios(){
   if($('#b-crear')) $('#b-crear').onclick=abrirAltaMasiva;
   document.querySelectorAll('[data-alta]').forEach(b=>b.onclick=()=>altaUno(Number(b.dataset.alta)));
   document.querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>resetPassword(Number(b.dataset.reset)));
+  document.querySelectorAll('[data-rh]').forEach(b=>b.onclick=async()=>{
+    const on=b.dataset.on==='1';
+    const u=S.usuarios.find(x=>x.empleado_id===Number(b.dataset.rh));
+    if(!confirm(`${on?'Quitar':'Dar'} el permiso de recursos humanos a ${u.nombre_completo}?\n\n`
+      +(on?'Dejará de poder capturar expedientes.'
+          :'Podrá capturar y editar datos personales, documentos y huellas de todo el personal. No verá sueldos ni cuentas bancarias.'))) return;
+    const {error}=await sb.from('usuarios_app').update({acceso_rh:!on}).eq('empleado_id',Number(b.dataset.rh));
+    if(error){ toast('No se pudo: '+error.message,'bad'); return; }
+    toast(on?'Permiso retirado.':'Permiso otorgado.','ok'); vistaUsuarios();
+  });
 }
 
 async function llamarAdmin(body){
