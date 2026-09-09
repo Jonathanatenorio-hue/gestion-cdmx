@@ -3747,10 +3747,14 @@ $('#pw-save').onclick=async()=>{
 async function vistaConfig(){
   if(!S.direccion){ $('#main').innerHTML='<div class="empty"><b>Solo dirección</b>Esta sección ajusta los valores con los que se calcula todo.</div>'; return; }
   $('#main').innerHTML='<div class="empty">Cargando parámetros…</div>';
-  const [pa,hi]=await Promise.all([
+  const [pa,hi,rh,tb,me]=await Promise.all([
     sb.from('parametros').select('*').order('grupo').order('orden'),
-    sb.from('parametros_historial').select('*').order('creado_en',{ascending:false}).limit(15)
+    sb.from('parametros_historial').select('*').order('creado_en',{ascending:false}).limit(15),
+    sb.from('reglas_horario').select('*, puestos(nombre,clave)').eq('activa',true).order('hora_entrada'),
+    sb.from('v_tabulador').select('*'),
+    sb.from('metas_antiguedad').select('*').order('orden')
   ]);
+  S.reglas=rh.data||[]; S.tabul=tb.data||[]; S.metas=me.data||[];
   if(pa.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(pa.error.message)}</div>`; return; }
   S.params=pa.data||[];
   const grupos=[...new Set(S.params.map(p=>p.grupo))];
@@ -3778,6 +3782,64 @@ async function vistaConfig(){
       </tr>`).join('')}</tbody>
     </table></div>`).join('')}
 
+  <div class="head" style="margin:26px 0 10px"><div><h1 style="font-size:17px">Horarios por puesto</h1>
+    <p>Hasta qué hora es asistencia, hasta cuál retardo, y a partir de cuándo falta</p></div></div>
+  <div class="note"><b>Cómo se lee</b>La hora de entrada es el límite para que cuente como asistencia. Los minutos de tolerancia se suman a esa hora: los primeros marcan hasta dónde sigue siendo asistencia, los segundos hasta dónde es retardo. Después de eso, falta por llegada tarde.</div>
+  <div class="tw" style="margin-bottom:22px"><table>
+    <thead><tr><th>Regla</th><th>Puesto</th><th>Entrada</th><th>Asistencia hasta</th><th>Retardo hasta</th>
+      <th>Salida mínima</th><th>Sábado</th><th></th></tr></thead>
+    <tbody>${S.reglas.map(r=>{
+      const suma=(h,m)=>{const [a,b]=h.split(':').map(Number);const t=a*60+b+Number(m);
+        return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');};
+      return `<tr>
+        <td class="nm">${esc(r.nombre)}</td>
+        <td style="color:var(--txt-2)">${esc(r.puestos?.nombre||'—')}</td>
+        <td><input class="mono" id="rh-e-${r.id}" type="time" value="${(r.hora_entrada||'').slice(0,5)}"
+             style="width:96px;padding:4px 7px;border:1px solid var(--line);border-radius:var(--r)"></td>
+        <td><input class="mono" id="rh-r-${r.id}" type="number" min="0" max="120" value="${r.tolerancia_retardo_min}"
+             style="width:62px;padding:4px 7px;border:1px solid var(--line);border-radius:var(--r)">
+             <span style="font-size:11.5px;color:var(--txt-3)">min · ${suma(r.hora_entrada,r.tolerancia_retardo_min)}</span></td>
+        <td><input class="mono" id="rh-f-${r.id}" type="number" min="0" max="180" value="${r.tolerancia_falta_min}"
+             style="width:62px;padding:4px 7px;border:1px solid var(--line);border-radius:var(--r)">
+             <span style="font-size:11.5px;color:var(--txt-3)">min · ${suma(r.hora_entrada,r.tolerancia_falta_min)}</span></td>
+        <td><input class="mono" id="rh-s-${r.id}" type="time" value="${(r.hora_salida_min||'').slice(0,5)}"
+             style="width:96px;padding:4px 7px;border:1px solid var(--line);border-radius:var(--r)"></td>
+        <td><input type="checkbox" id="rh-sa-${r.id}" ${r.aplica_sabado?'checked':''}></td>
+        <td style="text-align:right"><button class="btn btn-sm" data-rh-save="${r.id}">Guardar</button></td>
+      </tr>`;}).join('')}
+    </tbody></table></div>
+
+  <div class="head" style="margin:22px 0 10px"><div><h1 style="font-size:17px">Tabulador de sueldos</h1>
+    <p>Mensual por puesto y turno. El semanal y el diario se calculan solos</p></div></div>
+  <div class="tw" style="margin-bottom:22px"><table>
+    <thead><tr><th>Puesto</th><th>Turno</th><th style="text-align:right">Mensual</th>
+      <th style="text-align:right">Semanal</th><th style="text-align:right">Diario</th><th style="text-align:right">Personas</th></tr></thead>
+    <tbody>${S.tabul.map(t=>`<tr>
+      <td class="nm">${esc(t.puesto)}</td><td>${esc(t.turno)}</td>
+      <td class="num">${money(t.sueldo_mensual)}</td>
+      <td class="num nm">${money(t.sueldo_semanal)}</td>
+      <td class="num">${money(t.sueldo_diario)}</td>
+      <td class="num">${t.personas}</td></tr>`).join('')}
+    </tbody></table></div>
+  <div class="note" style="margin-bottom:22px"><b>Para cambiar un sueldo</b>No se edita el renglón: se da de alta uno nuevo con su fecha de vigencia, para que el histórico no se altere. Pídemelo cuando lo necesites.</div>
+
+  <div class="head" style="margin:22px 0 10px"><div><h1 style="font-size:17px">Niveles y metas</h1>
+    <p>Meta mensual de ventas y umbral que perdona retardos, según los días activos</p></div></div>
+  <div class="tw" style="margin-bottom:22px"><table>
+    <thead><tr><th>Nivel</th><th>Días</th><th style="text-align:right">Meta</th>
+      <th style="text-align:right">Perdona con</th><th>Descripción</th><th></th></tr></thead>
+    <tbody>${S.metas.map(m=>`<tr>
+      <td class="nm">${esc(m.nivel)}</td>
+      <td>${m.dias_desde} a ${m.dias_hasta??'en adelante'}</td>
+      <td><input class="mono" id="me-m-${m.id}" type="number" min="0" max="200" value="${m.meta_mensual}"
+           style="width:70px;padding:4px 7px;border:1px solid var(--line);border-radius:var(--r)"></td>
+      <td><input class="mono" id="me-u-${m.id}" type="number" min="0" max="200" value="${m.umbral_perdon??m.meta_mensual}"
+           style="width:70px;padding:4px 7px;border:1px solid var(--line);border-radius:var(--r)"></td>
+      <td style="color:var(--txt-2);font-size:12.5px">${esc(m.descripcion||'')}</td>
+      <td style="text-align:right"><button class="btn btn-sm" data-me-save="${m.id}">Guardar</button></td>
+    </tr>`).join('')}
+    </tbody></table></div>
+
   <div class="head" style="margin:26px 0 10px"><div><h1 style="font-size:17px">Últimos cambios</h1>
     <p>Quién movió qué y cuándo</p></div></div>
   <div class="tw"><table>
@@ -3791,6 +3853,34 @@ async function vistaConfig(){
     </tbody></table></div>`;
 
   document.querySelectorAll('[data-pg]').forEach(b=>b.onclick=()=>guardarParametro(b.dataset.pg,b));
+
+  document.querySelectorAll('[data-rh-save]').forEach(b=>b.onclick=async()=>{
+    const id=Number(b.dataset.rhSave);
+    const r=S.reglas.find(x=>x.id===id);
+    const p={ hora_entrada:$('#rh-e-'+id).value, hora_salida_min:$('#rh-s-'+id).value,
+      tolerancia_retardo_min:Number($('#rh-r-'+id).value||0),
+      tolerancia_falta_min:Number($('#rh-f-'+id).value||0),
+      aplica_sabado:$('#rh-sa-'+id).checked };
+    if(p.tolerancia_falta_min < p.tolerancia_retardo_min){
+      toast('El límite de retardo no puede ser menor que el de asistencia.','bad'); return; }
+    if(!confirm(`Cambiar el horario de "${r.nombre}"?\n\n`
+      +`Entrada ${p.hora_entrada} · asistencia hasta +${p.tolerancia_retardo_min} min · retardo hasta +${p.tolerancia_falta_min} min\n\n`
+      +`Afecta los periodos que se calculen de aquí en adelante. Los ya calculados no cambian hasta que se vuelvan a calcular.`)) return;
+    b.disabled=true;
+    const {error}=await sb.from('reglas_horario').update(p).eq('id',id);
+    b.disabled=false;
+    if(error){ toast('No se guardó: '+error.message,'bad'); return; }
+    toast('Horario actualizado.','ok'); vistaConfig();
+  });
+
+  document.querySelectorAll('[data-me-save]').forEach(b=>b.onclick=async()=>{
+    const id=Number(b.dataset.meSave);
+    const {error}=await sb.from('metas_antiguedad').update({
+      meta_mensual:Number($('#me-m-'+id).value||0),
+      umbral_perdon:Number($('#me-u-'+id).value||0)}).eq('id',id);
+    if(error){ toast('No se guardó: '+error.message,'bad'); return; }
+    toast('Nivel actualizado.','ok'); vistaConfig();
+  });
 }
 
 async function guardarParametro(clave,btn){
