@@ -351,6 +351,10 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
             <option value="6">Sábado</option></select></div>
           <div class="f"><label for="e-sab">¿Trabaja sábado?</label><select id="e-sab">
             <option value="si">Sí</option><option value="no">No, el puesto no lo requiere</option></select></div>
+          <div class="f full"><label for="e-checa">¿Se le controla asistencia?</label><select id="e-checa">
+            <option value="">Lo que diga su puesto</option>
+            <option value="si">Sí, siempre</option>
+            <option value="no">No, queda exento</option></select></div>
         </div>
         <div style="margin:18px 0 10px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-2);border-top:1px solid var(--line);padding-top:16px">Huellas registradas</div>
         <div id="e-bio"></div>
@@ -481,10 +485,10 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
   <div class="md" style="max-width:820px">
     <div class="md-h"><b>Cargar archivo del checador</b><button data-close="ov-bio">&times;</button></div>
     <div class="md-b">
-      <div class="note"><b>Antes de cargar</b>El sistema detecta solo si la terminal escribe la fecha como día/mes o mes/día, y te dice cuál encontró. Si el archivo trae IDs que no están asignados a nadie, te los va a pedir aquí mismo.</div>
+      <div class="note"><b>Antes de cargar</b>El sistema reconoce solo si es el archivo del checador o el reporte de Bonsaif. En el del checador detecta si la fecha viene como día/mes o mes/día. En el de Bonsaif identifica a la gente por su nombre y usa la hora de conexión como respaldo cuando la huella no registró.</div>
       <div class="drop" id="drop-bio">
         <b>Suelta el archivo aquí o haz clic para elegirlo</b>
-        <span>El export del checador en .xlsx o .csv</span>
+        <span>El export del checador o el reporte de actividad de Bonsaif · .xlsx, .xls o .csv</span>
         <input type="file" id="file-bio" accept=".xlsx,.xls,.csv" hidden>
       </div>
       <div id="bio-res"></div>
@@ -811,7 +815,7 @@ async function cargarCatalogos(){
    ============================================================ */
 async function cargarEmpleados(){
   const {data,error}=await sb.from('empleados')
-    .select('*, puestos(id,nombre,clave), centros(id,nombre)')
+    .select('*, puestos(id,nombre,clave,requiere_asistencia), centros(id,nombre)')
     .order('nombre_completo');
   if(error){ toast('No se pudo cargar la plantilla: '+error.message,'bad'); return; }
   S.empleados=data||[];
@@ -1118,6 +1122,7 @@ function abrirEmpleado(id){
   $('#e-fcap').value=v('fecha_fin_capacitacion'); $('#e-fprod').value=v('fecha_inicio_produccion');
   $('#e-capap').value = e?.capacitacion_aprobada===true?'si':e?.capacitacion_aprobada===false?'no':'';
   $('#e-desc').value=v('dia_descanso',7); $('#e-sab').value = e?.trabaja_sabado===false?'no':'si';
+  $('#e-checa').value = e?.checa_asistencia===true?'si':e?.checa_asistencia===false?'no':'';
   $('#e-dom').value=v('domicilio'); $('#e-emnom').value=v('emergencia_nombre');
   $('#e-emtel').value=v('emergencia_telefono'); $('#e-empar').value=v('emergencia_parentesco');
   const b=e?._banco;
@@ -1323,6 +1328,7 @@ $('#emp-save').onclick=async()=>{
     curp: $('#e-curp').value.trim().toUpperCase()||null,
     dia_descanso: Number($('#e-desc').value||7),
     trabaja_sabado: $('#e-sab').value==='si',
+    checa_asistencia: $('#e-checa').value===''?null:$('#e-checa').value==='si',
     fecha_fin_capacitacion: $('#e-fcap').value||null,
     fecha_inicio_produccion: $('#e-fprod').value||null,
     capacitacion_aprobada: $('#e-capap').value===''?null:$('#e-capap').value==='si',
@@ -2967,7 +2973,9 @@ async function cargarRejilla(){
   const DOW=['do','lu','ma','mi','ju','vi','sa'];
 
   const gente=S.empleados.filter(e=>e.estatus!=='baja'&&e.tipo_registro==='empleado'
-    &&['sueldo_semanal','capacitacion'].includes(e.esquema_pago))
+    &&['sueldo_semanal','capacitacion'].includes(e.esquema_pago)
+    &&e.checa_asistencia!==false
+    &&!(e.checa_asistencia===null&&e.puestos&&e.puestos.requiere_asistencia===false))
     .sort((a,b)=>a.nombre_completo.localeCompare(b.nombre_completo,'es'));
 
   const cuenta=t=>Object.values(mapa).filter(a=>a.estatus_final===t).length;
@@ -3180,10 +3188,77 @@ function leerBio(f){
     try{
       const wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array',raw:true});
       const aoa=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:null,raw:true});
-      procesarBio(aoa,f.name);
+      const cab=(aoa[0]||[]).map(x=>String(x||'').toUpperCase());
+      const esBonsaif = cab.some(x=>x.includes('FECHA/HORA INICIO')) || cab.some(x=>x.includes('SESION TOTAL'));
+      if(esBonsaif) procesarBonsaif(aoa,f.name); else procesarBio(aoa,f.name);
     }catch(err){ toast('No pudimos leer el archivo: '+err.message,'bad'); }
   };
   r.readAsArrayBuffer(f);
+}
+
+/* ---------- Lector del reporte de Bonsaif ---------- */
+function procesarBonsaif(aoa,nombre){
+  const cab=(aoa[0]||[]).map(x=>String(x||'').toUpperCase().trim());
+  const col=n=>cab.findIndex(x=>x.includes(n));
+  const cAg=col('AGENTE'), cIni=col('FECHA/HORA INICIO'), cFin=col('FECHA/HORA FIN');
+  if(cAg<0||cIni<0){ $('#bio-res').innerHTML='<div class="note" style="background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16"><b>No reconocimos el reporte</b>Faltan las columnas de agente o de hora de inicio.</div>'; return; }
+
+  const gente=S.empleados.filter(e=>e.estatus!=='baja'&&e.tipo_registro==='empleado');
+  const filas=aoa.slice(1).filter(r=>r&&r[cAg]);
+  const marcajes=[]; const sinPersona={}; const conPersona=new Set();
+  const norm=v=>{ const m=String(v||'').match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+    return m?`${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]||'00'}`:null; };
+
+  filas.forEach(r=>{
+    const p=proponerPersona(r[cAg],gente);
+    const ini=norm(r[cIni]), fin=cFin>=0?norm(r[cFin]):null;
+    if(!p){ sinPersona[String(r[cAg])] = (sinPersona[String(r[cAg])]||0)+1; return; }
+    conPersona.add(p.emp.nombre_completo);
+    if(ini) marcajes.push({empleado_id:p.emp.id, fecha_hora:ini, nombre_raw:String(r[cAg])});
+    if(fin) marcajes.push({empleado_id:p.emp.id, fecha_hora:fin, nombre_raw:String(r[cAg])});
+  });
+
+  const fechas=marcajes.map(m=>m.fecha_hora.slice(0,10)).sort();
+  S.bioPrev={bonsaif:true, marcajes};
+  $('#bio-go').disabled=!marcajes.length;
+  $('#bio-go').textContent='Cargar sesiones de Bonsaif';
+  $('#bio-go').onclick=guardarBonsaif;
+
+  const noRec=Object.entries(sinPersona);
+  $('#bio-res').innerHTML=`
+    <div class="sum">
+      <div><span>Sesiones leídas</span><b>${filas.length}</b></div>
+      <div><span>Personas reconocidas</span><b>${conPersona.size}</b></div>
+      <div><span>Marcajes a crear</span><b>${marcajes.length}</b></div>
+      <div><span>Desde</span><b style="font-size:14px">${fechas[0]||'—'}</b></div>
+      <div><span>Hasta</span><b style="font-size:14px">${fechas[fechas.length-1]||'—'}</b></div>
+    </div>
+    <div class="note" style="margin-top:14px"><b>Cómo se va a usar</b>
+      La hora de conexión entra como si fuera un marcaje, pero de una terminal aparte.
+      Si un día solo tiene registro de Bonsaif, cuenta como asistencia sin generar retardo:
+      conectarse tarde no prueba que la persona llegó tarde. Los días que sí tienen huella no se tocan.</div>
+    ${noRec.length?`<div class="note" style="margin-top:12px;background:var(--warn-l);border-color:#F0DCC0;color:#7C3D06">
+      <b>${noRec.length} nombres no se reconocieron</b>${noRec.map(([n,c])=>`${esc(n)} · ${c} sesiones`).join('<br>')}
+      <br>Son gente dada de baja o que no está en plantilla. Sus sesiones no se cargan.</div>`:''}`;
+}
+
+async function guardarBonsaif(){
+  const P=S.bioPrev; if(!P||!P.bonsaif) return;
+  const b=$('#bio-go'); b.disabled=true; b.textContent='Cargando…';
+  const {data:te}=await sb.from('terminales').select('*').eq('clave','BONSAIF').maybeSingle();
+  if(!te){ b.disabled=false; toast('Falta la terminal de Bonsaif. Corre el SQL 32.','bad'); return; }
+  let ins=0, err=0;
+  for(let i=0;i<P.marcajes.length;i+=300){
+    const lote=P.marcajes.slice(i,i+300).map((m,k)=>({
+      terminal_id:te.id, id_biometrico:'B'+m.empleado_id,
+      nombre_raw:m.nombre_raw, fecha_hora:m.fecha_hora, empleado_id:m.empleado_id }));
+    const {error}=await sb.from('checadas_raw').upsert(lote,{onConflict:'terminal_id,id_biometrico,fecha_hora'});
+    if(error){ err+=lote.length; console.error(error); } else ins+=lote.length;
+  }
+  b.disabled=false; b.textContent='Cargar marcajes';
+  cerrar('ov-bio');
+  toast(`${ins} marcajes de Bonsaif cargados${err?', '+err+' con error':''}. Ahora calcula el periodo.`, err?'bad':'ok');
+  cargarRejilla();
 }
 
 function procesarBio(aoa,nombre){
@@ -4156,6 +4231,7 @@ const AYUDA={
   'e-capap':'Si no aprueba, queda fuera del programa. Si faltó algún día de la capacitación, no se le paga.',
   'e-desc':'Hoy todos descansan domingo. Si alguien descansa otro día, cámbialo aquí o el sistema le marcará falta.',
   'e-sab':'Marca no cuando el puesto no se requiere en fin de semana. Así no aparece con falta los sábados.',
+  'e-checa':'Déjalo en lo que diga su puesto salvo que esta persona sea una excepción. Quien queda exento no aparece en la cuadrícula de asistencia ni se le calculan faltas.',
   'e-fnac':'Se usa para calcular el RFC y para el expediente.',
   'e-dom':'Domicilio completo para el expediente y el contrato.',
   'e-emnom':'A quién llamar si le pasa algo durante su jornada.',
