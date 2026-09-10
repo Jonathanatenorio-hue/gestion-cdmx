@@ -171,6 +171,9 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
 .rej th.dia small{display:block;font-size:9px;color:var(--txt-3);font-weight:400}
 .rej th.dia.fin{background:#EDEFF2}
 .rej td.nom{padding:5px 9px;white-space:nowrap;font-size:12.5px;position:sticky;left:0;background:var(--card);z-index:2;border-right:1px solid var(--line)}
+.rej tbody tr:hover td{background:#F0F4F4}
+.rej tbody tr:hover td.nom{background:var(--teal-l);font-weight:600;color:var(--teal)}
+.rej tbody tr:hover .cel{outline:1px solid rgba(11,110,110,.18);outline-offset:-1px}
 .rej th.nom{position:sticky;left:0;background:#F7F8FA;z-index:3;text-align:left;padding:8px 9px}
 .cel{width:30px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;
   font-weight:600;font-size:11px;user-select:none;font-family:'IBM Plex Mono',monospace}
@@ -482,6 +485,25 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
     <div class="md-f">
       <button class="btn" data-close="ov-nom">Cerrar</button>
       <button class="btn btn-p" id="nd-save">Guardar ajustes</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="ov-just">
+  <div class="md" style="max-width:480px">
+    <div class="md-h"><b>Por qué se ajusta</b><button data-close="ov-just">&times;</button></div>
+    <div class="md-b">
+      <div id="ju-resumen" class="note"></div>
+      <div class="grid">
+        <div class="f full"><label for="ju-motivo">Motivo</label><select id="ju-motivo"></select></div>
+        <div class="f full"><label for="ju-detalle">Detalle</label>
+          <textarea id="ju-detalle" rows="2" placeholder="Con qué se comprobó o quién lo autorizó"></textarea>
+          <small id="ju-msg"></small></div>
+      </div>
+    </div>
+    <div class="md-f">
+      <button class="btn" data-close="ov-just">Cancelar</button>
+      <button class="btn btn-p" id="ju-ok">Guardar los cambios</button>
     </div>
   </div>
 </div>
@@ -2735,8 +2757,12 @@ async function vistaNomina(){
   const P=S.periodos.find(p=>p.id===S.perSel);
   if(!P){ $('#main').innerHTML='<div class="empty"><b>Sin periodos</b>Corre el SQL 26 para generar el calendario.</div>'; return; }
 
-  const {data:det}=await sb.from('v_nomina_detalle').select('*').eq('periodo',P.clave).order('nombre_completo');
-  S.nomDet=det||[];
+  const [dt,rg,cp]=await Promise.all([
+    sb.from('v_nomina_detalle').select('*').eq('periodo',P.clave).order('nombre_completo'),
+    sb.from('v_registros_periodo').select('*').eq('periodo',P.clave).order('nombre_completo'),
+    sb.from('v_capacitacion').select('*').order('inicio',{ascending:false})
+  ]);
+  S.nomDet=dt.data||[]; S.regs=rg.data||[]; S.capac=cp.data||[];
   const [ec,et]=EST_N[P.estatus]||['p-gray',P.estatus];
 
   $('#main').innerHTML=`
@@ -2764,6 +2790,59 @@ async function vistaNomina(){
 
   ${P.estatus==='confirmado'?'<div class="note"><b>Nómina confirmada</b>Ya no se puede recalcular. El siguiente paso es generar el archivo de dispersión.</div>':''}
   ${Number(P.neto||0)>0?`<div class="note" style="${Number(P.neto)>0?'':''}"><b>Contra el disponible de la cuenta</b>Esta nómina son ${money(P.neto)}. Revisa en Balance financiero que el disponible alcance antes de confirmar.</div>`:''}
+
+  ${S.regs.length?`
+  <div class="head" style="margin:22px 0 10px"><div><h1 style="font-size:17px">Registros de base de datos</h1>
+    <p>Captura lo que reporta la encargada. El sistema multiplica por la tarifa de cada quien.</p></div>
+    <div class="acts">
+      <button class="btn" id="n-ocr">Leer captura de Bonsaif</button>
+      <input type="file" id="file-ocr" accept="image/*" hidden>
+      <button class="btn btn-p" id="n-regs">Guardar registros</button></div></div>
+  <div id="ocr-msg" style="font-size:12.5px;margin-bottom:10px"></div>
+  <div class="note"><b>Cómo funciona</b>La primera columna es lo que reporta el sistema, que puedes llenar subiendo la captura. La segunda es lo que se paga: puede ser menor si se detectaron errores, nunca mayor. Cuando no coinciden hay que escribir por qué.</div>
+  <div class="tw" style="margin-bottom:24px"><table>
+    <thead><tr><th>Nombre</th><th style="text-align:right">Sistema</th><th style="text-align:right">A pagar</th>
+      <th style="text-align:right">Dif.</th><th>Por qué no coincide</th>
+      <th style="text-align:right">Importe</th><th>Última captura</th></tr></thead>
+    <tbody>${S.regs.map(r=>`<tr>
+      <td class="nm">${esc(r.nombre_completo)}</td>
+      <td style="text-align:right"><input class="mono" id="rs-${r.empleado_id}" type="number" min="0" value="${r.registros_sistema||0}"
+        style="width:96px;padding:5px 8px;border:1px solid var(--line);border-radius:var(--r);text-align:right"></td>
+      <td style="text-align:right"><input class="mono" id="rg-${r.empleado_id}" type="number" min="0" value="${r.registros||0}"
+        data-tar="${r.tarifa}" style="width:96px;padding:5px 8px;border:1px solid var(--line);border-radius:var(--r);text-align:right"></td>
+      <td class="num" id="rd-${r.empleado_id}" style="color:var(--txt-3)">${r.diferencia?('−'+r.diferencia):'—'}</td>
+      <td><input id="rm-${r.empleado_id}" value="${esc(r.motivo_ajuste||'')}" placeholder="Solo si hay diferencia"
+        style="width:100%;min-width:150px;padding:5px 8px;border:1px solid var(--line);border-radius:var(--r);font-size:12.5px"></td>
+      <td class="num nm" id="ri-${r.empleado_id}">${money(r.importe)}</td>
+      <td style="font-size:12px;color:var(--txt-2)">${r.capturado_por?esc(r.capturado_por)+'<br>'+new Date(r.capturado_en).toLocaleDateString('es-MX'):'—'}</td>
+    </tr>`).join('')}
+    <tr style="background:var(--teal-l)"><td class="nm">Total</td>
+      <td class="num" id="rs-tot">${S.regs.reduce((a,b)=>a+Number(b.registros_sistema||0),0)}</td>
+      <td class="num nm" id="rg-tot-n">${S.regs.reduce((a,b)=>a+Number(b.registros||0),0)}</td>
+      <td class="num" id="rd-tot" style="color:var(--bad)">${(()=>{const d=S.regs.reduce((a,b)=>a+Number(b.diferencia||0),0);return d?'−'+d:'—';})()}</td>
+      <td></td>
+      <td class="num nm" id="rg-tot">${money(S.regs.reduce((a,b)=>a+Number(b.importe||0),0))}</td><td></td></tr>
+    </tbody></table></div>`:''}
+
+  ${S.capac.length?`
+  <div class="head" style="margin:22px 0 10px"><div><h1 style="font-size:17px">En capacitación</h1>
+    <p>Se paga la semana completa solo si no faltó ningún día</p></div></div>
+  <div class="tw" style="margin-bottom:24px"><table>
+    <thead><tr><th>Nombre</th><th>Puesto</th><th>Semana</th><th style="text-align:right">Días asistidos</th>
+      <th style="text-align:right">Faltas</th><th style="text-align:right">Le corresponde</th><th></th></tr></thead>
+    <tbody>${S.capac.map(c=>`<tr>
+      <td class="nm">${esc(c.nombre_completo)}</td>
+      <td style="color:var(--txt-2)">${esc(c.puesto||'—')}</td>
+      <td class="mono" style="font-size:12.5px">${fecha(c.inicio)} a ${fecha(c.fin)}</td>
+      <td class="num">${c.dias_asistidos}</td>
+      <td class="num" style="${Number(c.faltas)?'color:var(--bad);font-weight:600':''}">${c.faltas}</td>
+      <td class="num nm" style="color:${Number(c.faltas)?'var(--bad)':'var(--ok)'}">${Number(c.faltas)?money(0):money(c.pago_si_completa)}</td>
+      <td style="text-align:right">${c.capacitacion_aprobada===null&&S.direccion
+        ?`<button class="btn btn-sm" data-cap-si="${c.empleado_id}">Aprobar</button>
+          <button class="btn btn-sm btn-d" data-cap-no="${c.empleado_id}">No aprueba</button>`
+        :(c.capacitacion_aprobada?'<span class="p p-ok">aprobada</span>':'<span class="p p-bad">no aprobó</span>')}</td>
+    </tr>`).join('')}
+    </tbody></table></div>`:''}
 
   <div class="tw"><table>
     <thead><tr><th>Cód.</th><th>Nombre</th><th>Puesto</th><th>Esquema</th>
@@ -2796,6 +2875,121 @@ async function vistaNomina(){
     avanzar(P,'confirmado');
   };
   document.querySelectorAll('[data-nd]').forEach(b=>b.onclick=()=>abrirDetalle(Number(b.dataset.nd)));
+
+  const recalcRegs=()=>{
+    let ts=0, tn=0, ti=0, td=0;
+    S.regs.forEach(x=>{
+      const si=$('#rs-'+x.empleado_id), pi=$('#rg-'+x.empleado_id);
+      if(!si||!pi) return;
+      const sis=Number(si.value||0); let pag=Number(pi.value||0);
+      if(pag>sis){ pi.value=sis; pag=sis; pi.style.borderColor='var(--warn)'; }
+      else pi.style.borderColor='var(--line)';
+      const dif=sis-pag;
+      const dc=$('#rd-'+x.empleado_id), mi=$('#rm-'+x.empleado_id);
+      dc.textContent = dif?('−'+dif):'—';
+      dc.style.color = dif?'var(--bad)':'var(--txt-3)';
+      dc.style.fontWeight = dif?'600':'400';
+      if(mi){ mi.style.borderColor = (dif && !mi.value.trim())?'var(--bad)':'var(--line)';
+              mi.style.background  = (dif && !mi.value.trim())?'var(--bad-l)':'#fff'; }
+      $('#ri-'+x.empleado_id).textContent=money(pag*Number(pi.dataset.tar||0));
+      ts+=sis; tn+=pag; ti+=pag*Number(pi.dataset.tar||0); td+=dif;
+    });
+    $('#rs-tot').textContent=ts; $('#rg-tot-n').textContent=tn;
+    $('#rg-tot').textContent=money(ti);
+    $('#rd-tot').textContent=td?('−'+td):'—';
+  };
+  S.regs.forEach(r=>{
+    ['rs-','rg-','rm-'].forEach(pre=>{ const el=$('#'+pre+r.empleado_id); if(el) el.oninput=recalcRegs; });
+    const si=$('#rs-'+r.empleado_id);
+    if(si) si.onchange=()=>{ const pi=$('#rg-'+r.empleado_id);
+      if(pi && Number(pi.value||0)===0) pi.value=si.value;
+      recalcRegs(); };
+  });
+  recalcRegs();
+  if($('#n-regs')) $('#n-regs').onclick=()=>guardarRegistros(P);
+  if($('#n-ocr')){
+    $('#n-ocr').onclick=()=>$('#file-ocr').click();
+    $('#file-ocr').onchange=e=>{ if(e.target.files[0]) leerCapturaRegistros(e.target.files[0]); };
+  }
+  document.querySelectorAll('[data-cap-si]').forEach(b=>b.onclick=()=>cerrarCapacitacion(Number(b.dataset.capSi),true));
+  document.querySelectorAll('[data-cap-no]').forEach(b=>b.onclick=()=>cerrarCapacitacion(Number(b.dataset.capNo),false));
+}
+
+async function leerCapturaRegistros(f){
+  const msg=$('#ocr-msg');
+  if(typeof Tesseract==='undefined'){ msg.innerHTML='<span style="color:var(--warn)">No se pudo cargar el lector de imágenes.</span>'; return; }
+  msg.innerHTML='<span style="color:var(--teal)">Leyendo la captura… <b id="ocr-p">0%</b></span>';
+  try{
+    const {data}=await Tesseract.recognize(f,'spa',{
+      logger:m=>{ if(m.status==='recognizing text'){ const p=$('#ocr-p'); if(p) p.textContent=Math.round(m.progress*100)+'%'; } }
+    });
+    const gente=S.regs.map(r=>({id:r.empleado_id, nombre_completo:r.nombre_completo}));
+    const lineas=(data.text||'').split('\n').map(x=>x.trim()).filter(Boolean);
+    const hallados=[]; const noRec=[];
+    lineas.forEach(l=>{
+      const m=l.match(/^(.*?)[\s(\[]*\(?\s*([\d.,]{2,7})\s*\)?\s*$/);
+      if(!m) return;
+      const nom=m[1].replace(/[^A-Za-zÁ-úÑñ ]/g,' ').trim();
+      const num=Number(String(m[2]).replace(/[.,]/g,''));
+      if(!nom || nom.length<6 || !num || num<1) return;
+      const p=proponerPersona(nom,gente);
+      if(!p){ noRec.push(nom+' · '+num); return; }
+      const si=$('#rs-'+p.emp.id), pi=$('#rg-'+p.emp.id);
+      if(si){ si.value=num;
+        if(pi && Number(pi.value||0)===0) pi.value=num;
+        si.dispatchEvent(new Event('input'));
+        hallados.push(p.emp.nombre_completo+' · '+num); }
+    });
+    msg.innerHTML = hallados.length
+      ? `<span style="color:var(--ok)"><b>Se llenaron ${hallados.length} de ${S.regs.length}:</b> ${esc(hallados.join(' · '))}</span>`
+        + `<br><span style="color:var(--warn)">Se llenó la columna del sistema. Verifica los números contra la captura y ajusta la columna de a pagar si detectaste errores.</span>`
+        + (noRec.length?`<br><span style="color:var(--txt-3)">Sin reconocer: ${esc(noRec.slice(0,6).join(' · '))}</span>`:'')
+      : '<span style="color:var(--warn)">No reconocimos ningún nombre con su número. Captúralos a mano.</span>';
+  }catch(err){
+    msg.innerHTML='<span style="color:var(--warn)">No pudimos leer la imagen. Captura los números a mano.</span>';
+  }
+}
+
+async function guardarRegistros(P){
+  const faltan=S.regs.filter(r=>{
+    const s=Number($('#rs-'+r.empleado_id)?.value||0), p=Number($('#rg-'+r.empleado_id)?.value||0);
+    return s>p && !($('#rm-'+r.empleado_id)?.value||'').trim();
+  });
+  if(faltan.length){
+    toast(`Falta explicar la diferencia de ${faltan.map(f=>f.nombre_completo.split(' ')[0]).join(', ')}.`,'bad');
+    $('#rm-'+faltan[0].empleado_id)?.focus(); return;
+  }
+  const b=$('#n-regs'); b.disabled=true; b.textContent='Guardando…';
+  let n=0, err=0, msgs=[];
+  for(const r of S.regs){
+    const si=$('#rs-'+r.empleado_id), pi=$('#rg-'+r.empleado_id), mi=$('#rm-'+r.empleado_id);
+    if(!si||!pi) continue;
+    const sis=Number(si.value||0), pag=Number(pi.value||0), mot=(mi?.value||'').trim();
+    if(sis===Number(r.registros_sistema||0) && pag===Number(r.registros||0)
+       && mot===(r.motivo_ajuste||'')) continue;
+    const {error}=await sb.rpc('guardar_registros',
+      {p_periodo:P.id, p_empleado:r.empleado_id, p_sistema:sis, p_pagados:pag, p_motivo:mot||null});
+    if(error){ err++; msgs.push(error.message); } else n++;
+  }
+  if(n) await sb.rpc('registros_a_nomina',{p_periodo:P.id});
+  b.disabled=false; b.textContent='Guardar registros';
+  if(err) toast(msgs[0],'bad');
+  else toast(n?`${n} capturas guardadas.`:'No cambió nada.','ok');
+  if(n) vistaNomina();
+}
+
+async function cerrarCapacitacion(empId, aprueba){
+  const c=S.capac.find(x=>x.empleado_id===empId); if(!c) return;
+  if(Number(c.faltas)>0 && aprueba){
+    if(!confirm(`${c.nombre_completo} tiene ${c.faltas} falta(s) en su semana de capacitación.\n\n`
+      +`Según la regla no se le paga y queda fuera del programa. ¿Aun así lo apruebas?`)) return;
+  }
+  const nota=prompt(aprueba?'Nota de la aprobación (opcional)':'Por qué no aprueba', aprueba?'':'No aprobó la capacitación');
+  if(nota===null) return;
+  const {data,error}=await sb.rpc('cerrar_capacitacion',
+    {p_empleado:empId, p_aprobada:aprueba, p_nota:nota||null});
+  if(error){ toast('No se pudo: '+error.message,'bad'); return; }
+  toast(data,'ok'); vistaNomina();
 }
 
 async function calcularNomina(P){
@@ -2971,10 +3165,12 @@ async function vistaAsistencia(){
 
 async function cargarRejilla(){
   const f=S.fA;
-  const [as,sm]=await Promise.all([
+  const [as,sm,so]=await Promise.all([
     sb.from('asistencia_dia').select('*').gte('fecha',f.desde).lte('fecha',f.hasta).limit(6000),
-    sb.from('v_biometricos_sin_mapear').select('*').limit(50)
+    sb.from('v_biometricos_sin_mapear').select('*').limit(50),
+    sb.from('v_solicitudes').select('*').eq('estatus','pendiente').order('fecha').limit(200)
   ]);
+  S.solic=so.data||[];
   const mapa={}; (as.data||[]).forEach(a=>mapa[a.empleado_id+'|'+a.fecha]=a);
   S.asist=mapa; S.sinMapear=sm.data||[];
 
@@ -3014,6 +3210,11 @@ async function cargarRejilla(){
     <div class="kpi ${sinDatos?'w':''}"><span>Sin huella</span><b>${sinDatos}</b><small>el checador no los registró</small></div>
     <div class="kpi"><span>Calificados a mano</span><b>${manual}</b><small>por auditoría</small></div>
   </div>
+
+  ${S.solic.length?`<div class="note" style="background:var(--warn-l);border-color:#F0DCC0;color:#7C3D06">
+    <b>${S.solic.length} ajuste${S.solic.length===1?'':'s'} esperando autorización</b>
+    ${S.direccion?'Revísalos antes de calcular la nómina.':'Ya los mandaste a dirección. La asistencia no cambia hasta que los autoricen.'}
+    <button class="btn btn-sm" id="b-solic" style="margin-left:10px">Ver solicitudes</button></div>`:''}
 
   ${sinDatos?`<div class="note"><b>${sinDatos} días sin registro del checador</b>
     Son días hábiles en que la persona no tiene ninguna marca. Revísalos contra Bonsaif y márcalos en la cuadrícula.
@@ -3096,21 +3297,58 @@ async function cargarRejilla(){
     S.fA.desde=$('#fa-d').value; S.fA.hasta=$('#fa-h').value; cargarRejilla(); };
   $('#b-calc').onclick=()=>calcularPeriodo(true);
   $('#b-recalc').onclick=()=>calcularPeriodo(false);
-  $('#b-bio').onclick=()=>{ S.bioPrev=null; $('#bio-res').innerHTML=''; $('#bio-go').disabled=true; $('#ov-bio').classList.add('on'); };
+  $('#b-bio').onclick=()=>{ S.bioPrev=null; $('#bio-res').innerHTML='';
+    $('#bio-go').disabled=true; $('#bio-go').style.display=''; $('#bio-go').textContent='Cargar marcajes';
+    if($('#bio-no')) $('#bio-no').style.display='none';
+    $('#ov-bio').classList.add('on'); };
   if($('#b-mapear')) $('#b-mapear').onclick=abrirMapeo;
+  if($('#b-solic')) $('#b-solic').onclick=abrirSolicitudes;
 }
 
 async function guardarAsistencia(){
   const cambios=Object.values(S.pendientes||{});
   if(!cambios.length) return;
-  const b=$('#fa-guardar'); b.disabled=true; b.textContent='Guardando…';
-  const {data,error}=await sb.rpc('calificar_dias',{
-    p_cambios:cambios, p_fuente:$('#fa-fuente').value.trim()||null,
-    p_justificacion:'Calificado a mano por falla del checador'});
-  b.disabled=false;
-  if(error){ toast('No se guardó: '+error.message,'bad'); return; }
-  toast(`${data} días calificados.`,'ok');
-  cargarRejilla();
+
+  if(!S.motivos){
+    const {data}=await sb.from('motivos_ajuste').select('*').eq('activo',true).order('orden');
+    S.motivos=data||[];
+  }
+  const porEst={};
+  cambios.forEach(c=>porEst[c.estatus]=(porEst[c.estatus]||0)+1);
+  $('#ju-resumen').innerHTML=`<b>${cambios.length} día${cambios.length===1?'':'s'} por ajustar</b>`
+    + Object.entries(porEst).map(([k,v])=>`${v} como ${EST_A[k]||k}`).join(' · ');
+  $('#ju-motivo').innerHTML=S.motivos.map(m=>`<option value="${m.clave}" data-obl="${m.detalle_obligatorio?1:0}">${esc(m.nombre)}</option>`).join('');
+  $('#ju-detalle').value=$('#fa-fuente').value.trim()||'';
+  const chk=()=>{ const o=$('#ju-motivo').selectedOptions[0]?.dataset.obl==='1';
+    $('#ju-msg').textContent = o ? 'Este motivo exige que escribas el detalle.' : 'Opcional, pero ayuda a quien revise después.';
+    $('#ju-msg').style.color = o ? 'var(--warn)' : 'var(--txt-3)'; };
+  $('#ju-motivo').onchange=chk; chk();
+  $('#ju-ok').textContent = S.direccion?'Guardar los cambios':'Enviar a autorización';
+  if(!S.direccion){
+    $('#ju-resumen').innerHTML += '<br><b style="display:block;margin-top:7px">Requiere autorización</b>'
+      +'Dirección tiene que aprobarlo. Hasta entonces la asistencia no cambia.';
+  }
+  $('#ov-just').classList.add('on');
+
+  $('#ju-ok').onclick=async()=>{
+    const mot=$('#ju-motivo').value;
+    const obl=$('#ju-motivo').selectedOptions[0]?.dataset.obl==='1';
+    const det=$('#ju-detalle').value.trim();
+    if(obl && !det){ toast('Ese motivo necesita el detalle escrito.','bad'); $('#ju-detalle').focus(); return; }
+    $('#ju-ok').disabled=true; $('#ju-ok').textContent='Guardando…';
+    const r = S.direccion
+      ? await sb.rpc('calificar_dias',{p_cambios:cambios, p_fuente:det||null, p_justificacion:det||null, p_motivo:mot})
+      : await sb.rpc('solicitar_ajustes',{p_cambios:cambios, p_motivo:mot, p_justificacion:det||null});
+    $('#ju-ok').disabled=false;
+    $('#ju-ok').textContent = S.direccion?'Guardar los cambios':'Enviar a autorización';
+    if(r.error){ toast('No se guardó: '+r.error.message,'bad'); return; }
+    cerrar('ov-just');
+    S.pendientes={};
+    toast(S.direccion
+      ? `${r.data} días ajustados y registrados.`
+      : `${r.data} ajustes enviados a dirección. La asistencia no cambia hasta que los autoricen.`,'ok');
+    cargarRejilla();
+  };
 }
 
 async function calcularPeriodo(soloFaltantes){
@@ -3138,6 +3376,56 @@ async function calcularPeriodo(soloFaltantes){
   toast(soloFaltantes
     ? `${data} días nuevos calificados. Nada de lo que ya estaba se modificó.`
     : `${data} días recalculados. Los que corregiste a mano se respetaron.`,'ok');
+  cargarRejilla();
+}
+
+/* ---------- Solicitudes de ajuste ---------- */
+function abrirSolicitudes(){
+  const puede=S.direccion;
+  $('#bio-res').innerHTML=`
+    <div class="note">${puede
+      ? '<b>Ajustes propuestos por supervisión</b>Marca los que autorizas y resuélvelos. Los que apruebes se aplican de inmediato a la asistencia.'
+      : '<b>Tus solicitudes pendientes</b>Dirección todavía no las resuelve.'}</div>
+    <div style="max-height:380px;overflow:auto">
+    ${S.solic.map(x=>`
+      <label style="display:grid;grid-template-columns:${puede?'26px ':''}1fr;gap:10px;align-items:start;padding:9px 0;border-bottom:1px solid var(--line-2);cursor:${puede?'pointer':'default'}">
+        ${puede?`<input type="checkbox" class="chk-sol" value="${x.id}" checked style="width:auto;margin-top:3px">`:''}
+        <span style="font-size:13px">
+          <b>${esc(x.nombre_completo)}</b> · ${fecha(x.fecha)}<br>
+          <span style="color:var(--txt-2)">De <b>${esc(EST_A[x.estatus_actual]||x.estatus_actual||'sin dato')}</b>
+          a <b style="color:var(--teal)">${esc(EST_A[x.estatus_propuesto]||x.estatus_propuesto)}</b>
+          · ${esc(x.motivo||'')}</span>
+          ${x.justificacion?`<br><span style="color:var(--txt-3);font-size:12.5px">${esc(x.justificacion)}</span>`:''}
+          <br><span style="color:var(--txt-3);font-size:11.5px">Pidió ${esc(x.solicitado_por||'—')} el ${new Date(x.solicitado_en).toLocaleDateString('es-MX')}</span>
+        </span>
+      </label>`).join('')}</div>`;
+  const pie=$('#ov-bio .md-f');
+  $('#bio-go').style.display=puede?'':'none';
+  if(puede){
+    if(!$('#bio-no')){
+      const b=document.createElement('button');
+      b.className='btn btn-d'; b.id='bio-no'; b.textContent='Rechazar seleccionados';
+      pie.insertBefore(b, $('#bio-go'));
+    }
+    $('#bio-no').style.display='';
+    $('#bio-go').textContent='Aprobar seleccionados';
+    const ids=()=>[...document.querySelectorAll('.chk-sol:checked')].map(c=>Number(c.value));
+    $('#bio-go').onclick=()=>resolverSolic(ids(),true);
+    $('#bio-no').onclick=()=>resolverSolic(ids(),false);
+  } else if($('#bio-no')) $('#bio-no').style.display='none';
+  $('#ov-bio').classList.add('on');
+}
+
+async function resolverSolic(ids, aprobar){
+  if(!ids.length){ toast('No seleccionaste ninguna.','bad'); return; }
+  const nota=aprobar?null:prompt('Por qué se rechazan (opcional)','');
+  if(!aprobar && nota===null) return;
+  const {data,error}=await sb.rpc('resolver_solicitudes',{p_ids:ids,p_aprobar:aprobar,p_nota:nota});
+  if(error){ toast('No se pudo: '+error.message,'bad'); return; }
+  cerrar('ov-bio');
+  if($('#bio-no')) $('#bio-no').style.display='none';
+  $('#bio-go').style.display='';
+  toast(`${data} solicitud${data===1?'':'es'} ${aprobar?'aprobadas y aplicadas':'rechazadas'}.`,'ok');
   cargarRejilla();
 }
 
@@ -4308,6 +4596,8 @@ const AYUDA={
   'co-ref':'La clave de rastreo SPEI o el número de referencia que viene en el comprobante. Es lo que te pide el banco si hay que aclarar un depósito.',
   'co-comp':'El comprobante de la transferencia que te manda ExpertCell. Es obligatorio para marcar el cobro como pagado: si hay comprobante, el dinero ya está en la cuenta. Si subes una foto o captura, el sistema intenta leerla y llenar la clave de rastreo, el importe y la fecha.',
   /* Carga de archivo */
+  'ju-motivo':'Por qué se está cambiando lo que calculó el sistema. Queda registrado con tu nombre y la fecha.',
+  'ju-detalle':'Con qué lo comprobaste o quién lo autorizó. En algunos motivos es obligatorio.',
   'pw-1':'Elige algo que recuerdes pero que nadie adivine. Mínimo 8 caracteres. Nadie más la va a saber, ni dirección.',
   'vt-dn':'El número de la línea contratada, 10 dígitos. Es la llave de toda la venta: con él se cruza contra el archivo de AT&T. Si ya existe, el sistema te dice quién lo capturó.',
   'vt-cli':'Nombre completo del titular, como va en el contrato.',
