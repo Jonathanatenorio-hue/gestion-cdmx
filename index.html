@@ -3177,7 +3177,7 @@ async function excelNomina(P){
     ws.getCell('A3').value=`Generado el ${new Date().toLocaleString('es-MX')} · revisar y devolver a dirección antes del ${P.fecha_confirmacion||P.fecha_pago}`;
     ws.getCell('A3').font={size:9,italic:true,color:{argb:'FF8A95A2'}};
 
-    const enc=['Cód.','Nombre','Puesto','Esquema','Días','Faltas','Retardos','Percepciones','Deducciones','Neto','Banco · CLABE'];
+    const enc=['Cód.','Nombre','Puesto','Esquema','Días','Faltas','Retardos','Percepciones','Deducciones','Neto','Banco','CLABE'];
     const hr=ws.getRow(5);
     enc.forEach((h,i)=>{ const c=hr.getCell(i+1);
       c.value=h; c.font={bold:true,size:10,color:{argb:'FFFFFFFF'}};
@@ -3193,7 +3193,7 @@ async function excelNomina(P){
       row.values=[d.codigo, d.nombre_completo, d.puesto, (d.esquema_pago||'').replace(/_/g,' '),
         d.dias_pagados, Number(d.faltas), Number(d.retardos),
         Number(d.total_percepciones), Number(d.total_deducciones), Number(d.neto),
-        d.clabe?`${d.banco_texto||''} ${d.clabe}`:'SIN CLABE'];
+        d.banco_texto||'', d.clabe?String(d.clabe):'SIN CLABE'];
       if(r%2===0) row.eachCell(c=>c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFAFBFC'}});
       [8,9,10].forEach(i=>row.getCell(i).numFmt='"$"#,##0.00');
       row.getCell(10).font={bold:true};
@@ -3202,8 +3202,9 @@ async function excelNomina(P){
       if(Number(d.retardos)>0){ row.getCell(7).font={color:{argb:'FFB45309'}};
         row.getCell(7).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFDF0DF'}}; }
       if(Number(d.total_deducciones)>0) row.getCell(9).font={color:{argb:'FFB42318'}};
-      if(!d.clabe){ row.getCell(11).font={bold:true,color:{argb:'FFB42318'}};
-        row.getCell(11).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFDEBE9'}}; }
+      row.getCell(12).numFmt='@';
+      if(!d.clabe){ [11,12].forEach(i=>{ row.getCell(i).font={bold:true,color:{argb:'FFB42318'}};
+        row.getCell(i).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFDEBE9'}}; }); }
       row.eachCell(c=>c.border={bottom:{style:'hair',color:{argb:LINEA}}});
       r++;
     });
@@ -3223,8 +3224,8 @@ async function excelNomina(P){
     tr.getCell(7).value={formula:`SUM(G6:G${r-1})`}; tr.getCell(7).font={bold:true};
 
     ws.columns=[{width:7},{width:36},{width:20},{width:16},{width:8},{width:9},{width:10},
-                {width:15},{width:15},{width:15},{width:30}];
-    ws.autoFilter={from:{row:5,column:1},to:{row:r-1,column:11}};
+                {width:15},{width:15},{width:15},{width:16},{width:24}];
+    ws.autoFilter={from:{row:5,column:1},to:{row:r-1,column:12}};
 
     // Hoja de detalle por concepto
     const w2=wb.addWorksheet('Desglose');
@@ -3237,6 +3238,69 @@ async function excelNomina(P){
       if(c.tipo==='deduccion') row.getCell(5).font={color:{argb:'FFB42318'}};
     }));
     w2.columns=[{width:36},{width:26},{width:12},{width:10},{width:14},{width:46}];
+
+    // ---------------- Hoja de asistencia ----------------
+    const {data:asis}=await sb.from('asistencia_dia').select('*')
+      .gte('fecha',P.fecha_inicio).lte('fecha',P.fecha_fin).limit(8000);
+    if(asis&&asis.length){
+      const mapaA={}; asis.forEach(a=>mapaA[a.empleado_id+'|'+a.fecha]=a);
+      const dias=[]; let dd=new Date(P.fecha_inicio+'T12:00:00'); const ff=new Date(P.fecha_fin+'T12:00:00');
+      while(dd<=ff){ dias.push(dd.toISOString().slice(0,10)); dd.setDate(dd.getDate()+1); }
+      const DOW=['do','lu','ma','mi','ju','vi','sa'];
+      const w3=wb.addWorksheet('Asistencia',{views:[{state:'frozen',xSplit:1,ySplit:3}]});
+
+      w3.mergeCells(1,1,1,dias.length+4);
+      w3.getCell('A1').value=`ASISTENCIA ${P.clave} · del ${P.fecha_inicio} al ${P.fecha_fin}`;
+      w3.getCell('A1').font={bold:true,size:13,color:{argb:'FFFFFFFF'}};
+      w3.getCell('A1').fill={type:'pattern',pattern:'solid',fgColor:{argb:INK}};
+      w3.getRow(1).height=24;
+      w3.mergeCells(2,1,2,dias.length+4);
+      w3.getCell('A2').value='A asistencia · R retardo · F falta · D descanso · SS sin marcar salida · V vacaciones · PC permiso con goce · PS sin goce · I incapacidad';
+      w3.getCell('A2').font={size:9,italic:true,color:{argb:'FF5A6673'}};
+
+      const h3=w3.getRow(3);
+      h3.getCell(1).value='Persona';
+      dias.forEach((x,i)=>{ const dt=new Date(x+'T12:00:00');
+        h3.getCell(i+2).value=dt.getDate()+' '+DOW[dt.getDay()]; });
+      h3.getCell(dias.length+2).value='A'; h3.getCell(dias.length+3).value='R'; h3.getCell(dias.length+4).value='F';
+      h3.eachCell(c=>{ c.font={bold:true,size:9,color:{argb:'FFFFFFFF'}};
+        c.fill={type:'pattern',pattern:'solid',fgColor:{argb:TEAL}};
+        c.alignment={horizontal:'center',vertical:'middle',wrapText:true}; });
+      h3.height=22;
+
+      const COL={A:['FFE6F4EA','FF15803D'],R:['FFFDF0DF','FFB45309'],F:['FFFDEBE9','FFB42318'],
+                 D:['FFEDEFF2','FF8A95A2'],SS:['FFFBEDE3','FF9C5426'],
+                 V:['FFE4F1F0','FF0B6E6E'],PC:['FFE4F1F0','FF0B6E6E'],
+                 PS:['FFE4F1F0','FF0B6E6E'],I:['FFE4F1F0','FF0B6E6E']};
+      let r3=4;
+      (det||[]).forEach(d=>{
+        const row=w3.getRow(r3);
+        row.getCell(1).value=d.nombre_completo;
+        row.getCell(1).font={size:10};
+        let cA=0,cR=0,cF=0;
+        dias.forEach((x,i)=>{
+          const a=mapaA[d.empleado_id+'|'+x];
+          const v=a?a.estatus_final:'';
+          const c=row.getCell(i+2);
+          c.value=v; c.alignment={horizontal:'center'};
+          c.font={bold:true,size:9,color:{argb:(COL[v]||['','FF141B24'])[1]}};
+          if(COL[v]) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:COL[v][0]}};
+          if(a&&a.ajustado) c.border={bottom:{style:'medium',color:{argb:'FF9C5426'}}};
+          if(v==='A')cA++; if(v==='R')cR++; if(v==='F')cF++;
+        });
+        [[dias.length+2,cA,'FF15803D'],[dias.length+3,cR,'FFB45309'],[dias.length+4,cF,'FFB42318']]
+          .forEach(([col,val,color])=>{ const c=row.getCell(col);
+            c.value=val; c.alignment={horizontal:'center'}; c.font={bold:true,size:10,color:{argb:color}}; });
+        r3++;
+      });
+      w3.getColumn(1).width=36;
+      for(let i=2;i<=dias.length+1;i++) w3.getColumn(i).width=5.5;
+      for(let i=dias.length+2;i<=dias.length+4;i++) w3.getColumn(i).width=5;
+
+      const nota=w3.getRow(r3+1);
+      nota.getCell(1).value='El subrayado cobre indica un día ajustado a mano por dirección.';
+      nota.getCell(1).font={size:9,italic:true,color:{argb:'FF8A95A2'}};
+    }
 
     const buf=await wb.xlsx.writeBuffer();
     const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
@@ -3752,9 +3816,13 @@ async function guardarBio(){
   const b=$('#bio-go'); b.disabled=true; b.textContent='Cargando…';
   const {data:te}=await sb.from('terminales').select('*');
   const {data:eb}=await sb.from('empleado_biometrico').select('*');
+  const norm=x=>String(x||'').toUpperCase().replace(/[^A-Z0-9&]/g,'');
   const term=t=>{
     if(!t) return (te||[])[0]?.id;
-    const x=(te||[]).find(x=>x.nombre.toUpperCase().replace(/[^A-Z]/g,'')===t.toUpperCase().replace(/[^A-Z]/g,''));
+    const n=norm(t);
+    let x=(te||[]).find(y=>(y.alias||[]).some(a=>norm(a)===n));
+    if(!x) x=(te||[]).find(y=>norm(y.clave)===n);
+    if(!x) x=(te||[]).find(y=>norm(y.nombre).includes(n)||n.includes(norm(y.clave)));
     return x?x.id:(te||[])[0]?.id;
   };
   const mapa={}; (eb||[]).forEach(x=>mapa[x.terminal_id+'|'+x.id_biometrico]=x.empleado_id);
