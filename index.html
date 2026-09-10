@@ -363,6 +363,9 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
             <option value="si">Sí</option><option value="no">No, el puesto no lo requiere</option></select></div>
           <div class="f full"><label style="display:flex;flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px">
             <input type="checkbox" id="e-base" style="width:auto"> Además saca base de datos y se le pagan sus registros</label></div>
+          <div class="f full"><label style="display:flex;flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px">
+            <input type="checkbox" id="e-nom" style="width:auto"> Entra a la nómina</label>
+            <small>Desmárcalo para quien se le pague por fuera con movimientos extraordinarios.</small></div>
           <div class="f full"><label for="e-checa">¿Se le controla asistencia?</label><select id="e-checa">
             <option value="">Lo que diga su puesto</option>
             <option value="si">Sí, siempre</option>
@@ -1161,6 +1164,7 @@ function abrirEmpleado(id){
   $('#e-desc').value=v('dia_descanso',7); $('#e-sab').value = e?.trabaja_sabado===false?'no':'si';
   $('#e-checa').value = e?.checa_asistencia===true?'si':e?.checa_asistencia===false?'no':'';
   $('#e-base').checked = !!e?.hace_base_datos;
+  $('#e-nom').checked = e ? e.entra_nomina !== false : true;
   $('#e-dom').value=v('domicilio'); $('#e-emnom').value=v('emergencia_nombre');
   $('#e-emtel').value=v('emergencia_telefono'); $('#e-empar').value=v('emergencia_parentesco');
   const b=e?._banco;
@@ -1368,6 +1372,7 @@ $('#emp-save').onclick=async()=>{
     trabaja_sabado: $('#e-sab').value==='si',
     checa_asistencia: $('#e-checa').value===''?null:$('#e-checa').value==='si',
     hace_base_datos: $('#e-base').checked,
+    entra_nomina: $('#e-nom').checked,
     fecha_fin_capacitacion: $('#e-fcap').value||null,
     fecha_inicio_produccion: $('#e-fprod').value||null,
     capacitacion_aprobada: $('#e-capap').value===''?null:$('#e-capap').value==='si',
@@ -5071,6 +5076,7 @@ const AYUDA={
   'e-desc':'Hoy todos descansan domingo. Si alguien descansa otro día, cámbialo aquí o el sistema le marcará falta.',
   'e-sab':'Marca no cuando el puesto no se requiere en fin de semana. Así no aparece con falta los sábados.',
   'e-checa':'Déjalo en lo que diga su puesto salvo que esta persona sea una excepción. Quien queda exento no aparece en la cuadrícula de asistencia ni se le calculan faltas.',
+  'e-nom':'Desmárcalo para quien cobra por fuera de la nómina, con movimientos extraordinarios. No va a aparecer en ningún periodo ni en el archivo de dispersión.',
   'e-fnac':'Se usa para calcular el RFC y para el expediente.',
   'e-dom':'Domicilio completo para el expediente y el contrato.',
   'e-emnom':'A quién llamar si le pasa algo durante su jornada.',
