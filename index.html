@@ -2877,16 +2877,21 @@ async function vistaNomina(){
   <div class="head" style="margin:4px 0 10px"><div><h1 style="font-size:17px">En capacitación</h1>
     <p>Se paga la semana completa solo si no faltó ningún día</p></div></div>
   <div class="tw" style="margin-bottom:24px"><table>
-    <thead><tr><th>Nombre</th><th>Puesto</th><th>Semana</th><th style="text-align:right">Días asistidos</th>
+    <thead><tr><th>Nombre</th><th>Puesto</th><th>Semana de prueba</th><th>Se paga</th>
+      <th style="text-align:right">Calificados</th><th style="text-align:right">Asistió</th>
       <th style="text-align:right">Faltas</th><th style="text-align:right">Le corresponde</th><th></th></tr></thead>
     <tbody>${S.capac.map(c=>`<tr>
       <td class="nm">${esc(c.nombre_completo)}</td>
       <td style="color:var(--txt-2)">${esc(c.puesto||'—')}</td>
       <td class="mono" style="font-size:12.5px">${fecha(c.inicio)} a ${fecha(c.fin)}</td>
+      <td class="mono" style="font-size:12.5px">${c.se_paga_el?fecha(c.se_paga_el):'—'}${c.semana_pago?`<br><span style="color:var(--txt-3);font-size:11px">${esc(c.semana_pago)}</span>`:''}</td>
+      <td class="num" style="${Number(c.dias_calificados)<5?'color:var(--warn);font-weight:600':''}">${c.dias_calificados}<span style="color:var(--txt-3)">/5</span></td>
       <td class="num">${c.dias_asistidos}</td>
       <td class="num" style="${Number(c.faltas)?'color:var(--bad);font-weight:600':''}">${c.faltas}</td>
       <td class="num nm" style="color:${Number(c.faltas)?'var(--bad)':'var(--ok)'}">${Number(c.faltas)?money(0):money(c.pago_si_completa)}</td>
-      <td style="text-align:right">${c.capacitacion_aprobada===null&&S.direccion
+      <td style="text-align:right">${Number(c.dias_calificados)<5
+        ?'<span class="p p-warn" title="Faltan días por calificar en la cuadrícula de asistencia">sin calificar</span> '
+        :''}${c.capacitacion_aprobada===null&&S.direccion
         ?`<button class="btn btn-sm" data-cap-si="${c.empleado_id}">Aprobar</button>
           <button class="btn btn-sm btn-d" data-cap-no="${c.empleado_id}">No aprueba</button>`
         :(c.capacitacion_aprobada?'<span class="p p-ok">aprobada</span>':'<span class="p p-bad">no aprobó</span>')}</td>
