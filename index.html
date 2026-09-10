@@ -2847,14 +2847,27 @@ async function pintarDetalleDisp(D, cta){
     </div>
   </div>
 
-  ${(()=>{ const libre=Number(cta.saldo_real)-Number(cta.comprometido||0)
-             + (D.estatus==='autorizada'?Number(D.total):0);
+  ${(()=>{
+     if(D.estatus==='dispersada'){
+       return `<div class="note" style="background:var(--ok-l);border-color:#C5E0DE;color:#0A5555">
+         <b>Ya salió de la cuenta</b>
+         Antes había ${money(D.saldo_antes)} · salieron ${money(D.total)} ·
+         quedaron <b>${money(Number(D.saldo_antes)-Number(D.total))}</b>
+         ${D.dispersada_en?` · registrado el ${new Date(D.dispersada_en).toLocaleString('es-MX')}`:''}</div>`;
+     }
+     if(D.estatus==='cancelada'){
+       return `<div class="note"><b>Dispersión cancelada</b>No salió nada de la cuenta.
+         ${D.nota?esc(D.nota):''}</div>`;
+     }
+     const libre=Number(cta.saldo_real)-Number(cta.comprometido||0)
+                 + (D.estatus==='autorizada'?Number(D.total):0);
      const alcanza=libre>=Number(D.total);
      return `<div class="note" style="${alcanza?'':'background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16'}">
        <b>Efecto en la cuenta</b>
        Hay ${money(cta.saldo_real)}${Number(cta.comprometido)?` · ${money(cta.comprometido)} ya autorizado en otras dispersiones`:''} ·
        esta dispersión son ${money(D.total)} · quedarían <b>${money(libre-Number(D.total))}</b>
-       ${alcanza?'':` · <b>faltan ${money(Number(D.total)-libre)}</b>`}</div>`;})()}
+       ${alcanza?'':` · <b>faltan ${money(Number(D.total)-libre)}</b>`}</div>`;
+   })()}
 
   <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px">
     ${Object.entries(porConc).map(([k,v])=>`<span class="p p-teal" style="padding:6px 12px;font-size:12.5px">
