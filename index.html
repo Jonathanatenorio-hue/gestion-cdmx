@@ -185,6 +185,8 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
 .c-SS{background:#FBEDE3;color:var(--copper)}
 .c-V,.c-PC,.c-PS,.c-I{background:var(--teal-l);color:var(--teal)}
 .c-_{background:#fff;color:var(--txt-3)}
+.cel.fuera{background:repeating-linear-gradient(45deg,#F3F4F6,#F3F4F6 3px,#E9EBEE 3px,#E9EBEE 6px);cursor:not-allowed}
+.cel.fuera:hover{outline:none}
 .cel.man:after{content:'';position:absolute;margin:-18px 0 0 20px;width:5px;height:5px;border-radius:50%;background:var(--copper)}
 .pincel{display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:var(--card);border:1px solid var(--line);
   border-radius:var(--r);padding:11px 13px;margin-bottom:14px;box-shadow:var(--sh);position:sticky;top:0;z-index:20}
@@ -3672,10 +3674,13 @@ async function cargarRejilla(){
   while(d<=fin){ dias.push(d.toISOString().slice(0,10)); d.setDate(d.getDate()+1); }
   const DOW=['do','lu','ma','mi','ju','vi','sa'];
 
-  const gente=S.empleados.filter(e=>e.estatus!=='baja'&&e.tipo_registro==='empleado'
+  // Incluye a quien causó baja dentro del periodo: trabajó parte de él y hay que pagarle
+  const gente=S.empleados.filter(e=>e.tipo_registro==='empleado'
     &&['sueldo_semanal','capacitacion'].includes(e.esquema_pago)
     &&e.checa_asistencia!==false
-    &&!(e.checa_asistencia===null&&e.puestos&&e.puestos.requiere_asistencia===false))
+    &&!(e.checa_asistencia===null&&e.puestos&&e.puestos.requiere_asistencia===false)
+    &&(e.estatus!=='baja' || (e.fecha_baja && e.fecha_baja>=f.desde))
+    &&(!e.fecha_ingreso || e.fecha_ingreso<=f.hasta))
     .sort((a,b)=>a.nombre_completo.localeCompare(b.nombre_completo,'es'));
 
   const cuenta=t=>Object.values(mapa).filter(a=>a.estatus_final===t).length;
@@ -3738,15 +3743,25 @@ async function cargarRejilla(){
       <th class="dia" style="width:34px">A</th><th class="dia" style="width:34px">R</th><th class="dia" style="width:34px">F</th></tr></thead>
     <tbody>${gente.map(e=>{
       const cel=dias.map(x=>{
+        const fueraAlta = e.fecha_ingreso && x < e.fecha_ingreso;
+        const fueraBaja = e.fecha_baja    && x > e.fecha_baja;
+        if(fueraAlta||fueraBaja){
+          return `<td><div class="cel fuera" title="${fueraBaja?'Ya causó baja el '+e.fecha_baja:'Todavía no ingresaba'}"></div></td>`;
+        }
         const a=mapa[e.id+'|'+x];
         const v=a?a.estatus_final:'_';
         const man=a&&a.origen==='auditoria'?' man':'';
         const t=a?`${EST_A[v]||v}${a.hora_entrada?' · entró '+a.hora_entrada.slice(0,5):''}${a.hora_salida?' · salió '+a.hora_salida.slice(0,5):''}${a.origen==='auditoria'?' · a mano':''}`:'sin dato';
         return `<td><div class="cel c-${v}${man}" data-e="${e.id}" data-f="${x}" title="${esc(t)}">${v==='_'?'':v}</div></td>`;
       }).join('');
-      const c=t=>dias.filter(x=>mapa[e.id+'|'+x]?.estatus_final===t).length;
+      const dentro=x=>(!e.fecha_ingreso||x>=e.fecha_ingreso)&&(!e.fecha_baja||x<=e.fecha_baja);
+      const c=t=>dias.filter(x=>dentro(x)&&mapa[e.id+'|'+x]?.estatus_final===t).length;
+      const marca = e.estatus==='baja'
+        ? `<br><span class="p p-bad" style="font-size:10px">baja el ${fecha(e.fecha_baja)}</span>`
+        : (e.fecha_ingreso && e.fecha_ingreso>f.desde
+            ? `<br><span class="p p-teal" style="font-size:10px">entró el ${fecha(e.fecha_ingreso)}</span>` : '');
       return `<tr><td class="nom" data-fila="${e.id}" title="Toca el nombre para pintar todos sus días sin dato o con falta"
-        style="cursor:pointer">${esc(e.nombre_completo)}</td>${cel}
+        style="cursor:pointer">${esc(e.nombre_completo)}${marca}</td>${cel}
         <td style="text-align:center;color:var(--ok);font-weight:600">${c('A')}</td>
         <td style="text-align:center;color:var(--warn);font-weight:600">${c('R')}</td>
         <td style="text-align:center;color:var(--bad);font-weight:600">${c('F')}</td></tr>`;
@@ -3768,9 +3783,13 @@ async function cargarRejilla(){
   });
   document.querySelectorAll('[data-fila]').forEach(td=>td.onclick=()=>{
     const eid=Number(td.dataset.fila), v=S.fA.pincel;
-    const objetivo=dias.filter(x=>{ const a=mapa[eid+'|'+x];
-      return !a || a.estatus_final==='F' || a.estatus_final==='SS'; })
-      .filter(x=>{ const a=mapa[eid+'|'+x]; return !a || a.estatus_final!=='D'; });
+    const per=S.empleados.find(x=>x.id===eid)||{};
+    const objetivo=dias.filter(x=>{
+      if(per.fecha_ingreso && x < per.fecha_ingreso) return false;
+      if(per.fecha_baja    && x > per.fecha_baja)    return false;
+      const a=mapa[eid+'|'+x];
+      return (!a || a.estatus_final==='F' || a.estatus_final==='SS') && (!a || a.estatus_final!=='D');
+    });
     if(!objetivo.length){ toast('Esa persona no tiene días sin dato ni faltas.',''); return; }
     const nom=S.empleados.find(x=>x.id===eid)?.nombre_completo||'';
     if(!confirm(`Marcar como ${EST_A[v]} los ${objetivo.length} días sin dato o con falta de ${nom}?\n\n`
