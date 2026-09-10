@@ -2777,6 +2777,8 @@ async function vistaDispersion(){
   const porPagar=S.disp.filter(x=>['borrador','autorizada'].includes(x.estatus))
     .reduce((a,b)=>a+Number(b.total||0),0);
   const despues=Number(c.saldo_real) - porPagar;
+  // El disponible ya descuenta lo autorizado; un borrador todavía no compromete
+  const libre=Number(c.saldo_real) - Number(c.comprometido||0);
 
   $('#main').innerHTML=`
   <div class="head">
@@ -2790,8 +2792,8 @@ async function vistaDispersion(){
     <div class="kpi t"><span>Hay en la cuenta</span><b>${money(c.saldo_real)}</b><small>saldo real hoy</small></div>
     <div class="kpi ${porPagar?'w':''}"><span>Por dispersar</span><b>${money(porPagar)}</b><small>borradores y autorizadas</small></div>
     <div class="kpi ${despues<0?'b':'c'}"><span>Quedará después</span><b>${money(despues)}</b><small>si se ejecuta todo lo pendiente</small></div>
-    <div class="kpi"><span>Comprometido</span><b style="font-size:20px">${money(c.comprometido)}</b><small>apartado del disponible</small></div>
-    <div class="kpi"><span>Disponible</span><b style="font-size:20px">${money(c.disponible)}</b><small>contra esto se autoriza</small></div>
+    <div class="kpi"><span>En borrador</span><b style="font-size:20px">${money(c.en_borrador||0)}</b><small>todavía no compromete</small></div>
+    <div class="kpi"><span>Comprometido</span><b style="font-size:20px">${money(c.comprometido)}</b><small>ya autorizado, sin salir</small></div>
     <div class="kpi ${S.pendConf.length?'t':''}"><span>Nóminas listas</span><b>${S.pendConf.length}</b><small>confirmadas sin dispersar</small></div>
   </div>
 
@@ -2845,10 +2847,14 @@ async function pintarDetalleDisp(D, cta){
     </div>
   </div>
 
-  <div class="note"><b>Efecto en la cuenta</b>
-    Hay ${money(cta.saldo_real)} · esta dispersión son ${money(D.total)} ·
-    quedarían <b>${money(Number(cta.saldo_real)-Number(D.total))}</b>
-    ${Number(cta.disponible)<Number(D.total)?' · <b style="color:var(--bad)">el disponible no alcanza</b>':''}</div>
+  ${(()=>{ const libre=Number(cta.saldo_real)-Number(cta.comprometido||0)
+             + (D.estatus==='autorizada'?Number(D.total):0);
+     const alcanza=libre>=Number(D.total);
+     return `<div class="note" style="${alcanza?'':'background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16'}">
+       <b>Efecto en la cuenta</b>
+       Hay ${money(cta.saldo_real)}${Number(cta.comprometido)?` · ${money(cta.comprometido)} ya autorizado en otras dispersiones`:''} ·
+       esta dispersión son ${money(D.total)} · quedarían <b>${money(libre-Number(D.total))}</b>
+       ${alcanza?'':` · <b>faltan ${money(Number(D.total)-libre)}</b>`}</div>`;})()}
 
   <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px">
     ${Object.entries(porConc).map(([k,v])=>`<span class="p p-teal" style="padding:6px 12px;font-size:12.5px">
