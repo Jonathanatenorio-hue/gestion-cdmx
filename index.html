@@ -729,7 +729,8 @@ const MODULOS = [
   {id:'gastos',     n:'07', t:'Gastos',               lista:true},
   {id:'ingresos',   n:'08', t:'Cobros ExpertCell',    lista:true},
   {id:'balance',    n:'09', t:'Balance financiero',   lista:true},
-  {id:'dispersion', n:'10', t:'Dispersión de pagos',  bloque:8, desc:'Arma el archivo que subes al banco, con el mismo layout que hoy ya te acepta, tomando montos de nómina y comisiones.', pts:['Layout idéntico: código, nombre, banco, CLABE, fecha, total','Validación de CLABE antes de exportar','Autorización previa a la dispersión','Historial de lo dispersado con estatus por registro']},
+  {id:'dispersion', n:'10', t:'Dispersión de pagos',  lista:true},
+  {id:'dispersion_old', n:'10b', t:'Dispersión (guía)', bloque:8, desc:'Arma el archivo que subes al banco, con el mismo layout que hoy ya te acepta, tomando montos de nómina y comisiones.', pts:['Layout idéntico: código, nombre, banco, CLABE, fecha, total','Validación de CLABE antes de exportar','Autorización previa a la dispersión','Historial de lo dispersado con estatus por registro']},
   {id:'tickets',    n:'11', t:'Buzón de tickets',     bloque:9, desc:'Pendientes entre el Call Center y la dirección, con folio, responsable y cierre obligatorio.', pts:['Folio automático y prioridad','Conversación por ticket','No se cierra sin resolución escrita','Tablero de abiertos por antigüedad']}
 ];
 
@@ -817,7 +818,7 @@ function irA(id){
   vistaActual=id;
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
   const m=MODULOS.find(x=>x.id===id);
-  const R={guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina};
+  const R={guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion};
   if(m.lista && R[id]) R[id](); else vistaSoon(m);
   window.scrollTo(0,0);
 }
@@ -2743,6 +2744,237 @@ function vistaGuia(){
     document.querySelectorAll('.gcard').forEach(x=>x.classList.remove('on'));
     if(!ya) c.classList.add('on');
   });
+}
+
+/* ============================================================
+   MÓDULO 10 — DISPERSIÓN DE PAGOS
+   ============================================================ */
+const EST_D={borrador:['p-gray','Borrador'],autorizada:['p-warn','Autorizada'],
+  dispersada:['p-ok','Dispersada'],cancelada:['p-bad','Cancelada']};
+const CONC={nomina:'Nómina',comision:'Comisión',bono:'Bono',prestamo:'Préstamo',
+  proveedor:'Proveedor',base_datos:'Base de datos',finiquito:'Finiquito',otro:'Otro'};
+
+async function vistaDispersion(){
+  $('#main').innerHTML='<div class="empty">Cargando dispersiones…</div>';
+  const [di,sa,pe]=await Promise.all([
+    sb.from('v_dispersiones').select('*').order('fecha_pago',{ascending:false}).limit(60),
+    sb.from('v_saldo_cuenta').select('*').limit(3),
+    sb.from('v_nomina_resumen').select('*').eq('estatus','confirmado').order('fecha_pago')
+  ]);
+  if(di.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(di.error.message)}<br><span style="font-size:12.5px">Si falta la vista, corre el SQL 45.</span></div>`; return; }
+  S.disp=di.data||[]; S.pendConf=pe.data||[];
+  const c=(sa.data||[])[0]||{saldo_real:0,comprometido:0,disponible:0};
+  S.selDisp = S.selDisp || S.disp[0]?.id;
+  const D = S.disp.find(x=>x.id===S.selDisp);
+
+  const porPagar=S.disp.filter(x=>['borrador','autorizada'].includes(x.estatus))
+    .reduce((a,b)=>a+Number(b.total||0),0);
+  const despues=Number(c.saldo_real) - porPagar;
+
+  $('#main').innerHTML=`
+  <div class="head">
+    <div><h1>Dispersión de pagos</h1><p>De la nómina confirmada al archivo del banco</p></div>
+    <div class="acts">
+      ${S.pendConf.length&&S.direccion?`<button class="btn btn-p" id="d-gen">Generar de una nómina</button>`:''}
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi t"><span>Hay en la cuenta</span><b>${money(c.saldo_real)}</b><small>saldo real hoy</small></div>
+    <div class="kpi ${porPagar?'w':''}"><span>Por dispersar</span><b>${money(porPagar)}</b><small>borradores y autorizadas</small></div>
+    <div class="kpi ${despues<0?'b':'c'}"><span>Quedará después</span><b>${money(despues)}</b><small>si se ejecuta todo lo pendiente</small></div>
+    <div class="kpi"><span>Comprometido</span><b style="font-size:20px">${money(c.comprometido)}</b><small>apartado del disponible</small></div>
+    <div class="kpi"><span>Disponible</span><b style="font-size:20px">${money(c.disponible)}</b><small>contra esto se autoriza</small></div>
+    <div class="kpi ${S.pendConf.length?'t':''}"><span>Nóminas listas</span><b>${S.pendConf.length}</b><small>confirmadas sin dispersar</small></div>
+  </div>
+
+  ${despues<0?`<div class="note" style="background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16">
+    <b>No alcanza</b>Después de ejecutar lo pendiente la cuenta quedaría en ${money(despues)}. Faltan ${money(Math.abs(despues))}.</div>`:''}
+
+  <div class="tw" style="margin-bottom:24px"><table>
+    <thead><tr><th>Concepto</th><th>Periodo</th><th>Se paga</th><th style="text-align:right">Personas</th>
+      <th style="text-align:right">Total</th><th style="text-align:right">Antes</th><th style="text-align:right">Después</th>
+      <th>Estatus</th><th></th></tr></thead>
+    <tbody>${S.disp.length?S.disp.map(x=>{
+      const [dc,dt]=EST_D[x.estatus]||['p-gray',x.estatus];
+      return `<tr style="${x.id===S.selDisp?'background:var(--teal-l)':''}">
+        <td class="nm">${esc(x.concepto)}${x.sin_clabe?'<br><span class="p p-bad">'+x.sin_clabe+' sin CLABE</span>':''}</td>
+        <td class="mono" style="font-size:12.5px">${esc(x.periodo||'—')}</td>
+        <td class="mono" style="font-size:12.5px">${fecha(x.fecha_pago)}</td>
+        <td class="num">${x.num_registros}</td>
+        <td class="num nm">${money(x.total)}</td>
+        <td class="num" style="color:var(--txt-2)">${x.saldo_antes!=null?money(x.saldo_antes):'—'}</td>
+        <td class="num" style="color:${Number(x.saldo_despues_calc)<0?'var(--bad)':'var(--txt-2)'}">${x.saldo_antes!=null?money(x.saldo_despues_calc):'—'}</td>
+        <td><span class="p ${dc}">${dt}</span></td>
+        <td style="text-align:right"><button class="btn btn-sm" data-dv="${x.id}">${x.id===S.selDisp?'Abierta':'Abrir'}</button></td>
+      </tr>`;}).join(''):'<tr><td colspan="9"><div class="empty"><b>Sin dispersiones</b>Genera una a partir de una nómina confirmada.</div></td></tr>'}
+    </tbody></table></div>
+
+  <div id="d-detalle"></div>`;
+
+  document.querySelectorAll('[data-dv]').forEach(b=>b.onclick=()=>{ S.selDisp=Number(b.dataset.dv); vistaDispersion(); });
+  if($('#d-gen')) $('#d-gen').onclick=generarDispersion;
+  if(D) pintarDetalleDisp(D, c);
+}
+
+async function pintarDetalleDisp(D, cta){
+  const c=$('#d-detalle');
+  c.innerHTML='<div class="empty">Cargando detalle…</div>';
+  const {data:det}=await sb.from('v_dispersion_detalle').select('*')
+    .eq('dispersion_id',D.id).order('nombre_completo');
+  S.dispDet=det||[];
+  const porConc={};
+  (det||[]).forEach(x=>{ porConc[x.concepto_pago]=(porConc[x.concepto_pago]||0)+Number(x.monto||0); });
+
+  c.innerHTML=`
+  <div class="head" style="margin:4px 0 10px">
+    <div><h1 style="font-size:17px">${esc(D.concepto)}</h1>
+      <p>${det.length} personas · ${money(D.total)} · se paga el ${fecha(D.fecha_pago)}</p></div>
+    <div class="acts">
+      <button class="btn" id="d-xls">Descargar archivo del banco</button>
+      ${D.estatus==='borrador'&&S.direccion?'<button class="btn btn-p" id="d-aut">Autorizar</button>':''}
+      ${D.estatus==='autorizada'&&S.direccion?'<button class="btn btn-p" id="d-eje">Marcar como dispersada</button>':''}
+      ${['borrador','autorizada'].includes(D.estatus)&&S.direccion?'<button class="btn btn-d" id="d-can">Cancelar</button>':''}
+    </div>
+  </div>
+
+  <div class="note"><b>Efecto en la cuenta</b>
+    Hay ${money(cta.saldo_real)} · esta dispersión son ${money(D.total)} ·
+    quedarían <b>${money(Number(cta.saldo_real)-Number(D.total))}</b>
+    ${Number(cta.disponible)<Number(D.total)?' · <b style="color:var(--bad)">el disponible no alcanza</b>':''}</div>
+
+  <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px">
+    ${Object.entries(porConc).map(([k,v])=>`<span class="p p-teal" style="padding:6px 12px;font-size:12.5px">
+      ${esc(CONC[k]||k)} · ${money(v)}</span>`).join('')}
+  </div>
+
+  <div class="tw"><table>
+    <thead><tr><th>Cód.</th><th>Nombre</th><th>Concepto</th><th>Banco</th><th>CLABE</th>
+      <th style="text-align:right">Monto</th><th>Estatus</th></tr></thead>
+    <tbody>${(det||[]).map(x=>`<tr>
+      <td class="mono" style="color:var(--txt-2)">${x.codigo??'—'}</td>
+      <td class="nm">${esc(x.nombre_completo)}</td>
+      <td><span class="p p-gray">${esc(CONC[x.concepto_pago]||x.concepto_pago||'—')}</span></td>
+      <td style="font-size:12.5px">${esc(x.banco||'—')}</td>
+      <td class="mono" style="font-size:12px">${x.clabe&&String(x.clabe).length===18?esc(x.clabe):'<span class="p p-bad">falta o inválida</span>'}</td>
+      <td class="num nm">${money(x.monto)}</td>
+      <td><span class="p ${x.estatus==='pendiente'?'p-gray':x.estatus==='enviado'?'p-ok':'p-bad'}">${esc(x.estatus)}</span></td>
+    </tr>`).join('')}
+    <tr style="background:var(--teal-l)"><td></td><td class="nm">Total</td><td></td><td></td><td></td>
+      <td class="num nm">${money(D.total)}</td><td></td></tr>
+    </tbody></table></div>`;
+
+  $('#d-xls').onclick=()=>excelDispersion(D, det||[]);
+  if($('#d-aut')) $('#d-aut').onclick=()=>avanzarDisp(D,'autorizada');
+  if($('#d-eje')) $('#d-eje').onclick=()=>avanzarDisp(D,'dispersada');
+  if($('#d-can')) $('#d-can').onclick=()=>avanzarDisp(D,'cancelada');
+}
+
+async function generarDispersion(){
+  if(!S.pendConf.length) return;
+  const op=S.pendConf.map((p,i)=>`${i+1}. ${p.clave} · ${money(p.neto)} · paga el ${p.fecha_pago}`).join('\n');
+  const r=prompt(`De qué nómina se genera?\n\n${op}\n\nEscribe el número:`,'1');
+  if(r===null) return;
+  const P=S.pendConf[Number(r)-1];
+  if(!P){ toast('Número inválido.','bad'); return; }
+  const {data,error}=await sb.rpc('generar_dispersion_nomina',{p_periodo:P.id,p_fecha_pago:null});
+  if(error){ toast(error.message,'bad'); return; }
+  S.selDisp=data;
+  toast('Dispersión generada como borrador. Revísala antes de autorizar.','ok');
+  vistaDispersion();
+}
+
+async function avanzarDisp(D,est){
+  const txt={autorizada:`Autorizar la dispersión de ${money(D.total)}?\n\nEl monto queda comprometido y baja el disponible.`,
+    dispersada:`Marcar como dispersada?\n\nSe registra la salida de ${money(D.total)} en el libro de banco. No se puede deshacer.`,
+    cancelada:`Cancelar esta dispersión?\n\nSe libera el monto comprometido y los renglones quedan como rechazados.`}[est];
+  if(!confirm(txt)) return;
+  const nota=est==='cancelada'?prompt('Por qué se cancela',''):null;
+  if(est==='cancelada'&&nota===null) return;
+  const {data,error}=await sb.rpc('avanzar_dispersion',{p_id:D.id,p_estatus:est,p_nota:nota});
+  if(error){ toast(error.message,'bad'); return; }
+  toast(data,'ok'); vistaDispersion();
+}
+
+async function excelDispersion(D, det){
+  if(typeof ExcelJS==='undefined'){ toast('No se pudo cargar el generador de Excel.','bad'); return; }
+  const wb=new ExcelJS.Workbook();
+  wb.creator='Gestión CDMX'; wb.created=new Date();
+  const INK='FF101720', TEAL='FF0B6E6E', LINEA='FFD9DEE5';
+
+  const ws=wb.addWorksheet('Dispersión',{views:[{state:'frozen',ySplit:5}]});
+  ws.mergeCells('A1:F1');
+  ws.getCell('A1').value=`DISPERSIÓN · ${D.concepto}`;
+  ws.getCell('A1').font={bold:true,size:15,color:{argb:'FFFFFFFF'}};
+  ws.getCell('A1').fill={type:'pattern',pattern:'solid',fgColor:{argb:INK}};
+  ws.getRow(1).height=28;
+  ws.mergeCells('A2:F2');
+  ws.getCell('A2').value=`Fecha en que debe caer el pago: ${D.fecha_pago} · ${det.length} personas`;
+  ws.getCell('A2').font={size:10,color:{argb:'FF5A6673'}};
+  ws.mergeCells('A3:F3');
+  ws.getCell('A3').value=`Antes del pago hay ${money(D.saldo_antes)} · después quedarían ${money(Number(D.saldo_antes)-Number(D.total))}`;
+  ws.getCell('A3').font={size:10,bold:true,color:{argb:TEAL}};
+
+  const enc=['Nombre','Concepto','Banco','CLABE','Fecha de pago','Monto'];
+  const hr=ws.getRow(5);
+  enc.forEach((h,i)=>{ const c=hr.getCell(i+1);
+    c.value=h; c.font={bold:true,size:10,color:{argb:'FFFFFFFF'}};
+    c.fill={type:'pattern',pattern:'solid',fgColor:{argb:TEAL}};
+    c.alignment={vertical:'middle',horizontal:i===5?'right':'left'};
+    c.border={bottom:{style:'thin',color:{argb:LINEA}}}; });
+  hr.height=22;
+
+  let r=6;
+  det.forEach(x=>{
+    const row=ws.getRow(r);
+    const clabeOk = x.clabe && String(x.clabe).length===18;
+    row.values=[x.nombre_completo, CONC[x.concepto_pago]||x.concepto_pago||'Otro',
+                x.banco||'', clabeOk?String(x.clabe):'SIN CLABE',
+                D.fecha_pago, Number(x.monto)];
+    row.getCell(4).numFmt='@';
+    row.getCell(5).numFmt='dd/mm/yyyy';
+    row.getCell(6).numFmt='"$"#,##0.00';
+    row.getCell(6).font={bold:true};
+    if(!clabeOk){ [3,4].forEach(i=>{ row.getCell(i).font={bold:true,color:{argb:'FFB42318'}};
+      row.getCell(i).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFDEBE9'}}; }); }
+    else if(r%2===0) row.eachCell(c=>c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFAFBFC'}});
+    row.eachCell(c=>c.border={bottom:{style:'hair',color:{argb:LINEA}}});
+    r++;
+  });
+
+  const tr=ws.getRow(r);
+  tr.getCell(1).value='TOTAL';
+  tr.getCell(1).font={bold:true,size:11};
+  tr.getCell(6).value={formula:`SUM(F6:F${r-1})`};
+  tr.getCell(6).numFmt='"$"#,##0.00';
+  tr.getCell(6).font={bold:true,size:12};
+  tr.getCell(6).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE4F1F0'}};
+  tr.getCell(6).border={top:{style:'medium',color:{argb:TEAL}}};
+
+  // Resumen por concepto debajo del total
+  const porC={};
+  det.forEach(x=>{ const k=CONC[x.concepto_pago]||x.concepto_pago||'Otro';
+    porC[k]=(porC[k]||0)+Number(x.monto||0); });
+  let rc=r+2;
+  ws.getCell('A'+rc).value='Desglose por concepto';
+  ws.getCell('A'+rc).font={bold:true,size:11,color:{argb:TEAL}};
+  rc++;
+  Object.entries(porC).forEach(([k,v])=>{
+    ws.getCell('A'+rc).value=k;
+    ws.getCell('F'+rc).value=v; ws.getCell('F'+rc).numFmt='"$"#,##0.00';
+    ws.getCell('A'+rc).font={size:10}; ws.getCell('F'+rc).font={size:10};
+    rc++;
+  });
+
+  ws.columns=[{width:38},{width:18},{width:18},{width:24},{width:16},{width:16}];
+  ws.autoFilter={from:{row:5,column:1},to:{row:r-1,column:6}};
+
+  const buf=await wb.xlsx.writeBuffer();
+  const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  const a=document.createElement('a'); a.href=url;
+  a.download=`dispersion_${(D.concepto||'').replace(/[^\w]+/g,'_')}_${D.fecha_pago}.xlsx`; a.click();
+  URL.revokeObjectURL(url);
+  toast('Archivo generado.','ok');
 }
 
 /* ============================================================
