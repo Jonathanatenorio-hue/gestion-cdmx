@@ -359,6 +359,8 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
             <option value="6">Sábado</option></select></div>
           <div class="f"><label for="e-sab">¿Trabaja sábado?</label><select id="e-sab">
             <option value="si">Sí</option><option value="no">No, el puesto no lo requiere</option></select></div>
+          <div class="f full"><label style="display:flex;flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px">
+            <input type="checkbox" id="e-base" style="width:auto"> Además saca base de datos y se le pagan sus registros</label></div>
           <div class="f full"><label for="e-checa">¿Se le controla asistencia?</label><select id="e-checa">
             <option value="">Lo que diga su puesto</option>
             <option value="si">Sí, siempre</option>
@@ -1155,6 +1157,7 @@ function abrirEmpleado(id){
   $('#e-capap').value = e?.capacitacion_aprobada===true?'si':e?.capacitacion_aprobada===false?'no':'';
   $('#e-desc').value=v('dia_descanso',7); $('#e-sab').value = e?.trabaja_sabado===false?'no':'si';
   $('#e-checa').value = e?.checa_asistencia===true?'si':e?.checa_asistencia===false?'no':'';
+  $('#e-base').checked = !!e?.hace_base_datos;
   $('#e-dom').value=v('domicilio'); $('#e-emnom').value=v('emergencia_nombre');
   $('#e-emtel').value=v('emergencia_telefono'); $('#e-empar').value=v('emergencia_parentesco');
   const b=e?._banco;
@@ -1361,6 +1364,7 @@ $('#emp-save').onclick=async()=>{
     dia_descanso: Number($('#e-desc').value||7),
     trabaja_sabado: $('#e-sab').value==='si',
     checa_asistencia: $('#e-checa').value===''?null:$('#e-checa').value==='si',
+    hace_base_datos: $('#e-base').checked,
     fecha_fin_capacitacion: $('#e-fcap').value||null,
     fecha_inicio_produccion: $('#e-fprod').value||null,
     capacitacion_aprobada: $('#e-capap').value===''?null:$('#e-capap').value==='si',
@@ -2763,6 +2767,7 @@ async function vistaNomina(){
     sb.from('v_capacitacion').select('*').order('inicio',{ascending:false})
   ]);
   S.nomDet=dt.data||[]; S.regs=rg.data||[]; S.capac=cp.data||[];
+  S.nTab=S.nTab||'resumen';
   const [ec,et]=EST_N[P.estatus]||['p-gray',P.estatus];
 
   $('#main').innerHTML=`
@@ -2779,7 +2784,13 @@ async function vistaNomina(){
     </div>
   </div>
 
-  <div class="kpis">
+  <div class="tabs" style="margin:0 0 18px;background:none;border-bottom:1px solid var(--line);padding:0">
+    <button class="${S.nTab==='resumen'?'on':''}" data-ntab="resumen">Resumen</button>
+    <button class="${S.nTab==='base'?'on':''}" data-ntab="base">Base de datos${S.regs.length?` · ${S.regs.length}`:''}</button>
+    <button class="${S.nTab==='capac'?'on':''}" data-ntab="capac">Capacitación${S.capac.length?` · ${S.capac.length}`:''}</button>
+  </div>
+
+  <div class="kpis" ${S.nTab==='resumen'?'':'style="display:none"'}>
     <div class="kpi"><span>Estatus</span><b style="font-size:17px"><span class="p ${ec}">${et}</span></b><small>${esc(P.metodo_sueldo==='quincenal_viejo'?'método quincenal anterior':'método semanal')}</small></div>
     <div class="kpi t"><span>Personas</span><b>${P.personas||0}</b><small>en este periodo</small></div>
     <div class="kpi"><span>Percepciones</span><b style="font-size:20px">${money(P.percepciones)}</b><small>antes de descuentos</small></div>
@@ -2791,11 +2802,13 @@ async function vistaNomina(){
   ${P.estatus==='confirmado'?'<div class="note"><b>Nómina confirmada</b>Ya no se puede recalcular. El siguiente paso es generar el archivo de dispersión.</div>':''}
   ${Number(P.neto||0)>0?`<div class="note" style="${Number(P.neto)>0?'':''}"><b>Contra el disponible de la cuenta</b>Esta nómina son ${money(P.neto)}. Revisa en Balance financiero que el disponible alcance antes de confirmar.</div>`:''}
 
+  <div ${S.nTab==='base'?'':'style="display:none"'}>
   ${S.regs.length?`
-  <div class="head" style="margin:22px 0 10px"><div><h1 style="font-size:17px">Registros de base de datos</h1>
+  <div class="head" style="margin:4px 0 10px"><div><h1 style="font-size:17px">Registros de base de datos</h1>
     <p>Captura lo que reporta la encargada. El sistema multiplica por la tarifa de cada quien.</p></div>
     <div class="acts">
-      <button class="btn" id="n-ocr">Leer captura de Bonsaif</button>
+      <button class="btn" id="n-ocr">Leer captura de Odoo</button>
+      <button class="btn btn-d" id="n-limpiar">Borrar captura</button>
       <input type="file" id="file-ocr" accept="image/*" hidden>
       <button class="btn btn-p" id="n-regs">Guardar registros</button></div></div>
   <div id="ocr-msg" style="font-size:12.5px;margin-bottom:10px"></div>
@@ -2807,7 +2820,8 @@ async function vistaNomina(){
     <tbody>${S.regs.map(r=>`<tr>
       <td class="nm">${esc(r.nombre_completo)}</td>
       <td style="text-align:right"><input class="mono" id="rs-${r.empleado_id}" type="number" min="0" value="${r.registros_sistema||0}"
-        style="width:96px;padding:5px 8px;border:1px solid var(--line);border-radius:var(--r);text-align:right"></td>
+        ${r.bloqueado?'disabled title="Vino de la captura, no se edita"':''}
+        style="width:96px;padding:5px 8px;border:1px solid var(--line);border-radius:var(--r);text-align:right${r.bloqueado?';background:#F0F2F5;color:var(--txt-2)':''}"></td>
       <td style="text-align:right"><input class="mono" id="rg-${r.empleado_id}" type="number" min="0" value="${r.registros||0}"
         data-tar="${r.tarifa}" style="width:96px;padding:5px 8px;border:1px solid var(--line);border-radius:var(--r);text-align:right"></td>
       <td class="num" id="rd-${r.empleado_id}" style="color:var(--txt-3)">${r.diferencia?('−'+r.diferencia):'—'}</td>
@@ -2822,10 +2836,20 @@ async function vistaNomina(){
       <td class="num" id="rd-tot" style="color:var(--bad)">${(()=>{const d=S.regs.reduce((a,b)=>a+Number(b.diferencia||0),0);return d?'−'+d:'—';})()}</td>
       <td></td>
       <td class="num nm" id="rg-tot">${money(S.regs.reduce((a,b)=>a+Number(b.importe||0),0))}</td><td></td></tr>
-    </tbody></table></div>`:''}
+    </tbody></table></div>
+
+  <div class="head" style="margin:18px 0 10px"><div><h1 style="font-size:17px">Respaldo del periodo</h1>
+    <p>La captura de Odoo queda guardada, igual que la factura de un cobro</p></div>
+    <div class="acts"><input type="file" id="file-adj" accept="image/*,.pdf" style="display:none">
+      <button class="btn" id="n-adj">Subir respaldo</button></div></div>
+  <div id="adj-lista" style="font-size:13px;color:var(--txt-2)">Cargando…</div>
+  `:'<div class="empty"><b>Nadie saca base de datos</b>Marca a quien corresponda en su ficha de plantilla.</div>'}
+  </div>
+
+  <div ${S.nTab==='capac'?'':'style="display:none"'}>
 
   ${S.capac.length?`
-  <div class="head" style="margin:22px 0 10px"><div><h1 style="font-size:17px">En capacitación</h1>
+  <div class="head" style="margin:4px 0 10px"><div><h1 style="font-size:17px">En capacitación</h1>
     <p>Se paga la semana completa solo si no faltó ningún día</p></div></div>
   <div class="tw" style="margin-bottom:24px"><table>
     <thead><tr><th>Nombre</th><th>Puesto</th><th>Semana</th><th style="text-align:right">Días asistidos</th>
@@ -2864,8 +2888,9 @@ async function vistaNomina(){
       <td style="text-align:right"><button class="btn btn-sm" data-nd="${d.detalle_id}">Abrir</button></td>
     </tr>`).join(''):'<tr><td colspan="12"><div class="empty"><b>Sin calcular</b>Dale a Calcular para generar la nómina de este periodo a partir de la asistencia.</div></td></tr>'}
     </tbody>
-  </table></div>`;
+  </table></div></div>`;
 
+  document.querySelectorAll('[data-ntab]').forEach(b=>b.onclick=()=>{ S.nTab=b.dataset.ntab; vistaNomina(); });
   $('#n-per').onchange=e=>{ S.perSel=Number(e.target.value); vistaNomina(); };
   if($('#n-calc')) $('#n-calc').onclick=()=>calcularNomina(P);
   if($('#n-xls'))  $('#n-xls').onclick=()=>excelNomina(P);
@@ -2909,13 +2934,24 @@ async function vistaNomina(){
   if($('#n-regs')) $('#n-regs').onclick=()=>guardarRegistros(P);
   if($('#n-ocr')){
     $('#n-ocr').onclick=()=>$('#file-ocr').click();
-    $('#file-ocr').onchange=e=>{ if(e.target.files[0]) leerCapturaRegistros(e.target.files[0]); };
+    $('#file-ocr').onchange=e=>{ if(e.target.files[0]) leerCapturaRegistros(e.target.files[0], P); };
+  }
+  if($('#n-limpiar')) $('#n-limpiar').onclick=async()=>{
+    if(!confirm(`Borrar toda la captura de registros de ${P.clave}?\n\nSe borran los números de las ${S.regs.length} personas y podrás volver a subir la imagen.`)) return;
+    const {data,error}=await sb.rpc('limpiar_registros_periodo',{p_periodo:P.id});
+    if(error){ toast('No se pudo: '+error.message,'bad'); return; }
+    toast(data,'ok'); vistaNomina();
+  };
+  if($('#n-adj')){
+    $('#n-adj').onclick=()=>$('#file-adj').click();
+    $('#file-adj').onchange=e=>{ if(e.target.files[0]) subirAdjunto(e.target.files[0], P); };
+    cargarAdjuntos(P);
   }
   document.querySelectorAll('[data-cap-si]').forEach(b=>b.onclick=()=>cerrarCapacitacion(Number(b.dataset.capSi),true));
   document.querySelectorAll('[data-cap-no]').forEach(b=>b.onclick=()=>cerrarCapacitacion(Number(b.dataset.capNo),false));
 }
 
-async function leerCapturaRegistros(f){
+async function leerCapturaRegistros(f,P){
   const msg=$('#ocr-msg');
   if(typeof Tesseract==='undefined'){ msg.innerHTML='<span style="color:var(--warn)">No se pudo cargar el lector de imágenes.</span>'; return; }
   msg.innerHTML='<span style="color:var(--teal)">Leyendo la captura… <b id="ocr-p">0%</b></span>';
@@ -2940,14 +2976,42 @@ async function leerCapturaRegistros(f){
         si.dispatchEvent(new Event('input'));
         hallados.push(p.emp.nombre_completo+' · '+num); }
     });
+    if(hallados.length){ S.ocrReciente=true; if(P) await subirAdjunto(f,P); }
     msg.innerHTML = hallados.length
       ? `<span style="color:var(--ok)"><b>Se llenaron ${hallados.length} de ${S.regs.length}:</b> ${esc(hallados.join(' · '))}</span>`
-        + `<br><span style="color:var(--warn)">Se llenó la columna del sistema. Verifica los números contra la captura y ajusta la columna de a pagar si detectaste errores.</span>`
+        + `<br><span style="color:var(--warn)">Se llenó la columna del sistema y la imagen quedó guardada como respaldo. Al guardar, esos números se bloquean: solo vas a poder ajustar la columna de a pagar, y siempre hacia abajo.</span>`
         + (noRec.length?`<br><span style="color:var(--txt-3)">Sin reconocer: ${esc(noRec.slice(0,6).join(' · '))}</span>`:'')
       : '<span style="color:var(--warn)">No reconocimos ningún nombre con su número. Captúralos a mano.</span>';
   }catch(err){
     msg.innerHTML='<span style="color:var(--warn)">No pudimos leer la imagen. Captura los números a mano.</span>';
   }
+}
+
+async function cargarAdjuntos(P){
+  const c=$('#adj-lista'); if(!c) return;
+  const {data}=await sb.from('periodo_adjuntos').select('*, usuarios_app(nombre)')
+    .eq('periodo_id',P.id).order('creado_en',{ascending:false});
+  if(!data||!data.length){ c.innerHTML='<span style="color:var(--txt-3)">Todavía no se ha subido ningún respaldo de este periodo.</span>'; return; }
+  const filas=[];
+  for(const a of data){
+    const {data:u}=await sb.storage.from('facturas').createSignedUrl(a.archivo_url,3600);
+    filas.push(`<div style="padding:7px 0;border-bottom:1px solid var(--line-2)">
+      ${u?.signedUrl?`<a href="${u.signedUrl}" target="_blank" rel="noopener" style="color:var(--teal);text-decoration:underline">${esc(a.nombre_archivo||'Respaldo')}</a>`:esc(a.nombre_archivo||'Respaldo')}
+      <span style="color:var(--txt-3);font-size:12px"> · ${esc(a.usuarios_app?.nombre||'')} · ${new Date(a.creado_en).toLocaleString('es-MX')}</span></div>`);
+  }
+  c.innerHTML=filas.join('');
+}
+
+async function subirAdjunto(f,P){
+  const c=$('#adj-lista'); c.innerHTML='<span style="color:var(--teal)">Subiendo…</span>';
+  const ruta=`nomina/${P.clave}/${Date.now()}_${f.name.replace(/[^\w.\-]/g,'_')}`;
+  const {error}=await sb.storage.from('facturas').upload(ruta,f,{upsert:true});
+  if(error){ toast('No se pudo subir: '+error.message,'bad'); cargarAdjuntos(P); return; }
+  const {error:e2}=await sb.from('periodo_adjuntos').insert({
+    periodo_id:P.id, tipo:'registros', nombre_archivo:f.name, archivo_url:ruta, subido_por:S.perfil.id});
+  if(e2){ toast('Se subió pero no se enlazó: '+e2.message,'bad'); }
+  else toast('Respaldo guardado.','ok');
+  cargarAdjuntos(P);
 }
 
 async function guardarRegistros(P){
@@ -2968,10 +3032,12 @@ async function guardarRegistros(P){
     if(sis===Number(r.registros_sistema||0) && pag===Number(r.registros||0)
        && mot===(r.motivo_ajuste||'')) continue;
     const {error}=await sb.rpc('guardar_registros',
-      {p_periodo:P.id, p_empleado:r.empleado_id, p_sistema:sis, p_pagados:pag, p_motivo:mot||null});
+      {p_periodo:P.id, p_empleado:r.empleado_id, p_sistema:sis, p_pagados:pag,
+       p_motivo:mot||null, p_desde_imagen:!!S.ocrReciente});
     if(error){ err++; msgs.push(error.message); } else n++;
   }
   if(n) await sb.rpc('registros_a_nomina',{p_periodo:P.id});
+  S.ocrReciente=false;
   b.disabled=false; b.textContent='Guardar registros';
   if(err) toast(msgs[0],'bad');
   else toast(n?`${n} capturas guardadas.`:'No cambió nada.','ok');
