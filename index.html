@@ -185,7 +185,10 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
 .cel.man:after{content:'';position:absolute;margin:-18px 0 0 20px;width:5px;height:5px;border-radius:50%;background:var(--copper)}
 .pincel{display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:var(--card);border:1px solid var(--line);
   border-radius:var(--r);padding:11px 13px;margin-bottom:14px;box-shadow:var(--sh);position:sticky;top:0;z-index:20}
-.pincel button{padding:5px 11px;border:1px solid var(--line);background:#fff;border-radius:var(--r);cursor:pointer;font-weight:600;font-size:12px}
+.pincel button{padding:5px 11px;border:1px solid var(--line);background:#fff;border-radius:var(--r);cursor:pointer;font-weight:600;font-size:12px;flex:none;white-space:nowrap}
+.pincel input{flex:1 1 160px;min-width:130px}
+#fa-guardar{padding:7px 16px;font-size:13px}
+#fa-guardar:not(:disabled){box-shadow:0 0 0 3px var(--teal-l)}
 .pincel button.on{outline:2px solid var(--ink);outline-offset:1px}
 
 /* ---------- Guía ---------- */
@@ -780,6 +783,11 @@ function pintarNav(){
   $('#nav').querySelectorAll('a').forEach(a=>a.onclick=()=>irA(a.dataset.ir));
 }
 function irA(id){
+  if(vistaActual==='asistencia' && Object.keys(S.pendientes||{}).length){
+    const n=Object.keys(S.pendientes).length;
+    if(!confirm(`Tienes ${n} celda${n===1?'':'s'} de asistencia sin guardar. Si sales se pierden. Continuar?`)) return;
+    S.pendientes={};
+  }
   vistaActual=id;
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
   const m=MODULOS.find(x=>x.id===id);
@@ -2987,7 +2995,8 @@ async function cargarRejilla(){
     <div><h1>Asistencia</h1><p>Del ${fecha(f.desde)} al ${fecha(f.hasta)} · ${gente.length} personas que llevan horario</p></div>
     <div class="acts">
       <button class="btn" id="b-bio">Cargar checador</button>
-      <button class="btn btn-p" id="b-calc">Calcular periodo</button>
+      <button class="btn btn-p" id="b-calc">Calificar días nuevos</button>
+      <button class="btn" id="b-recalc">Recalcular todo</button>
     </div>
   </div>
 
@@ -3076,10 +3085,15 @@ async function cargarRejilla(){
     });
     const n=Object.keys(S.pendientes).length;
     const g=$('#fa-guardar'); g.disabled=false; g.textContent=`Guardar ${n} cambio${n===1?'':'s'}`;
+    g.classList.add('btn-d'); g.style.animation='none';
   });
   $('#fa-guardar').onclick=guardarAsistencia;
-  $('#fa-ir').onclick=()=>{ S.fA.desde=$('#fa-d').value; S.fA.hasta=$('#fa-h').value; cargarRejilla(); };
-  $('#b-calc').onclick=calcularPeriodo;
+  $('#fa-ir').onclick=()=>{
+    const pend=Object.keys(S.pendientes||{}).length;
+    if(pend && !confirm(`Tienes ${pend} celda${pend===1?'':'s'} sin guardar. Si cambias de periodo se pierden. Continuar?`)) return;
+    S.fA.desde=$('#fa-d').value; S.fA.hasta=$('#fa-h').value; cargarRejilla(); };
+  $('#b-calc').onclick=()=>calcularPeriodo(true);
+  $('#b-recalc').onclick=()=>calcularPeriodo(false);
   $('#b-bio').onclick=()=>{ S.bioPrev=null; $('#bio-res').innerHTML=''; $('#bio-go').disabled=true; $('#ov-bio').classList.add('on'); };
   if($('#b-mapear')) $('#b-mapear').onclick=abrirMapeo;
 }
@@ -3097,13 +3111,31 @@ async function guardarAsistencia(){
   cargarRejilla();
 }
 
-async function calcularPeriodo(){
-  const b=$('#b-calc'); b.disabled=true; b.textContent='Calculando…';
-  const {data,error}=await sb.rpc('calcular_asistencia',{p_desde:S.fA.desde,p_hasta:S.fA.hasta,p_empleado:null});
-  if(error){ b.disabled=false; b.textContent='Calcular periodo'; toast('No se pudo: '+error.message,'bad'); return; }
+async function calcularPeriodo(soloFaltantes){
+  const pend=Object.keys(S.pendientes||{}).length;
+  if(pend){
+    if(!confirm(`Tienes ${pend} celda${pend===1?'':'s'} pintada${pend===1?'':'s'} sin guardar.\n\n`
+      +`Si calculas ahora se pierden. Cancela, dale a Guardar cambios y vuelve a calcular.\n\n`
+      +`Calcular de todas formas?`)) return;
+  }
+  if(!soloFaltantes){
+    const yaHay=Object.keys(S.asist||{}).length;
+    if(yaHay && !confirm(`Recalcular todo el periodo?\n\n`
+      +`Se vuelven a calificar los ${yaHay} días que ya existen a partir de los marcajes.\n`
+      +`Lo que corregiste a mano NO se toca.\n\n`
+      +`Si solo quieres llenar los días que faltan, cancela y usa "Calificar días nuevos".`)) return;
+  }
+  const b=soloFaltantes?$('#b-calc'):$('#b-recalc');
+  const txt=b.textContent; b.disabled=true; b.textContent='Calculando…';
+  const {data,error}=await sb.rpc('calcular_asistencia',
+    {p_desde:S.fA.desde, p_hasta:S.fA.hasta, p_empleado:null, p_solo_faltantes:!!soloFaltantes});
+  if(error){ b.disabled=false; b.textContent=txt;
+    toast('No se pudo: '+error.message+(/p_solo_faltantes/.test(error.message)?' · falta correr el SQL 36':''),'bad'); return; }
   await sb.rpc('marcar_origen_asistencia',{p_desde:S.fA.desde,p_hasta:S.fA.hasta});
-  b.disabled=false; b.textContent='Calcular periodo';
-  toast(`${data} días calificados con el checador. Los ajustes hechos a mano se respetaron.`,'ok');
+  b.disabled=false; b.textContent=txt;
+  toast(soloFaltantes
+    ? `${data} días nuevos calificados. Nada de lo que ya estaba se modificó.`
+    : `${data} días recalculados. Los que corregiste a mano se respetaron.`,'ok');
   cargarRejilla();
 }
 
