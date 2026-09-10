@@ -2761,11 +2761,13 @@ async function vistaNomina(){
   const P=S.periodos.find(p=>p.id===S.perSel);
   if(!P){ $('#main').innerHTML='<div class="empty"><b>Sin periodos</b>Corre el SQL 26 para generar el calendario.</div>'; return; }
 
-  const [dt,rg,cp]=await Promise.all([
+  const [dt,rg,cp,bs]=await Promise.all([
     sb.from('v_nomina_detalle').select('*').eq('periodo',P.clave).order('nombre_completo'),
     sb.from('v_registros_periodo').select('*').eq('periodo',P.clave).order('nombre_completo'),
-    sb.from('v_capacitacion').select('*').order('inicio',{ascending:false})
+    sb.from('v_capacitacion').select('*').order('inicio',{ascending:false}),
+    sb.from('v_base_semanas').select('*').order('fecha_inicio',{ascending:false}).limit(30)
   ]);
+  S.baseSem=bs.data||[];
   S.nomDet=dt.data||[]; S.regs=rg.data||[]; S.capac=cp.data||[];
   S.nTab=S.nTab||'resumen';
   const [ec,et]=EST_N[P.estatus]||['p-gray',P.estatus];
@@ -2803,8 +2805,31 @@ async function vistaNomina(){
   ${Number(P.neto||0)>0?`<div class="note" style="${Number(P.neto)>0?'':''}"><b>Contra el disponible de la cuenta</b>Esta nómina son ${money(P.neto)}. Revisa en Balance financiero que el disponible alcance antes de confirmar.</div>`:''}
 
   <div ${S.nTab==='base'?'':'style="display:none"'}>
+  <div class="head" style="margin:4px 0 10px"><div><h1 style="font-size:17px">Pagos por semana</h1>
+    <p>Cada renglón es una semana de corte. Ábrela para capturar o revisar su desglose.</p></div></div>
+  <div class="tw" style="margin-bottom:24px"><table>
+    <thead><tr><th>Semana</th><th>Corte</th><th>Se paga</th><th style="text-align:right">Personas</th>
+      <th style="text-align:right">Sistema</th><th style="text-align:right">Pagados</th>
+      <th style="text-align:right">Descontados</th><th style="text-align:right">Importe</th>
+      <th>Respaldo</th><th>Capturó</th><th></th></tr></thead>
+    <tbody>${S.baseSem.map(w=>`<tr style="${w.periodo_id===P.id?'background:var(--teal-l)':''}">
+      <td class="mono nm">${esc(w.clave)}</td>
+      <td class="mono" style="font-size:12.5px">${fecha(w.fecha_inicio)} a ${fecha(w.fecha_fin)}</td>
+      <td class="mono" style="font-size:12.5px">${fecha(w.fecha_pago)}</td>
+      <td class="num">${w.personas||0}</td>
+      <td class="num">${w.registros_sistema||0}</td>
+      <td class="num nm">${w.registros_pagados||0}</td>
+      <td class="num" style="${Number(w.descontados)?'color:var(--bad);font-weight:600':'color:var(--txt-3)'}">${Number(w.descontados)?('−'+w.descontados):'—'}</td>
+      <td class="num nm">${money(w.importe)}</td>
+      <td>${w.respaldos?`<span class="p p-ok">${w.respaldos}</span>`:(w.personas?'<span class="p p-bad">falta</span>':'<span style="color:var(--txt-3)">—</span>')}</td>
+      <td style="font-size:12px;color:var(--txt-2)">${esc(w.capturado_por||'—')}</td>
+      <td style="text-align:right"><button class="btn btn-sm" data-bw="${w.periodo_id}">${w.periodo_id===P.id?'Abierta':'Abrir'}</button></td>
+    </tr>`).join('')}
+    </tbody></table></div>
+
   ${S.regs.length?`
-  <div class="head" style="margin:4px 0 10px"><div><h1 style="font-size:17px">Registros de base de datos</h1>
+  <div class="head" style="margin:4px 0 10px"><div><h1 style="font-size:17px">${esc(P.clave)} · captura</h1>
+    <p>Corte del ${fecha(P.fecha_inicio)} al ${fecha(P.fecha_fin)} · se paga el ${fecha(P.fecha_pago)}</p></div>
     <p>Captura lo que reporta la encargada. El sistema multiplica por la tarifa de cada quien.</p></div>
     <div class="acts">
       <button class="btn" id="n-ocr">Leer captura de Odoo</button>
@@ -2891,6 +2916,10 @@ async function vistaNomina(){
   </table></div></div>`;
 
   document.querySelectorAll('[data-ntab]').forEach(b=>b.onclick=()=>{ S.nTab=b.dataset.ntab; vistaNomina(); });
+  document.querySelectorAll('[data-bw]').forEach(b=>b.onclick=()=>{
+    S.perSel=Number(b.dataset.bw); S.nTab='base'; vistaNomina();
+    setTimeout(()=>window.scrollTo({top:document.body.scrollHeight/2,behavior:'smooth'}),150);
+  });
   $('#n-per').onchange=e=>{ S.perSel=Number(e.target.value); vistaNomina(); };
   if($('#n-calc')) $('#n-calc').onclick=()=>calcularNomina(P);
   if($('#n-xls'))  $('#n-xls').onclick=()=>excelNomina(P);
