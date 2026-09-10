@@ -2761,13 +2761,14 @@ async function vistaNomina(){
   const P=S.periodos.find(p=>p.id===S.perSel);
   if(!P){ $('#main').innerHTML='<div class="empty"><b>Sin periodos</b>Corre el SQL 26 para generar el calendario.</div>'; return; }
 
-  const [dt,rg,cp,bs]=await Promise.all([
+  const [dt,rg,cp,bs,nr]=await Promise.all([
     sb.from('v_nomina_detalle').select('*').eq('periodo',P.clave).order('nombre_completo'),
     sb.from('v_registros_periodo').select('*').eq('periodo',P.clave).order('nombre_completo'),
     sb.from('v_capacitacion').select('*').order('inicio',{ascending:false}),
-    sb.from('v_base_semanas').select('*').order('fecha_inicio',{ascending:false}).limit(30)
+    sb.from('v_base_semanas').select('*').order('fecha_inicio',{ascending:false}).limit(30),
+    sb.from('v_nomina_resumen').select('*').gt('personas',0).order('fecha_inicio',{ascending:false}).limit(30)
   ]);
-  S.baseSem=bs.data||[];
+  S.baseSem=bs.data||[]; S.nomGen=nr.data||[];
   S.nomDet=dt.data||[]; S.regs=rg.data||[]; S.capac=cp.data||[];
   S.nTab=S.nTab||'resumen';
   const [ec,et]=EST_N[P.estatus]||['p-gray',P.estatus];
@@ -2896,8 +2897,43 @@ async function vistaNomina(){
           <button class="btn btn-sm btn-d" data-cap-no="${c.empleado_id}">No aprueba</button>`
         :(c.capacitacion_aprobada?'<span class="p p-ok">aprobada</span>':'<span class="p p-bad">no aprobó</span>')}</td>
     </tr>`).join('')}
+    </tbody></table></div>
+  <div class="note" style="margin-top:12px"><b>Cómo funciona</b>
+    Quien entra se da de alta en Plantilla y el sistema le fija su semana de lunes a viernes.
+    Como su huella todavía no existe, sus días se marcan en la cuadrícula de Asistencia con el motivo
+    "huella todavía no dada de alta". Al terminar la semana, aquí decides: aprobar lo pasa a sueldo semanal
+    y le fija el lunes siguiente como inicio de producción; no aprobar lo da de baja.
+    Una sola falta deja el pago en cero.</div>`
+    :'<div class="empty"><b>Nadie en capacitación</b>Aquí aparece quien esté en su semana de prueba.</div>'}
+  </div>
+
+  <div ${S.nTab==='resumen'?'':'style="display:none"'}>
+  ${S.nomGen.length?`
+  <div class="head" style="margin:4px 0 10px"><div><h1 style="font-size:17px">Nóminas generadas</h1>
+    <p>Cada renglón es un periodo calculado. Ábrelo para ver su detalle o baja el Excel con el que se pagó.</p></div></div>
+  <div class="tw" style="margin-bottom:24px"><table>
+    <thead><tr><th>Periodo</th><th>Tipo</th><th>Corte</th><th>Se paga</th>
+      <th style="text-align:right">Personas</th><th style="text-align:right">Neto</th>
+      <th>Estatus</th><th>Respaldo</th><th></th></tr></thead>
+    <tbody>${S.nomGen.map(g=>{
+      const [gc,gt]=EST_N[g.estatus]||['p-gray',g.estatus];
+      return `<tr style="${g.id===P.id?'background:var(--teal-l)':''}">
+        <td class="mono nm">${esc(g.clave)}</td>
+        <td>${esc(g.tipo)}</td>
+        <td class="mono" style="font-size:12.5px">${fecha(g.fecha_inicio)} a ${fecha(g.fecha_fin)}</td>
+        <td class="mono" style="font-size:12.5px">${fecha(g.fecha_pago)}</td>
+        <td class="num">${g.personas}</td>
+        <td class="num nm">${money(g.neto)}</td>
+        <td><span class="p ${gc}">${gt}</span></td>
+        <td id="nadj-${g.id}" style="font-size:12px;color:var(--txt-3)">—</td>
+        <td style="text-align:right">
+          <button class="btn btn-sm" data-nw="${g.id}">${g.id===P.id?'Abierta':'Abrir'}</button>
+          <button class="btn btn-sm" data-nx="${g.id}">Excel</button></td>
+      </tr>`;}).join('')}
     </tbody></table></div>`:''}
 
+  <div class="head" style="margin:4px 0 10px"><div><h1 style="font-size:17px">${esc(P.clave)} · detalle por persona</h1>
+    <p>Del ${fecha(P.fecha_inicio)} al ${fecha(P.fecha_fin)} · ${P.personas||0} personas</p></div></div>
   <div class="tw"><table>
     <thead><tr><th>Cód.</th><th>Nombre</th><th>Puesto</th><th>Esquema</th>
       <th style="text-align:right">Días</th><th style="text-align:right">Faltas</th><th style="text-align:right">Ret.</th>
@@ -2921,6 +2957,13 @@ async function vistaNomina(){
   </table></div></div>`;
 
   document.querySelectorAll('[data-ntab]').forEach(b=>b.onclick=()=>{ S.nTab=b.dataset.ntab; vistaNomina(); });
+  document.querySelectorAll('[data-nw]').forEach(b=>b.onclick=()=>{ S.perSel=Number(b.dataset.nw); S.nTab='resumen'; vistaNomina(); });
+  document.querySelectorAll('[data-nx]').forEach(b=>b.onclick=async()=>{
+    const g=S.nomGen.find(x=>x.id===Number(b.dataset.nx)); if(!g) return;
+    b.disabled=true; b.textContent='…';
+    await excelNomina(g); b.disabled=false; b.textContent='Excel';
+  });
+  cargarRespaldosNomina();
   document.querySelectorAll('[data-bw]').forEach(b=>b.onclick=()=>{
     S.perSel=Number(b.dataset.bw); S.nTab='base'; vistaNomina();
     setTimeout(()=>window.scrollTo({top:document.body.scrollHeight/2,behavior:'smooth'}),150);
@@ -3018,6 +3061,22 @@ async function leerCapturaRegistros(f,P){
       : '<span style="color:var(--warn)">No reconocimos ningún nombre con su número. Captúralos a mano.</span>';
   }catch(err){
     msg.innerHTML='<span style="color:var(--warn)">No pudimos leer la imagen. Captura los números a mano.</span>';
+  }
+}
+
+async function cargarRespaldosNomina(){
+  if(!S.nomGen||!S.nomGen.length) return;
+  const {data}=await sb.from('periodo_adjuntos').select('periodo_id,tipo,archivo_url,nombre_archivo,creado_en')
+    .in('periodo_id', S.nomGen.map(g=>g.id)).eq('tipo','otro');
+  const porP={}; (data||[]).forEach(a=>{ if(!porP[a.periodo_id]) porP[a.periodo_id]=a; });
+  for(const g of S.nomGen){
+    const td=$('#nadj-'+g.id); if(!td) continue;
+    const a=porP[g.id];
+    if(!a){ td.innerHTML='<span style="color:var(--txt-3)">—</span>'; continue; }
+    const {data:u}=await sb.storage.from('facturas').createSignedUrl(a.archivo_url,3600);
+    td.innerHTML = u?.signedUrl
+      ? `<a href="${u.signedUrl}" target="_blank" rel="noopener" style="color:var(--teal);text-decoration:underline">confirmada</a>`
+      : '<span class="p p-ok">guardada</span>';
   }
 }
 
@@ -3157,6 +3216,10 @@ async function excelNomina(P){
     const {data:con}=await sb.from('v_nomina_conceptos').select('*').in('nomina_detalle_id',ids);
     const porDet={}; (con||[]).forEach(c=>{ (porDet[c.nomina_detalle_id]=porDet[c.nomina_detalle_id]||[]).push(c); });
 
+    const {data:asis}=await sb.from('asistencia_dia').select('*')
+      .gte('fecha',P.fecha_inicio).lte('fecha',P.fecha_fin).limit(8000);
+    const porPersona={}; (asis||[]).forEach(a=>{ (porPersona[a.empleado_id]=porPersona[a.empleado_id]||[]).push(a); });
+
     const wb=new ExcelJS.Workbook();
     wb.creator='Gestión CDMX'; wb.created=new Date();
     const ws=wb.addWorksheet('Nómina',{views:[{state:'frozen',ySplit:6}]});
@@ -3232,16 +3295,52 @@ async function excelNomina(P){
     w2.addRow(['Nombre','Concepto','Tipo','Cantidad','Importe','Detalle']);
     w2.getRow(1).eachCell(c=>{ c.font={bold:true,color:{argb:'FFFFFFFF'}};
       c.fill={type:'pattern',pattern:'solid',fgColor:{argb:TEAL}}; });
-    (det||[]).forEach(d=>(porDet[d.detalle_id]||[]).forEach(c=>{
-      const row=w2.addRow([d.nombre_completo,c.concepto,c.tipo,c.cantidad,Number(c.importe),c.referencia||'']);
-      row.getCell(5).numFmt='"$"#,##0.00';
-      if(c.tipo==='deduccion') row.getCell(5).font={color:{argb:'FFB42318'}};
-    }));
-    w2.columns=[{width:36},{width:26},{width:12},{width:10},{width:14},{width:46}];
+
+    const TIPOF={llegada_tarde:'llegó tarde',no_asistio:'no se presentó',
+                 salida_temprana:'salió antes de su hora',sin_salida:'no marcó salida'};
+    const hm=t=>t?String(t).slice(0,5):'—';
+    const fcorta=x=>{ const d=new Date(x+'T12:00:00');
+      return d.getDate()+' '+['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][d.getMonth()]; };
+
+    (det||[]).forEach(d=>{
+      (porDet[d.detalle_id]||[]).forEach(c=>{
+        const row=w2.addRow([d.nombre_completo,c.concepto,c.tipo,c.cantidad,Number(c.importe),c.referencia||'']);
+        row.getCell(5).numFmt='"$"#,##0.00';
+        if(c.tipo==='deduccion') row.getCell(5).font={color:{argb:'FFB42318'}};
+      });
+      // Cada falta con su motivo y sus marcajes del día
+      const dias=(porPersona[d.empleado_id]||[])
+        .filter(a=>a.estatus_final==='F')
+        .sort((a,b)=>a.fecha.localeCompare(b.fecha));
+      dias.forEach(a=>{
+        const tipo=TIPOF[a.tipo_falta]||'falta';
+        const horas = a.hora_entrada
+          ? `entró ${hm(a.hora_entrada)}${a.hora_salida&&a.hora_salida!==a.hora_entrada?` · salió ${hm(a.hora_salida)}`:' · sin salida'}`
+          : 'sin ningún marcaje ese día';
+        const extra = a.ajustado ? ' · ajustado a mano' : '';
+        const row=w2.addRow([d.nombre_completo, '   · '+fcorta(a.fecha)+' '+tipo, 'falta', 1, null,
+                             horas + extra + (a.justificacion?' · '+a.justificacion:'')]);
+        row.getCell(2).font={size:10,italic:true,color:{argb:'FFB42318'}};
+        row.getCell(6).font={size:10,color:{argb:'FF5A6673'}};
+        row.eachCell(c=>c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFDF6F5'}});
+      });
+      // Los retardos también, para ver la hora
+      (porPersona[d.empleado_id]||[])
+        .filter(a=>a.estatus_final==='R')
+        .sort((a,b)=>a.fecha.localeCompare(b.fecha))
+        .forEach(a=>{
+          const row=w2.addRow([d.nombre_completo,'   · '+fcorta(a.fecha)+' retardo','retardo',1,null,
+            `entró ${hm(a.hora_entrada)}${a.minutos_retardo?` · ${Math.round(a.minutos_retardo)} min tarde`:''}${a.hora_salida?` · salió ${hm(a.hora_salida)}`:''}`]);
+          row.getCell(2).font={size:10,italic:true,color:{argb:'FFB45309'}};
+          row.getCell(6).font={size:10,color:{argb:'FF5A6673'}};
+          row.eachCell(c=>c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFDFAF3'}});
+        });
+    });
+    w2.columns=[{width:36},{width:30},{width:11},{width:10},{width:14},{width:58}];
+    w2.autoFilter={from:{row:1,column:1},to:{row:1,column:6}};
+    w2.views=[{state:'frozen',ySplit:1}];
 
     // ---------------- Hoja de asistencia ----------------
-    const {data:asis}=await sb.from('asistencia_dia').select('*')
-      .gte('fecha',P.fecha_inicio).lte('fecha',P.fecha_fin).limit(8000);
     if(asis&&asis.length){
       const mapaA={}; asis.forEach(a=>mapaA[a.empleado_id+'|'+a.fecha]=a);
       const dias=[]; let dd=new Date(P.fecha_inicio+'T12:00:00'); const ff=new Date(P.fecha_fin+'T12:00:00');
