@@ -485,6 +485,40 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
   </div>
 </div>
 
+<div class="ov" id="ov-reng">
+  <div class="md" style="max-width:560px">
+    <div class="md-h"><b id="rn-tit">Agregar un pago</b><button data-close="ov-reng">&times;</button></div>
+    <div class="md-b">
+      <div class="grid">
+        <div class="f full"><label for="rn-tipo">A quién se le paga</label><select id="rn-tipo">
+          <option value="empleado">Alguien de la plantilla</option>
+          <option value="externo">Un proveedor o servicio</option>
+          <option value="guardado">Un beneficiario ya guardado</option></select></div>
+        <div class="f full" id="box-emp"><label for="rn-emp">Persona</label><select id="rn-emp"></select></div>
+        <div class="f full" id="box-guard" style="display:none"><label for="rn-guard">Beneficiario</label><select id="rn-guard"></select></div>
+        <div class="f full" id="box-nom" style="display:none"><label for="rn-nom">Nombre del beneficiario</label><input id="rn-nom" placeholder="Como aparece en la cuenta"></div>
+        <div class="f" id="box-ban" style="display:none"><label for="rn-ban">Banco</label><input id="rn-ban"></div>
+        <div class="f" id="box-cla" style="display:none"><label for="rn-cla">CLABE</label><input id="rn-cla" class="mono" maxlength="18"><small id="rn-cla-msg"></small></div>
+        <div class="f"><label for="rn-conc">Concepto del pago</label><select id="rn-conc">
+          <option value="nomina">Nómina</option><option value="comision">Comisión</option>
+          <option value="bono">Bono</option><option value="base_datos">Base de datos</option>
+          <option value="prestamo">Préstamo</option><option value="proveedor">Proveedor</option>
+          <option value="finiquito">Finiquito</option><option value="otro">Otro</option></select></div>
+        <div class="f"><label for="rn-monto">Monto</label><input id="rn-monto" type="number" step="0.01" class="mono"></div>
+        <div class="f full"><label for="rn-cat">Categoría de gasto</label><select id="rn-cat"></select>
+          <small>Con esto se clasifica el gasto cuando la dispersión se ejecute.</small></div>
+        <div class="f full"><label for="rn-nota">Nota</label><input id="rn-nota"></div>
+        <div class="f full" id="box-guardar" style="display:none"><label style="display:flex;flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px">
+          <input type="checkbox" id="rn-save" style="width:auto"> Guardar este beneficiario para la próxima vez</label></div>
+      </div>
+    </div>
+    <div class="md-f">
+      <button class="btn" data-close="ov-reng">Cancelar</button>
+      <button class="btn btn-p" id="rn-ok">Agregar</button>
+    </div>
+  </div>
+</div>
+
 <div class="ov" id="ov-nom">
   <div class="md" style="max-width:680px">
     <div class="md-h"><b id="nd-tit">Detalle de nómina</b><button data-close="ov-nom">&times;</button></div>
@@ -2784,6 +2818,7 @@ async function vistaDispersion(){
   <div class="head">
     <div><h1>Dispersión de pagos</h1><p>De la nómina confirmada al archivo del banco</p></div>
     <div class="acts">
+      ${S.direccion?'<button class="btn" id="d-libre">Nueva dispersión</button>':''}
       ${S.pendConf.length&&S.direccion?`<button class="btn btn-p" id="d-gen">Generar de una nómina</button>`:''}
     </div>
   </div>
@@ -2823,6 +2858,7 @@ async function vistaDispersion(){
 
   document.querySelectorAll('[data-dv]').forEach(b=>b.onclick=()=>{ S.selDisp=Number(b.dataset.dv); vistaDispersion(); });
   if($('#d-gen')) $('#d-gen').onclick=generarDispersion;
+  if($('#d-libre')) $('#d-libre').onclick=crearDispersionLibre;
   if(D) pintarDetalleDisp(D, c);
 }
 
@@ -2840,6 +2876,7 @@ async function pintarDetalleDisp(D, cta){
     <div><h1 style="font-size:17px">${esc(D.concepto)}</h1>
       <p>${det.length} personas · ${money(D.total)} · se paga el ${fecha(D.fecha_pago)}</p></div>
     <div class="acts">
+      ${D.estatus==='borrador'&&S.direccion?'<button class="btn btn-p" id="d-add">Agregar pago</button>':''}
       <button class="btn" id="d-xls">Descargar archivo del banco</button>
       ${D.estatus==='borrador'&&S.direccion?'<button class="btn btn-p" id="d-aut">Autorizar</button>':''}
       ${D.estatus==='autorizada'&&S.direccion?'<button class="btn btn-p" id="d-eje">Marcar como dispersada</button>':''}
@@ -2884,17 +2921,126 @@ async function pintarDetalleDisp(D, cta){
       <td style="font-size:12.5px">${esc(x.banco||'—')}</td>
       <td class="mono" style="font-size:12px">${x.clabe&&String(x.clabe).length===18?esc(x.clabe):'<span class="p p-bad">falta o inválida</span>'}</td>
       <td class="num nm">${money(x.monto)}</td>
-      <td><span class="p ${x.estatus==='pendiente'?'p-gray':x.estatus==='enviado'?'p-ok':'p-bad'}">${esc(x.estatus)}</span></td>
+      <td><span class="p ${x.estatus==='pendiente'?'p-gray':x.estatus==='enviado'?'p-ok':'p-bad'}">${esc(x.estatus)}</span>
+        ${D.estatus==='borrador'&&S.direccion?`<button class="btn btn-sm btn-d" data-rq="${x.id}" style="margin-left:6px;padding:2px 8px">Quitar</button>`:''}</td>
     </tr>`).join('')}
     <tr style="background:var(--teal-l)"><td></td><td class="nm">Total</td><td></td><td></td><td></td>
       <td class="num nm">${money(D.total)}</td><td></td></tr>
     </tbody></table></div>`;
 
   $('#d-xls').onclick=()=>excelDispersion(D, det||[]);
+  if($('#d-add')) $('#d-add').onclick=()=>abrirRenglon(D);
+  document.querySelectorAll('[data-rq]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Quitar este pago de la dispersión?')) return;
+    const {data,error}=await sb.rpc('quitar_renglon_dispersion',{p_renglon:Number(b.dataset.rq)});
+    if(error){ toast(error.message,'bad'); return; }
+    toast(data,'ok'); vistaDispersion();
+  });
   if($('#d-aut')) $('#d-aut').onclick=()=>avanzarDisp(D,'autorizada');
   if($('#d-eje')) $('#d-eje').onclick=()=>avanzarDisp(D,'dispersada');
   if($('#d-can')) $('#d-can').onclick=()=>avanzarDisp(D,'cancelada');
 }
+
+async function crearDispersionLibre(){
+  const con=prompt('Concepto de la dispersión','Comisiones y servicios');
+  if(con===null||!con.trim()) return;
+  const hoy=new Date().toISOString().slice(0,10);
+  const f=prompt('Fecha en que debe caer el pago (AAAA-MM-DD)',hoy);
+  if(f===null) return;
+  const {data,error}=await sb.rpc('crear_dispersion',{p_concepto:con.trim(),p_fecha_pago:f||hoy,p_origen:'mixta'});
+  if(error){ toast(error.message,'bad'); return; }
+  S.selDisp=data;
+  toast('Dispersión creada. Agrégale los pagos que la componen.','ok');
+  vistaDispersion();
+}
+
+async function abrirRenglon(D){
+  S.dispActual=D;
+  if(!S.empleados||!S.empleados.length) await cargarEmpleados();
+  const [cat,ben]=await Promise.all([
+    sb.from('categorias_gasto').select('*').eq('activa',true).order('tipo').order('nombre'),
+    sb.from('beneficiarios').select('*').eq('activo',true).order('nombre')
+  ]);
+  S.cats=cat.data||[]; S.benef=ben.data||[];
+  $('#rn-emp').innerHTML=S.empleados.filter(e=>e.estatus!=='baja')
+    .map(e=>`<option value="${e.id}">${esc(e.nombre_completo)}</option>`).join('');
+  $('#rn-guard').innerHTML='<option value="">— elegir —</option>'+
+    S.benef.map(b=>`<option value="${b.id}">${esc(b.nombre)}</option>`).join('');
+  $('#rn-cat').innerHTML='<option value="">— según el concepto —</option>'+
+    ['fijo','semifijo','variable'].map(t=>`<optgroup label="${t}">`+
+      S.cats.filter(c=>c.tipo===t).map(c=>`<option value="${c.clave}">${esc(c.nombre)}</option>`).join('')+'</optgroup>').join('');
+  $('#rn-monto').value=''; $('#rn-nota').value=''; $('#rn-nom').value='';
+  $('#rn-ban').value=''; $('#rn-cla').value=''; $('#rn-save').checked=false;
+  $('#rn-tipo').value='empleado'; $('#rn-conc').value='comision';
+  cambiarTipoRenglon();
+  $('#rn-tit').textContent='Agregar un pago a '+D.concepto;
+  $('#ov-reng').classList.add('on');
+  setTimeout(()=>$('#rn-monto').focus(),80);
+}
+
+function cambiarTipoRenglon(){
+  const t=$('#rn-tipo').value;
+  $('#box-emp').style.display   = t==='empleado'?'':'none';
+  $('#box-guard').style.display = t==='guardado'?'':'none';
+  ['box-nom','box-ban','box-cla','box-guardar'].forEach(id=>
+    $('#'+id).style.display = t==='externo'?'':'none');
+  if(t!=='empleado' && $('#rn-conc').value==='nomina') $('#rn-conc').value='proveedor';
+}
+$('#rn-tipo').onchange=cambiarTipoRenglon;
+
+$('#rn-guard').onchange=()=>{
+  const b=S.benef.find(x=>String(x.id)===$('#rn-guard').value);
+  if(!b) return;
+  $('#rn-conc').value=b.concepto_default||'proveedor';
+  const c=S.cats.find(x=>x.id===b.categoria_gasto_id);
+  if(c) $('#rn-cat').value=c.clave;
+};
+
+$('#rn-cla').oninput=e=>{
+  const v=clabeLimpia(e.target.value); e.target.value=v;
+  const m=$('#rn-cla-msg');
+  if(!v){ m.textContent=''; }
+  else if(v.length===18){ m.textContent='18 dígitos, correcta.'; m.style.color='var(--ok)'; }
+  else { m.textContent=`Van ${v.length} de 18.`; m.style.color='var(--warn)'; }
+};
+
+$('#rn-ok').onclick=async()=>{
+  const D=S.dispActual; if(!D) return;
+  const t=$('#rn-tipo').value;
+  const monto=Number($('#rn-monto').value||0);
+  if(!monto||monto<=0){ toast('El monto tiene que ser mayor a cero.','bad'); return; }
+
+  let p={p_dispersion:D.id, p_monto:monto, p_concepto:$('#rn-conc').value,
+         p_nota:$('#rn-nota').value.trim()||null, p_categoria:$('#rn-cat').value||null,
+         p_empleado:null, p_nombre:null, p_banco:null, p_clabe:null};
+
+  if(t==='empleado'){ p.p_empleado=Number($('#rn-emp').value); }
+  else if(t==='guardado'){
+    const b=S.benef.find(x=>String(x.id)===$('#rn-guard').value);
+    if(!b){ toast('Elige un beneficiario.','bad'); return; }
+    p.p_nombre=b.nombre; p.p_banco=b.banco; p.p_clabe=b.clabe;
+  } else {
+    const nom=$('#rn-nom').value.trim();
+    if(!nom){ toast('Falta el nombre del beneficiario.','bad'); return; }
+    const cla=clabeLimpia($('#rn-cla').value);
+    if(cla && cla.length!==18){ toast('La CLABE debe tener 18 dígitos.','bad'); return; }
+    p.p_nombre=nom; p.p_banco=$('#rn-ban').value.trim()||null; p.p_clabe=cla||null;
+    if($('#rn-save').checked){
+      await sb.from('beneficiarios').insert({
+        nombre:nom.toUpperCase(), banco:p.p_banco, clabe:p.p_clabe,
+        concepto_default:$('#rn-conc').value,
+        categoria_gasto_id:S.cats.find(c=>c.clave===$('#rn-cat').value)?.id||null});
+    }
+  }
+
+  $('#rn-ok').disabled=true;
+  const {error}=await sb.rpc('agregar_renglon_dispersion',p);
+  $('#rn-ok').disabled=false;
+  if(error){ toast(error.message,'bad'); return; }
+  cerrar('ov-reng');
+  toast('Pago agregado.','ok');
+  vistaDispersion();
+};
 
 async function generarDispersion(){
   if(!S.pendConf.length) return;
@@ -4685,14 +4831,19 @@ $('#pw-save').onclick=async()=>{
 async function vistaConfig(){
   if(!S.direccion){ $('#main').innerHTML='<div class="empty"><b>Solo dirección</b>Esta sección ajusta los valores con los que se calcula todo.</div>'; return; }
   $('#main').innerHTML='<div class="empty">Cargando parámetros…</div>';
-  const [pa,hi,rh,tb,me]=await Promise.all([
+  const [pa,hi,rh,tb,me,pl2,ta,ts,tc]=await Promise.all([
     sb.from('parametros').select('*').order('grupo').order('orden'),
     sb.from('parametros_historial').select('*').order('creado_en',{ascending:false}).limit(15),
     sb.from('reglas_horario').select('*, puestos(nombre,clave)').eq('activa',true).order('hora_entrada'),
     sb.from('v_tabulador').select('*'),
-    sb.from('metas_antiguedad').select('*').order('orden')
+    sb.from('metas_antiguedad').select('*').order('orden'),
+    sb.from('planes').select('*').eq('activo',true).order('orden'),
+    sb.from('tabulador_agente').select('*, planes(clave,nombre,orden)').is('vigente_hasta',null),
+    sb.from('tabulador_supervisor').select('*').is('vigente_hasta',null).order('ventas_desde'),
+    sb.from('tabulador_coordinador').select('*').is('vigente_hasta',null).order('ventas_desde')
   ]);
   S.reglas=rh.data||[]; S.tabul=tb.data||[]; S.metas=me.data||[];
+  S.planes=pl2.data||[]; S.tabAg=ta.data||[]; S.tabSup=ts.data||[]; S.tabCoo=tc.data||[];
   if(pa.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(pa.error.message)}</div>`; return; }
   S.params=pa.data||[];
   const grupos=[...new Set(S.params.map(p=>p.grupo))];
@@ -4782,6 +4933,68 @@ async function vistaConfig(){
     </tr>`).join('')}
     </tbody></table></div>
 
+  <div class="head" style="margin:26px 0 10px"><div><h1 style="font-size:17px">Esquemas de comisión</h1>
+    <p>Lo que se paga por venta y los escalones de cada esquema</p></div></div>
+
+  <div class="note"><b>Cuatro esquemas</b>
+    <b style="display:block;margin-top:7px">Agente con sueldo</b> tabulador por plan y volumen, mínimo 7 ventas, se paga mensual.
+    <b style="display:block;margin-top:5px">Comisionista</b> precio de lista por el factor sin IVA, sin mínimo, se paga semanal contra el anticipo cobrado.
+    <b style="display:block;margin-top:5px">Supervisor</b> porcentaje sobre el precio de comisión de las ventas de su equipo, mínimo 50.
+    <b style="display:block;margin-top:5px">Coordinador</b> porcentaje sobre el precio de comisión por el factor, de toda la operación, mínimo 350.
+    <b style="display:block;margin-top:7px">Regla de oro</b> solo se paga lo que AT&amp;T ya pagó. Una venta sin validar no genera comisión hasta que se libere.</div>
+
+  <div class="head" style="margin:18px 0 8px"><div><h1 style="font-size:15px">Precios por plan</h1>
+    <p>El de lista es lo que paga el cliente y es la base del comisionista. El de comisión es la base de supervisión y coordinación.</p></div></div>
+  <div class="tw" style="margin-bottom:22px"><table>
+    <thead><tr><th>Plan</th><th style="text-align:right">Precio de lista</th><th style="text-align:right">Precio de comisión</th>
+      <th style="text-align:right">Comisionista cobra</th><th></th></tr></thead>
+    <tbody>${S.planes.map(p=>`<tr>
+      <td class="nm">${esc(p.nombre)}</td>
+      <td style="text-align:right"><input class="mono" id="pl-l-${p.id}" type="number" step="1" value="${p.precio_lista??''}"
+        style="width:100px;padding:4px 7px;border:1px solid var(--line);border-radius:var(--r);text-align:right"></td>
+      <td style="text-align:right"><input class="mono" id="pl-c-${p.id}" type="number" step="1" value="${p.precio_comision??''}"
+        style="width:100px;padding:4px 7px;border:1px solid var(--line);border-radius:var(--r);text-align:right"></td>
+      <td class="num nm" id="pl-f-${p.id}">${money((p.precio_lista||0)*0.837)}</td>
+      <td style="text-align:right"><button class="btn btn-sm" data-pl-save="${p.id}">Guardar</button></td>
+    </tr>`).join('')}
+    </tbody></table></div>
+
+  <div class="head" style="margin:18px 0 8px"><div><h1 style="font-size:15px">Tabulador del agente</h1>
+    <p>El tramo lo define el total de ventas del mes y esa tarifa se aplica a todas sus ventas</p></div></div>
+  <div class="tw" style="margin-bottom:22px"><table>
+    <thead><tr><th>Plan</th><th style="text-align:right">7 a 10</th><th style="text-align:right">11 a 16</th>
+      <th style="text-align:right">17 a 22</th><th style="text-align:right">23 o más</th><th></th></tr></thead>
+    <tbody>${S.planes.map(p=>{
+      const t=n=>S.tabAg.find(x=>x.plan_id===p.id&&x.ventas_desde===n);
+      return `<tr><td class="nm">${esc(p.nombre)}</td>
+        ${[7,11,17,23].map(n=>{const r=t(n);
+          return `<td style="text-align:right">${r?`<input class="mono" id="ta-${r.id}" type="number" step="5" value="${r.monto_por_venta}"
+            style="width:84px;padding:4px 7px;border:1px solid var(--line);border-radius:var(--r);text-align:right">`:'—'}</td>`;}).join('')}
+        <td style="text-align:right"><button class="btn btn-sm" data-ta-save="${p.id}">Guardar</button></td></tr>`;
+    }).join('')}
+    </tbody></table></div>
+
+  <div class="head" style="margin:18px 0 8px"><div><h1 style="font-size:15px">Escalones de supervisión y coordinación</h1></div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px">
+    <div class="tw"><table>
+      <thead><tr><th>Ventas del equipo</th><th style="text-align:right">%</th><th></th></tr></thead>
+      <tbody>${S.tabSup.map(t=>`<tr>
+        <td>${t.ventas_desde===0?'menos de '+(t.ventas_hasta+1):(t.ventas_hasta?`${t.ventas_desde} a ${t.ventas_hasta}`:`${t.ventas_desde} o más`)}</td>
+        <td style="text-align:right"><input class="mono" id="ts-${t.id}" type="number" step="1" value="${t.porcentaje}"
+          style="width:70px;padding:4px 7px;border:1px solid var(--line);border-radius:var(--r);text-align:right"></td>
+        <td style="text-align:right"><button class="btn btn-sm" data-ts-save="${t.id}">Guardar</button></td>
+      </tr>`).join('')}</tbody></table></div>
+    <div class="tw"><table>
+      <thead><tr><th>Ventas de la operación</th><th>Nivel</th><th style="text-align:right">%</th><th></th></tr></thead>
+      <tbody>${S.tabCoo.map(t=>`<tr>
+        <td>${t.ventas_desde===0?'hasta '+t.ventas_hasta:(t.ventas_hasta?`${t.ventas_desde} a ${t.ventas_hasta}`:`${t.ventas_desde} o más`)}</td>
+        <td style="font-size:12.5px;color:var(--txt-2)">${esc(t.nivel||'')}</td>
+        <td style="text-align:right"><input class="mono" id="tc-${t.id}" type="number" step="1" value="${t.porcentaje}"
+          style="width:70px;padding:4px 7px;border:1px solid var(--line);border-radius:var(--r);text-align:right"></td>
+        <td style="text-align:right"><button class="btn btn-sm" data-tc-save="${t.id}">Guardar</button></td>
+      </tr>`).join('')}</tbody></table></div>
+  </div>
+
   <div class="head" style="margin:26px 0 10px"><div><h1 style="font-size:17px">Últimos cambios</h1>
     <p>Quién movió qué y cuándo</p></div></div>
   <div class="tw"><table>
@@ -4817,6 +5030,50 @@ async function vistaConfig(){
     if(error){ toast('No se guardó: '+error.message,'bad'); return; }
     toast('Horario actualizado.','ok'); vistaConfig();
   });
+
+  document.querySelectorAll('[data-pl-save]').forEach(b=>b.onclick=async()=>{
+    const id=Number(b.dataset.plSave);
+    const p=S.planes.find(x=>x.id===id);
+    const lista=Number($('#pl-l-'+id).value||0), com=Number($('#pl-c-'+id).value||0);
+    if(!confirm(`Cambiar los precios de ${p.nombre}?\n\n`
+      +`Lista ${money(p.precio_lista)} a ${money(lista)}\nComisión ${money(p.precio_comision)} a ${money(com)}\n\n`
+      +`Afecta el cálculo de los periodos que se calculen de aquí en adelante. Los ya confirmados no cambian.`)) return;
+    const {error}=await sb.from('planes').update({precio_lista:lista,precio_comision:com}).eq('id',id);
+    if(error){ toast('No se guardó: '+error.message,'bad'); return; }
+    toast('Precios actualizados.','ok'); vistaConfig();
+  });
+
+  document.querySelectorAll('[data-ta-save]').forEach(b=>b.onclick=async()=>{
+    const pid=Number(b.dataset.taSave);
+    const p=S.planes.find(x=>x.id===pid);
+    const filas=S.tabAg.filter(x=>x.plan_id===pid);
+    if(!confirm(`Cambiar el tabulador de ${p.nombre}?`)) return;
+    let err=0;
+    for(const r of filas){
+      const el=$('#ta-'+r.id); if(!el) continue;
+      const v=Number(el.value||0);
+      if(v===Number(r.monto_por_venta)) continue;
+      const {error}=await sb.from('tabulador_agente').update({monto_por_venta:v}).eq('id',r.id);
+      if(error) err++;
+    }
+    toast(err?'Algo no se guardó.':'Tabulador actualizado.',err?'bad':'ok'); vistaConfig();
+  });
+
+  ['ts','tc'].forEach(pre=>{
+    const tabla = pre==='ts'?'tabulador_supervisor':'tabulador_coordinador';
+    document.querySelectorAll(`[data-${pre}-save]`).forEach(b=>b.onclick=async()=>{
+      const id=Number(b.dataset[pre==='ts'?'tsSave':'tcSave']);
+      const v=Number($('#'+pre+'-'+id).value||0);
+      if(v<0||v>100){ toast('El porcentaje va de 0 a 100.','bad'); return; }
+      if(!confirm(`Cambiar este escalón a ${v}%?`)) return;
+      const {error}=await sb.from(tabla).update({porcentaje:v}).eq('id',id);
+      if(error){ toast('No se guardó: '+error.message,'bad'); return; }
+      toast('Escalón actualizado.','ok'); vistaConfig();
+    });
+  });
+
+  S.planes.forEach(p=>{ const el=$('#pl-l-'+p.id); if(el) el.oninput=()=>{
+    $('#pl-f-'+p.id).textContent=money(Number(el.value||0)*0.837); }; });
 
   document.querySelectorAll('[data-me-save]').forEach(b=>b.onclick=async()=>{
     const id=Number(b.dataset.meSave);
@@ -5141,6 +5398,9 @@ const AYUDA={
   'ju-motivo':'Por qué se está cambiando lo que calculó el sistema. Queda registrado con tu nombre y la fecha.',
   'ju-detalle':'Con qué lo comprobaste o quién lo autorizó. En algunos motivos es obligatorio.',
   'pw-1':'Elige algo que recuerdes pero que nadie adivine. Mínimo 8 caracteres. Nadie más la va a saber, ni dirección.',
+  'rn-tipo':'La plantilla trae sus datos bancarios solos. Un proveedor o servicio se captura a mano y se puede guardar para la próxima.',
+  'rn-conc':'Para qué es el pago. De aquí sale el desglose que te dice en qué se va el dinero.',
+  'rn-cat':'La categoría con la que va a entrar al balance de gastos. Si la dejas vacía se elige sola según el concepto.',
   'vt-dn':'El número de la línea contratada, 10 dígitos. Es la llave de toda la venta: con él se cruza contra el archivo de AT&T. Si ya existe, el sistema te dice quién lo capturó.',
   'vt-cli':'Nombre completo del titular, como va en el contrato.',
   'vt-rfc':'Lo necesita mesa de control para capturar en Global.',
