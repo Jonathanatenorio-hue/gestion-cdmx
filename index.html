@@ -3869,21 +3869,27 @@ async function vistaAsistencia(){
   $('#main').innerHTML='<div class="empty">Cargando…</div>';
   if(!S.empleados||!S.empleados.length) await cargarEmpleados();
   if(!S.fA){
-    const l=lunes(new Date().toISOString().slice(0,10));
-    const d=new Date(l+'T12:00:00'); d.setDate(d.getDate()+6);
-    S.fA={desde:l, hasta:d.toISOString().slice(0,10), pincel:'A', fuente:'Auditoría en Bonsaif'};
+    const {data:pc}=await sb.from('v_periodos_asistencia').select('*').lte('fecha_inicio',new Date().toISOString().slice(0,10))
+      .gte('fecha_fin',new Date().toISOString().slice(0,10)).limit(1).maybeSingle();
+    if(pc) S.fA={desde:pc.fecha_inicio, hasta:pc.fecha_fin, pincel:'A', fuente:'Auditoría en Bonsaif'};
+    else {
+      const l=lunes(new Date().toISOString().slice(0,10));
+      const d=new Date(l+'T12:00:00'); d.setDate(d.getDate()+6);
+      S.fA={desde:l, hasta:d.toISOString().slice(0,10), pincel:'A', fuente:'Auditoría en Bonsaif'};
+    }
   }
   await cargarRejilla();
 }
 
 async function cargarRejilla(){
   const f=S.fA;
-  const [as,sm,so]=await Promise.all([
+  const [as,sm,so,pe]=await Promise.all([
     sb.from('asistencia_dia').select('*').gte('fecha',f.desde).lte('fecha',f.hasta).limit(6000),
     sb.from('v_biometricos_sin_mapear').select('*').limit(50),
-    sb.from('v_solicitudes').select('*').eq('estatus','pendiente').order('fecha').limit(200)
+    sb.from('v_solicitudes').select('*').eq('estatus','pendiente').order('fecha').limit(200),
+    sb.from('v_periodos_asistencia').select('*').order('fecha_inicio')
   ]);
-  S.solic=so.data||[];
+  S.solic=so.data||[]; S.perAsis=pe.data||[];
   const mapa={}; (as.data||[]).forEach(a=>mapa[a.empleado_id+'|'+a.fecha]=a);
   S.asist=mapa; S.sinMapear=sm.data||[];
 
@@ -3892,19 +3898,15 @@ async function cargarRejilla(){
   const DOW=['do','lu','ma','mi','ju','vi','sa'];
 
   // Incluye a quien causó baja dentro del periodo: trabajó parte de él y hay que pagarle
-  // Lista de semanas para el selector, con la quincena de cierre incluida
-  const lunHoy=lunes(new Date().toISOString().slice(0,10));
-  const semanas=[];
-  for(let k=4;k>=-1;k--){
-    const d=new Date(lunHoy+'T12:00:00'); d.setDate(d.getDate()-k*7);
-    const ini=d.toISOString().slice(0,10);
-    const d2=new Date(d); d2.setDate(d2.getDate()+6);
-    const fin=d2.toISOString().slice(0,10);
-    const num=(()=>{const t=new Date(d); const y=new Date(t.getFullYear(),0,1);
-      return Math.ceil((((t-y)/86400000)+y.getDay()+1)/7);})();
-    semanas.push({ini,fin,txt:`Semana ${num} · ${fecha(ini)} a ${fecha(fin)}${ini===lunHoy?' · en curso':''}`});
-  }
-  semanas.push({ini:'2026-08-21',fin:'2026-09-05',txt:'Quincena final · 21 ago a 5 sep'});
+  // El selector sigue los periodos reales de nómina, no semanas calendario:
+  // antes del arranque semanal lo que corría era la quincena.
+  const hoyI=new Date().toISOString().slice(0,10);
+  const semanas=(S.perAsis||[])
+    .filter(x=>x.fecha_inicio<=hoyI || x.fecha_inicio<=new Date(Date.now()+7*864e5).toISOString().slice(0,10))
+    .slice(-10)
+    .map(x=>({ini:x.fecha_inicio, fin:x.fecha_fin,
+      txt:x.etiqueta+(x.en_curso?' · en curso':'')}));
+  const enCurso=(S.perAsis||[]).find(x=>x.en_curso);
 
   const gente=S.empleados.filter(e=>e.tipo_registro==='empleado'
     &&['sueldo_semanal','capacitacion'].includes(e.esquema_pago)
@@ -3957,7 +3959,7 @@ async function cargarRejilla(){
       <option value="custom" ${!semanas.some(w=>w.ini===f.desde&&w.fin===f.hasta)?'selected':''}>Otro periodo</option>
     </select>
     <button class="btn btn-sm" id="fa-next">siguiente ›</button>
-    <button class="btn btn-sm" id="fa-hoy">Semana en curso</button>
+    <button class="btn btn-sm" id="fa-hoy">Periodo en curso</button>
     <label style="font-size:12.5px;color:var(--txt-2)">Del</label>
     <input type="date" id="fa-d" value="${f.desde}">
     <label style="font-size:12.5px;color:var(--txt-2)">al</label>
@@ -4053,16 +4055,20 @@ async function cargarRejilla(){
     const [i,f2]=e.target.value.split('|'); irA_(i,f2);
   };
   const mover=n=>{
-    const d=new Date(S.fA.desde+'T12:00:00'); d.setDate(d.getDate()+n*7);
-    const i=d.toISOString().slice(0,10);
-    const d2=new Date(d); d2.setDate(d2.getDate()+6);
-    irA_(i,d2.toISOString().slice(0,10));
+    const lista=(S.perAsis||[]);
+    let k=lista.findIndex(x=>x.fecha_inicio===S.fA.desde && x.fecha_fin===S.fA.hasta);
+    if(k<0){ // si es un rango libre, se busca el periodo que lo contiene
+      k=lista.findIndex(x=>S.fA.desde>=x.fecha_inicio && S.fA.desde<=x.fecha_fin);
+    }
+    const dest=lista[k+n];
+    if(!dest){ toast(n<0?'No hay un periodo anterior.':'No hay un periodo siguiente.',''); return; }
+    irA_(dest.fecha_inicio, dest.fecha_fin);
   };
   $('#fa-prev').onclick=()=>mover(-1);
   $('#fa-next').onclick=()=>mover(1);
   $('#fa-hoy').onclick=()=>{
-    const d2=new Date(lunHoy+'T12:00:00'); d2.setDate(d2.getDate()+6);
-    irA_(lunHoy,d2.toISOString().slice(0,10));
+    if(enCurso) irA_(enCurso.fecha_inicio, enCurso.fecha_fin);
+    else toast('No hay un periodo en curso.','');
   };
   $('#b-calc').onclick=()=>calcularPeriodo(true);
   $('#b-recalc').onclick=()=>calcularPeriodo(false);
