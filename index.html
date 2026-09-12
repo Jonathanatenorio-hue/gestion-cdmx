@@ -3165,7 +3165,13 @@ async function vistaNomina(){
   const {data:per,error}=await sb.from('v_nomina_resumen').select('*').order('fecha_inicio',{ascending:false}).limit(40);
   if(error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(error.message)}<br><span style="font-size:12.5px">Si dice que falta la vista, corre el SQL 26.</span></div>`; return; }
   S.periodos=per||[];
-  S.perSel = S.perSel || (S.periodos.find(p=>p.estatus!=='pagado')?.id ?? S.periodos[0]?.id);
+  if(!S.perSel){
+    const hoy=new Date().toISOString().slice(0,10);
+    S.perSel = (S.periodos.find(p=>hoy>=p.fecha_inicio && hoy<=p.fecha_fin)
+             || S.periodos.find(p=>Number(p.personas)>0)
+             || S.periodos.find(p=>p.fecha_inicio<=hoy)
+             || S.periodos[0])?.id;
+  }
   const P=S.periodos.find(p=>p.id===S.perSel);
   if(!P){ $('#main').innerHTML='<div class="empty"><b>Sin periodos</b>Corre el SQL 26 para generar el calendario.</div>'; return; }
 
@@ -3183,7 +3189,7 @@ async function vistaNomina(){
 
   $('#main').innerHTML=`
   <div class="head">
-    <div><h1>Nómina</h1><p>${esc(P.clave)} · del ${fecha(P.fecha_inicio)} al ${fecha(P.fecha_fin)} · se paga el ${fecha(P.fecha_pago)}</p></div>
+    <div><h1>Nómina</h1><p>${esc(P.clave)} · del ${fecha(P.fecha_inicio)} al ${fecha(P.fecha_fin)} · se paga el ${fecha(P.fecha_pago)}${P.contenido&&P.contenido!=='sin calcular'?' · '+esc(P.contenido):''}</p></div>
     <div class="acts">
       <select id="n-per" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--r)">
         ${S.periodos.map(p=>`<option value="${p.id}" ${p.id===S.perSel?'selected':''}>${esc(p.clave)} · ${p.tipo}</option>`).join('')}
@@ -3320,16 +3326,24 @@ async function vistaNomina(){
   <div ${S.nTab==='resumen'?'':'style="display:none"'}>
   ${S.nomGen.length?`
   <div class="head" style="margin:4px 0 10px"><div><h1 style="font-size:17px">Nóminas generadas</h1>
-    <p>Cada renglón es un periodo calculado. Ábrelo para ver su detalle o baja el Excel con el que se pagó.</p></div></div>
+    <p>Cada renglón es un periodo calculado. Ábrelo para ver su detalle o baja el Excel con el que se pagó.</p></div>
+    <div class="acts">
+      <select id="n-filtro" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--r)">
+        <option value="">Todo</option>
+        <option value="nómina">Solo nómina</option>
+        <option value="base de datos">Solo base de datos</option>
+        <option value="capacitación">Solo capacitación</option>
+        <option value="nómina y base de datos">Mezcladas</option>
+      </select></div></div>
   <div class="tw" style="margin-bottom:24px"><table>
-    <thead><tr><th>Periodo</th><th>Tipo</th><th>Corte</th><th>Se paga</th>
+    <thead><tr><th>Periodo</th><th>Contiene</th><th>Corte</th><th>Se paga</th>
       <th style="text-align:right">Personas</th><th style="text-align:right">Neto</th>
       <th>Estatus</th><th>Respaldo</th><th></th></tr></thead>
-    <tbody>${S.nomGen.map(g=>{
+    <tbody>${S.nomGen.filter(g=>!S.nFiltro||g.contenido===S.nFiltro).map(g=>{
       const [gc,gt]=EST_N[g.estatus]||['p-gray',g.estatus];
       return `<tr style="${g.id===P.id?'background:var(--teal-l)':''}">
-        <td class="mono nm">${esc(g.clave)}</td>
-        <td>${esc(g.tipo)}</td>
+        <td class="mono nm">${esc(g.clave)}<br><span style="font-size:11px;color:var(--txt-3)">${esc(g.tipo)}</span></td>
+        <td><span class="p ${g.contenido==='base de datos'?'p-warn':g.contenido==='capacitación'?'p-gray':'p-teal'}">${esc(g.contenido||'—')}</span></td>
         <td class="mono" style="font-size:12.5px">${fecha(g.fecha_inicio)} a ${fecha(g.fecha_fin)}</td>
         <td class="mono" style="font-size:12.5px">${fecha(g.fecha_pago)}</td>
         <td class="num">${g.personas}</td>
@@ -3367,6 +3381,8 @@ async function vistaNomina(){
   </table></div></div>`;
 
   document.querySelectorAll('[data-ntab]').forEach(b=>b.onclick=()=>{ S.nTab=b.dataset.ntab; vistaNomina(); });
+  if($('#n-filtro')){ $('#n-filtro').value=S.nFiltro||'';
+    $('#n-filtro').onchange=e=>{ S.nFiltro=e.target.value; vistaNomina(); }; }
   document.querySelectorAll('[data-nw]').forEach(b=>b.onclick=()=>{ S.perSel=Number(b.dataset.nw); S.nTab='resumen'; vistaNomina(); });
   document.querySelectorAll('[data-nx]').forEach(b=>b.onclick=async()=>{
     const g=S.nomGen.find(x=>x.id===Number(b.dataset.nx)); if(!g) return;
@@ -3964,8 +3980,8 @@ async function cargarRejilla(){
     <div><h1>Asistencia</h1><p>Del ${fecha(f.desde)} al ${fecha(f.hasta)} · ${gente.length} personas que llevan horario</p></div>
     <div class="acts">
       <button class="btn" id="b-bio">Cargar checador</button>
-      <button class="btn btn-p" id="b-calc">Calificar días nuevos</button>
-      <button class="btn" id="b-recalc">Recalcular todo</button>
+      <button class="btn btn-p" id="b-calc" title="Solo agrega los días que faltan. No toca nada de lo que ya está.">Calificar días nuevos</button>
+      <button class="btn" id="b-recalc" title="Rehace el periodo completo desde los marcajes. Úsalo solo si cambiaste una regla.">Recalcular todo</button>
     </div>
   </div>
 
@@ -3982,6 +3998,7 @@ async function cargarRejilla(){
     <div class="kpi"><span>Calificados a mano</span><b>${manual}</b><small>por auditoría</small></div>
   </div>
 
+  ${sinDatos===0&&!S.solic.length?'':''}
   ${S.solic.length?`<div class="note" style="background:var(--warn-l);border-color:#F0DCC0;color:#7C3D06">
     <b>${S.solic.length} ajuste${S.solic.length===1?'':'s'} esperando autorización</b>
     ${S.direccion?'Revísalos antes de calcular la nómina.':'Ya los mandaste a dirección. La asistencia no cambia hasta que los autoricen.'}
@@ -4006,6 +4023,10 @@ async function cargarRejilla(){
     <button class="btn btn-sm" id="fa-ir">Ver</button>
     <span class="cnt">Toca una celda para pintarla con el estatus elegido abajo</span>
   </div>
+
+  <div class="note" style="font-size:12.5px"><b>El día a día</b>
+    Carga el archivo del checador, dale a <b>Calificar días nuevos</b>, corrige en la cuadrícula lo que falte y guarda.
+    <b>Recalcular todo</b> solo se usa cuando cambiaste un horario o una fecha de baja y necesitas que aplique hacia atrás.</div>
 
   <div class="pincel">
     <span style="font-size:12.5px;color:var(--txt-2);font-weight:500">Pintar como:</span>
@@ -4173,11 +4194,15 @@ async function calcularPeriodo(soloFaltantes){
       +`Calcular de todas formas?`)) return;
   }
   if(!soloFaltantes){
-    const yaHay=Object.keys(S.asist||{}).length;
-    if(yaHay && !confirm(`Recalcular todo el periodo?\n\n`
-      +`Se vuelven a calificar los ${yaHay} días que ya existen a partir de los marcajes.\n`
-      +`Lo que corregiste a mano NO se toca.\n\n`
-      +`Si solo quieres llenar los días que faltan, cancela y usa "Calificar días nuevos".`)) return;
+    const todos=Object.values(S.asist||{});
+    const protegidos=todos.filter(a=>a.ajustado).length;
+    const rehacer=todos.length-protegidos;
+    if(todos.length && !confirm(
+      `Recalcular todo el periodo?\n\n`
+      +`Se van a rehacer ${rehacer} día(s) desde los marcajes del checador.\n`
+      +`${protegidos} día(s) que corregiste a mano quedan protegidos.\n\n`
+      +`Esto sirve cuando cambiaste un horario o una fecha de baja y necesitas que aplique hacia atrás.\n\n`
+      +`Para el día a día, cancela y usa "Calificar días nuevos": solo agrega lo que falta y no toca nada de lo que ya está.`)) return;
   }
   const b=soloFaltantes?$('#b-calc'):$('#b-recalc');
   const txt=b.textContent; b.disabled=true; b.textContent='Calculando…';
