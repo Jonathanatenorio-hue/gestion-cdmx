@@ -3666,6 +3666,12 @@ async function excelNomina(P){
       .gte('fecha',P.fecha_inicio).lte('fecha',P.fecha_fin).limit(8000);
     const porPersona={}; (asis||[]).forEach(a=>{ (porPersona[a.empleado_id]=porPersona[a.empleado_id]||[]).push(a); });
 
+    // Quién de esta nómina lleva control de asistencia. Base de datos no:
+    // trabaja a su ritmo y se le paga por registro capturado.
+    const llevaAsis=d=>(porPersona[d.empleado_id]||[]).length>0;
+    const conAsis=(det||[]).filter(llevaAsis);
+    const soloBase=conAsis.length===0;
+
     const wb=new ExcelJS.Workbook();
     wb.creator='Gestión CDMX'; wb.created=new Date();
     const ws=wb.addWorksheet('Nómina',{views:[{state:'frozen',ySplit:6}]});
@@ -3686,7 +3692,9 @@ async function excelNomina(P){
     ws.getCell('A3').value=`Generado el ${new Date().toLocaleString('es-MX')} · revisar y devolver a dirección antes del ${P.fecha_confirmacion||P.fecha_pago}`;
     ws.getCell('A3').font={size:9,italic:true,color:{argb:'FF8A95A2'}};
 
-    const enc=['Cód.','Nombre','Puesto','Esquema','Días','Faltas','Retardos','Percepciones','Deducciones','Neto','Banco','CLABE'];
+    const enc = soloBase
+      ? ['Cód.','Nombre','Puesto','Registros','Tarifa','Importe','Banco','CLABE']
+      : ['Cód.','Nombre','Puesto','Esquema','Días','Faltas','Retardos','Percepciones','Deducciones','Neto','Banco','CLABE'];
     const hr=ws.getRow(5);
     enc.forEach((h,i)=>{ const c=hr.getCell(i+1);
       c.value=h; c.font={bold:true,size:10,color:{argb:'FFFFFFFF'}};
@@ -3696,9 +3704,29 @@ async function excelNomina(P){
     });
     hr.height=24;
 
+    const regDe={};
+    (det||[]).forEach(d=>{ const c=(porDet[d.detalle_id]||[]).find(x=>x.clave==='REGISTROS');
+      if(c) regDe[d.detalle_id]={cant:Number(c.cantidad||0), imp:Number(c.importe||0)}; });
+
     let r=6;
     (det||[]).forEach(d=>{
       const row=ws.getRow(r);
+      if(soloBase){
+        const g=regDe[d.detalle_id]||{cant:0,imp:0};
+        row.values=[d.codigo, d.nombre_completo, d.puesto, g.cant,
+          g.cant?Number((g.imp/g.cant).toFixed(4)):null, Number(d.neto),
+          d.banco_texto||'', d.clabe?String(d.clabe):'SIN CLABE'];
+        row.getCell(5).numFmt='"$"#,##0.0000';
+        row.getCell(6).numFmt='"$"#,##0.00'; row.getCell(6).font={bold:true};
+        row.getCell(8).numFmt='@';
+        if(!d.clabe){ [7,8].forEach(i=>{ row.getCell(i).font={bold:true,color:{argb:'FFB42318'}};
+          row.getCell(i).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFDEBE9'}}; }); }
+        else if(r%2===0) row.eachCell(c=>c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFAFBFC'}});
+        if(!Number(d.neto)){ row.getCell(2).font={italic:true,color:{argb:'FF8A95A2'}};
+          row.getCell(4).font={color:{argb:'FFB45309'}}; }
+        row.eachCell(c=>c.border={bottom:{style:'hair',color:{argb:LINEA}}});
+        r++; return;
+      }
       row.values=[d.codigo, d.nombre_completo, d.puesto, (d.esquema_pago||'').replace(/_/g,' '),
         d.dias_pagados, Number(d.faltas), Number(d.retardos),
         Number(d.total_percepciones), Number(d.total_deducciones), Number(d.neto),
@@ -3721,6 +3749,16 @@ async function excelNomina(P){
     const tr=ws.getRow(r+1);
     tr.getCell(2).value='TOTAL';
     tr.getCell(2).font={bold:true,size:11};
+    if(soloBase){
+      tr.getCell(4).value={formula:`SUM(D6:D${r-1})`}; tr.getCell(4).font={bold:true};
+      const c=tr.getCell(6); c.value={formula:`SUM(F6:F${r-1})`};
+      c.numFmt='"$"#,##0.00'; c.font={bold:true,size:12};
+      c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE4F1F0'}};
+      c.border={top:{style:'medium',color:{argb:TEAL}}};
+      ws.columns=[{width:7},{width:36},{width:20},{width:13},{width:12},{width:15},{width:16},{width:24}];
+      ws.autoFilter={from:{row:5,column:1},to:{row:r-1,column:8}};
+      ws.getCell('A3').value=`Generado el ${new Date().toLocaleString('es-MX')} · se paga por registro capturado, sin control de asistencia`;
+    } else
     [8,9,10].forEach(i=>{
       const col=String.fromCharCode(64+i);
       tr.getCell(i).value={formula:`SUM(${col}6:${col}${r-1})`};
@@ -3754,6 +3792,7 @@ async function excelNomina(P){
         row.getCell(5).numFmt='"$"#,##0.00';
         if(c.tipo==='deduccion') row.getCell(5).font={color:{argb:'FFB42318'}};
       });
+      if(soloBase) return;
       // Cada falta con su motivo y sus marcajes del día
       const dias=(porPersona[d.empleado_id]||[])
         .filter(a=>a.estatus_final==='F')
@@ -3787,7 +3826,7 @@ async function excelNomina(P){
     w2.views=[{state:'frozen',ySplit:1}];
 
     // ---------------- Hoja de asistencia ----------------
-    if(asis&&asis.length){
+    if(asis && asis.length && !soloBase){
       const mapaA={}; asis.forEach(a=>mapaA[a.empleado_id+'|'+a.fecha]=a);
       const dias=[]; let dd=new Date(P.fecha_inicio+'T12:00:00'); const ff=new Date(P.fecha_fin+'T12:00:00');
       while(dd<=ff){ dias.push(dd.toISOString().slice(0,10)); dd.setDate(dd.getDate()+1); }
@@ -3818,7 +3857,7 @@ async function excelNomina(P){
                  V:['FFE4F1F0','FF0B6E6E'],PC:['FFE4F1F0','FF0B6E6E'],
                  PS:['FFE4F1F0','FF0B6E6E'],I:['FFE4F1F0','FF0B6E6E']};
       let r3=4;
-      (det||[]).forEach(d=>{
+      conAsis.forEach(d=>{
         const row=w3.getRow(r3);
         row.getCell(1).value=d.nombre_completo;
         row.getCell(1).font={size:10};
