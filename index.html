@@ -187,6 +187,11 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
 .c-_{background:#fff;color:var(--txt-3)}
 .cel.fuera{background:repeating-linear-gradient(45deg,#F3F4F6,#F3F4F6 3px,#E9EBEE 3px,#E9EBEE 6px);cursor:not-allowed}
 .cel.fuera:hover{outline:none}
+.cel.futuro{background:#fff;cursor:default}
+.cel.futuro:hover{outline:none}
+.cel.espera{background:repeating-linear-gradient(90deg,#FDF6EC,#FDF6EC 4px,#F7E9D4 4px,#F7E9D4 8px);cursor:help}
+.cel.espera:hover{outline:1px solid var(--copper);outline-offset:-1px}
+.rej th.dia.hoy{background:var(--teal-l);color:var(--teal)}
 .cel.man:after{content:'';position:absolute;margin:-18px 0 0 20px;width:5px;height:5px;border-radius:50%;background:var(--copper)}
 .pincel{display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:var(--card);border:1px solid var(--line);
   border-radius:var(--r);padding:11px 13px;margin-bottom:14px;box-shadow:var(--sh);position:sticky;top:0;z-index:20}
@@ -3938,13 +3943,14 @@ async function vistaAsistencia(){
 
 async function cargarRejilla(){
   const f=S.fA;
-  const [as,sm,so,pe]=await Promise.all([
+  const [as,sm,so,pe,sa2]=await Promise.all([
     sb.from('asistencia_dia').select('*').gte('fecha',f.desde).lte('fecha',f.hasta).limit(6000),
     sb.from('v_biometricos_sin_mapear').select('*').limit(50),
     sb.from('v_solicitudes').select('*').eq('estatus','pendiente').order('fecha').limit(200),
-    sb.from('v_periodos_asistencia').select('*').order('fecha_inicio')
+    sb.from('v_periodos_asistencia').select('*').order('fecha_inicio'),
+    sb.from('v_dias_sin_archivo').select('*')
   ]);
-  S.solic=so.data||[]; S.perAsis=pe.data||[];
+  S.solic=so.data||[]; S.perAsis=pe.data||[]; S.sinArchivo=(sa2?.data)||[];
   const mapa={}; (as.data||[]).forEach(a=>mapa[a.empleado_id+'|'+a.fecha]=a);
   S.asist=mapa; S.sinMapear=sm.data||[];
 
@@ -3971,6 +3977,8 @@ async function cargarRejilla(){
     &&(!e.fecha_ingreso || e.fecha_ingreso<=f.hasta))
     .sort((a,b)=>a.nombre_completo.localeCompare(b.nombre_completo,'es'));
 
+  const hoyX=new Date().toISOString().slice(0,10);
+  const esperando=new Set((S.sinArchivo||[]).map(x=>x.fecha));
   const cuenta=t=>Object.values(mapa).filter(a=>a.estatus_final===t).length;
   const manual=Object.values(mapa).filter(a=>a.origen==='auditoria').length;
   const sinDatos=Object.values(mapa).filter(a=>a.origen==='sin_datos').length;
@@ -4003,6 +4011,11 @@ async function cargarRejilla(){
     <b>${S.solic.length} ajuste${S.solic.length===1?'':'s'} esperando autorización</b>
     ${S.direccion?'Revísalos antes de calcular la nómina.':'Ya los mandaste a dirección. La asistencia no cambia hasta que los autoricen.'}
     <button class="btn btn-sm" id="b-solic" style="margin-left:10px">Ver solicitudes</button></div>`:''}
+
+  ${(S.sinArchivo||[]).length?`<div class="note" style="background:#FDF6EC;border-color:#F0DCC0;color:#7C3D06">
+    <b>${S.sinArchivo.length} día${S.sinArchivo.length===1?'':'s'} esperando su archivo del checador</b>
+    ${S.sinArchivo.map(x=>fecha(x.fecha)+(x.dias_de_atraso>2?` · ${x.dias_de_atraso} días de atraso`:'')).join(' · ')}.
+    Esos días no se califican hasta que cargues su archivo, para no marcar falta a quien sí vino.</div>`:''}
 
   ${sinDatos?`<div class="note"><b>${sinDatos} días sin registro del checador</b>
     Son días hábiles en que la persona no tiene ninguna marca. Revísalos contra Bonsaif y márcalos en la cuadrícula.
@@ -4039,12 +4052,19 @@ async function cargarRejilla(){
   <div class="tw"><table class="rej">
     <thead><tr><th class="nom">Persona</th>
       ${dias.map(x=>{const dt=new Date(x+'T12:00:00');const fin=[0,6].includes(dt.getDay());
-        return `<th class="dia ${fin?'fin':''}">${dt.getDate()}<small>${DOW[dt.getDay()]}</small></th>`;}).join('')}
+        const esHoy=x===new Date().toISOString().slice(0,10);
+        return `<th class="dia ${fin?'fin':''} ${esHoy?'hoy':''}">${dt.getDate()}<small>${esHoy?'hoy':DOW[dt.getDay()]}</small></th>`;}).join('')}
       <th class="dia" style="width:34px">A</th><th class="dia" style="width:34px">R</th><th class="dia" style="width:34px">F</th></tr></thead>
     <tbody>${gente.map(e=>{
       const cel=dias.map(x=>{
         const fueraAlta = e.fecha_ingreso && x < e.fecha_ingreso;
         const fueraBaja = e.fecha_baja    && x > e.fecha_baja;
+        if(x>hoyX){
+          return `<td><div class="cel futuro" title="Todavía no ocurre"></div></td>`;
+        }
+        if(esperando.has(x) && !mapa[e.id+'|'+x]){
+          return `<td><div class="cel espera" title="El archivo del checador de este día todavía no se carga"></div></td>`;
+        }
         if(fueraAlta||fueraBaja){
           return `<td><div class="cel fuera" title="${fueraBaja?'Ya causó baja el '+e.fecha_baja:'Todavía no ingresaba'}"></div></td>`;
         }
@@ -4054,7 +4074,7 @@ async function cargarRejilla(){
         const t=a?`${EST_A[v]||v}${a.hora_entrada?' · entró '+a.hora_entrada.slice(0,5):''}${a.hora_salida?' · salió '+a.hora_salida.slice(0,5):''}${a.origen==='auditoria'?' · a mano':''}`:'sin dato';
         return `<td><div class="cel c-${v}${man}" data-e="${e.id}" data-f="${x}" title="${esc(t)}">${v==='_'?'':v}</div></td>`;
       }).join('');
-      const dentro=x=>(!e.fecha_ingreso||x>=e.fecha_ingreso)&&(!e.fecha_baja||x<=e.fecha_baja);
+      const dentro=x=>x<=hoyX&&(!e.fecha_ingreso||x>=e.fecha_ingreso)&&(!e.fecha_baja||x<=e.fecha_baja);
       const c=t=>dias.filter(x=>dentro(x)&&mapa[e.id+'|'+x]?.estatus_final===t).length;
       const marca = e.estatus==='baja'
         ? `<br><span class="p p-bad" style="font-size:10px">baja el ${fecha(e.fecha_baja)}</span>`
@@ -4084,7 +4104,10 @@ async function cargarRejilla(){
   document.querySelectorAll('[data-fila]').forEach(td=>td.onclick=()=>{
     const eid=Number(td.dataset.fila), v=S.fA.pincel;
     const per=S.empleados.find(x=>x.id===eid)||{};
+    const hoyY=new Date().toISOString().slice(0,10);
     const objetivo=dias.filter(x=>{
+      if(x>hoyY) return false;
+      if(esperando.has(x) && !mapa[eid+'|'+x]) return false;
       if(per.fecha_ingreso && x < per.fecha_ingreso) return false;
       if(per.fecha_baja    && x > per.fecha_baja)    return false;
       const a=mapa[eid+'|'+x];
