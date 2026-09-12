@@ -1654,8 +1654,12 @@ async function vistaIngresos(){
   const pagadosMes=S.cobros.filter(c=>c.estatus==='pagado'&&(c.fecha_pago_real||'').startsWith(mes));
   const netoMes=pagadosMes.reduce((a,b)=>a+Number(b.monto_neto||0),0);
   const retMes=pagadosMes.reduce((a,b)=>a+Number(b.retencion_almacen||0),0);
-  const porCobrar=S.cobros.filter(c=>['archivo_recibido','facturado','parcial'].includes(c.estatus))
-    .reduce((a,b)=>{const d=Number(b.monto_archivo||0)-Number(b.monto_recibido||0);return a+(Math.abs(d)<1?0:d);},0);
+  // Está por cobrar mientras no exista fecha de pago real, aunque el archivo
+  // ya traiga el monto: el archivo dice cuánto, no que ya se pagó.
+  const pendCobro=S.cobros.filter(c=>['archivo_recibido','facturado','parcial'].includes(c.estatus)
+    && !c.fecha_pago_real && c.afecta_saldo!==false);
+  const porCobrar=pendCobro.reduce((a,b)=>a+Number(b.monto_neto||b.monto_archivo||0),0);
+  const proxCobro=pendCobro.slice().sort((a,b)=>String(a.fecha_pago_esperada||'').localeCompare(String(b.fecha_pago_esperada||'')))[0];
   const disp=(sal.data||[])[0];
   const hoyISO=new Date().toISOString().slice(0,10);
   const porFacturar=S.cobros.filter(c=>c.estatus==='archivo_recibido'&&!c.factura_folio)
@@ -1681,7 +1685,7 @@ async function vistaIngresos(){
   </div>
   <div class="kpis">
     <div class="kpi t"><span>Neto cobrado este mes</span><b>${money(netoMes)}</b><small>${pagadosMes.length} pagos recibidos</small></div>
-    <div class="kpi ${porCobrar>0?'w':''}"><span>Por cobrar</span><b>${money(porCobrar)}</b><small>archivos facturados sin pago</small></div>
+    <div class="kpi ${porCobrar>0?'w':''}"><span>Por cobrar</span><b>${money(porCobrar)}</b><small>${proxCobro?'el '+fecha(proxCobro.fecha_pago_esperada):'archivos facturados sin pago'}</small></div>
     <div class="kpi ${remTotal>0?'c':''}"><span>Remanente pendiente</span><b>${money(remTotal)}</b><small>${remN} folios con 50% sin liquidar</small></div>
     <div class="kpi ${criticos?'b':''}"><span>Sin validar en CIS</span><b>${S.sinval.length}</b><small>${criticos} con más de 45 días</small></div>
     <div class="kpi"><span>Retención de almacén</span><b>${money(retMes)}</b><small>6% del mes en curso</small></div>
@@ -3185,6 +3189,7 @@ async function vistaNomina(){
         ${S.periodos.map(p=>`<option value="${p.id}" ${p.id===S.perSel?'selected':''}>${esc(p.clave)} · ${p.tipo}</option>`).join('')}
       </select>
       ${['abierto','calculado','en_revision'].includes(P.estatus)?'<button class="btn" id="n-calc">Calcular</button>':''}
+      ${['calculado','en_revision','confirmado'].includes(P.estatus)&&S.direccion?'<button class="btn btn-d" id="n-reab">Reabrir</button>':''}
       ${S.nomDet.length?'<button class="btn" id="n-xls">Excel para revisión</button>':''}
       ${P.estatus==='calculado'?'<button class="btn" id="n-rev">Enviar a revisión</button>':''}
       ${['calculado','en_revision'].includes(P.estatus)&&S.direccion?'<button class="btn btn-p" id="n-conf">Confirmar</button>':''}
@@ -3228,7 +3233,9 @@ async function vistaNomina(){
       <td class="num nm">${money(w.importe)}</td>
       <td>${w.respaldos?`<span class="p p-ok">${w.respaldos}</span>`:(w.personas?'<span class="p p-bad">falta</span>':'<span style="color:var(--txt-3)">—</span>')}</td>
       <td style="font-size:12px;color:var(--txt-2)">${esc(w.capturado_por||'—')}</td>
-      <td style="text-align:right"><button class="btn btn-sm" data-bw="${w.periodo_id}">${w.periodo_id===P.id?'Abierta':'Abrir'}</button></td>
+      <td style="text-align:right">
+        <button class="btn btn-sm" data-bw="${w.periodo_id}">${w.periodo_id===P.id?'Abierta':'Abrir'}</button>
+        ${w.personas&&S.direccion?`<button class="btn btn-sm btn-p" data-bp="${w.periodo_id}">Procesar pago</button>`:''}</td>
     </tr>`).join('')}
     </tbody></table></div>
 
@@ -3367,12 +3374,23 @@ async function vistaNomina(){
     await excelNomina(g); b.disabled=false; b.textContent='Excel';
   });
   cargarRespaldosNomina();
+  document.querySelectorAll('[data-bp]').forEach(b=>b.onclick=()=>procesarSemanaBase(Number(b.dataset.bp)));
   document.querySelectorAll('[data-bw]').forEach(b=>b.onclick=()=>{
     S.perSel=Number(b.dataset.bw); S.nTab='base'; vistaNomina();
     setTimeout(()=>window.scrollTo({top:document.body.scrollHeight/2,behavior:'smooth'}),150);
   });
   $('#n-per').onchange=e=>{ S.perSel=Number(e.target.value); vistaNomina(); };
   if($('#n-calc')) $('#n-calc').onclick=()=>calcularNomina(P);
+  if($('#n-reab')) $('#n-reab').onclick=async()=>{
+    if(!confirm(`Reabrir la nómina ${P.clave}?\n\n`
+      +`Se borran sus ${P.personas||0} renglones y su dispersión si está en borrador. `
+      +`Vas a tener que volver a calcular.\n\nEsto no se puede deshacer.`)) return;
+    const m=prompt('Por qué se reabre','La asistencia todavía no está lista');
+    if(m===null) return;
+    const {data,error}=await sb.rpc('reabrir_nomina',{p_periodo:P.id,p_motivo:m});
+    if(error){ toast(error.message,'bad'); return; }
+    toast(data,'ok'); vistaNomina();
+  };
   if($('#n-xls'))  $('#n-xls').onclick=()=>excelNomina(P);
   if($('#n-rev'))  $('#n-rev').onclick=()=>avanzar(P,'en_revision');
   if($('#n-conf')) $('#n-conf').onclick=()=>{
@@ -3508,6 +3526,31 @@ async function subirAdjunto(f,P){
   if(e2){ toast('Se subió pero no se enlazó: '+e2.message,'bad'); }
   else toast('Respaldo guardado.','ok');
   cargarAdjuntos(P);
+}
+
+async function procesarSemanaBase(periodoId){
+  const w=S.baseSem.find(x=>x.periodo_id===periodoId); if(!w) return;
+  if(!confirm(`Procesar el pago de ${w.clave}?\n\n`
+    +`${w.personas} personas · ${w.registros_pagados} registros · ${money(w.importe)}\n`
+    +`Se paga el ${w.fecha_pago}.\n\n`
+    +`El sistema va a calcular la nómina, confirmarla y dejar lista la dispersión para que la autorices.`)) return;
+
+  const paso=t=>toast(t,'');
+  paso('Calculando la nómina…');
+  let r=await sb.rpc('calcular_nomina',{p_periodo_id:periodoId});
+  if(r.error){ toast('No se pudo calcular: '+r.error.message,'bad'); return; }
+  await sb.rpc('registros_a_nomina',{p_periodo:periodoId});
+
+  paso('Confirmando…');
+  r=await sb.rpc('avanzar_periodo',{p_periodo:periodoId,p_estatus:'confirmado'});
+  if(r.error){ toast('No se pudo confirmar: '+r.error.message,'bad'); return; }
+
+  paso('Generando la dispersión…');
+  r=await sb.rpc('generar_dispersion_nomina',{p_periodo:periodoId,p_fecha_pago:null});
+  if(r.error){ toast('La nómina quedó confirmada pero la dispersión falló: '+r.error.message,'bad'); return; }
+
+  toast('Listo. La dispersión quedó en borrador, ve a Dispersión de pagos para autorizarla.','ok');
+  S.perSel=periodoId; vistaNomina();
 }
 
 async function guardarRegistros(P){
@@ -3825,7 +3868,11 @@ function lunes(f){ const d=new Date(f+'T12:00:00'); d.setDate(d.getDate()-((d.ge
 async function vistaAsistencia(){
   $('#main').innerHTML='<div class="empty">Cargando…</div>';
   if(!S.empleados||!S.empleados.length) await cargarEmpleados();
-  S.fA=S.fA||{desde:'2026-08-21', hasta:'2026-09-05', pincel:'A', fuente:'Auditoría en Bonsaif'};
+  if(!S.fA){
+    const l=lunes(new Date().toISOString().slice(0,10));
+    const d=new Date(l+'T12:00:00'); d.setDate(d.getDate()+6);
+    S.fA={desde:l, hasta:d.toISOString().slice(0,10), pincel:'A', fuente:'Auditoría en Bonsaif'};
+  }
   await cargarRejilla();
 }
 
@@ -3845,6 +3892,20 @@ async function cargarRejilla(){
   const DOW=['do','lu','ma','mi','ju','vi','sa'];
 
   // Incluye a quien causó baja dentro del periodo: trabajó parte de él y hay que pagarle
+  // Lista de semanas para el selector, con la quincena de cierre incluida
+  const lunHoy=lunes(new Date().toISOString().slice(0,10));
+  const semanas=[];
+  for(let k=4;k>=-1;k--){
+    const d=new Date(lunHoy+'T12:00:00'); d.setDate(d.getDate()-k*7);
+    const ini=d.toISOString().slice(0,10);
+    const d2=new Date(d); d2.setDate(d2.getDate()+6);
+    const fin=d2.toISOString().slice(0,10);
+    const num=(()=>{const t=new Date(d); const y=new Date(t.getFullYear(),0,1);
+      return Math.ceil((((t-y)/86400000)+y.getDay()+1)/7);})();
+    semanas.push({ini,fin,txt:`Semana ${num} · ${fecha(ini)} a ${fecha(fin)}${ini===lunHoy?' · en curso':''}`});
+  }
+  semanas.push({ini:'2026-08-21',fin:'2026-09-05',txt:'Quincena final · 21 ago a 5 sep'});
+
   const gente=S.empleados.filter(e=>e.tipo_registro==='empleado'
     &&['sueldo_semanal','capacitacion'].includes(e.esquema_pago)
     &&e.checa_asistencia!==false
@@ -3890,11 +3951,18 @@ async function cargarRejilla(){
     Puedes tocar el nombre de una persona para marcarle de golpe todos sus días sin dato.</div>`:''}
 
   <div class="bar">
+    <button class="btn btn-sm" id="fa-prev">‹ anterior</button>
+    <select id="fa-sem" style="min-width:230px">
+      ${semanas.map(w=>`<option value="${w.ini}|${w.fin}" ${w.ini===f.desde&&w.fin===f.hasta?'selected':''}>${w.txt}</option>`).join('')}
+      <option value="custom" ${!semanas.some(w=>w.ini===f.desde&&w.fin===f.hasta)?'selected':''}>Otro periodo</option>
+    </select>
+    <button class="btn btn-sm" id="fa-next">siguiente ›</button>
+    <button class="btn btn-sm" id="fa-hoy">Semana en curso</button>
     <label style="font-size:12.5px;color:var(--txt-2)">Del</label>
     <input type="date" id="fa-d" value="${f.desde}">
     <label style="font-size:12.5px;color:var(--txt-2)">al</label>
     <input type="date" id="fa-h" value="${f.hasta}">
-    <button class="btn btn-sm" id="fa-ir">Ver periodo</button>
+    <button class="btn btn-sm" id="fa-ir">Ver</button>
     <span class="cnt">Toca una celda para pintarla con el estatus elegido abajo</span>
   </div>
 
@@ -3974,10 +4042,28 @@ async function cargarRejilla(){
     g.classList.add('btn-d'); g.style.animation='none';
   });
   $('#fa-guardar').onclick=guardarAsistencia;
-  $('#fa-ir').onclick=()=>{
+  const irA_=(ini,fin)=>{
     const pend=Object.keys(S.pendientes||{}).length;
     if(pend && !confirm(`Tienes ${pend} celda${pend===1?'':'s'} sin guardar. Si cambias de periodo se pierden. Continuar?`)) return;
-    S.fA.desde=$('#fa-d').value; S.fA.hasta=$('#fa-h').value; cargarRejilla(); };
+    S.fA.desde=ini; S.fA.hasta=fin; cargarRejilla();
+  };
+  $('#fa-ir').onclick=()=>irA_($('#fa-d').value,$('#fa-h').value);
+  $('#fa-sem').onchange=e=>{
+    if(e.target.value==='custom') return;
+    const [i,f2]=e.target.value.split('|'); irA_(i,f2);
+  };
+  const mover=n=>{
+    const d=new Date(S.fA.desde+'T12:00:00'); d.setDate(d.getDate()+n*7);
+    const i=d.toISOString().slice(0,10);
+    const d2=new Date(d); d2.setDate(d2.getDate()+6);
+    irA_(i,d2.toISOString().slice(0,10));
+  };
+  $('#fa-prev').onclick=()=>mover(-1);
+  $('#fa-next').onclick=()=>mover(1);
+  $('#fa-hoy').onclick=()=>{
+    const d2=new Date(lunHoy+'T12:00:00'); d2.setDate(d2.getDate()+6);
+    irA_(lunHoy,d2.toISOString().slice(0,10));
+  };
   $('#b-calc').onclick=()=>calcularPeriodo(true);
   $('#b-recalc').onclick=()=>calcularPeriodo(false);
   $('#b-bio').onclick=()=>{ S.bioPrev=null; $('#bio-res').innerHTML='';
@@ -5276,11 +5362,14 @@ async function generarRecurrentes(){
    ============================================================ */
 async function vistaBalance(){
   $('#main').innerHTML='<div class="empty">Calculando saldo…</div>';
-  const [sal,bal,mov]=await Promise.all([
+  const [sal,bal,mov,flu,pro]=await Promise.all([
     sb.from('v_saldo_cuenta').select('*'),
     sb.from('v_balance_mensual').select('*').order('mes',{ascending:false}).limit(18),
-    sb.from('movimientos_cuenta').select('*').order('fecha',{ascending:false}).order('id',{ascending:false}).limit(150)
+    sb.from('movimientos_cuenta').select('*').order('fecha',{ascending:false}).order('id',{ascending:false}).limit(150),
+    sb.from('v_flujo_resumen').select('*').maybeSingle(),
+    sb.rpc('flujo_proyectado',{p_dias:15})
   ]);
+  const FL=flu.data||{}; const PROY=pro.data||[];
   if(sal.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(sal.error.message)}</div>`; return; }
   const c=(sal.data||[])[0]||{saldo_real:0,comprometido:0,disponible:0,saldo_inicial:0};
   const meses=(bal.data||[]);
@@ -5297,10 +5386,28 @@ async function vistaBalance(){
     <div class="kpi ${Number(c.comprometido)>0?'w':''}"><span>Comprometido</span><b>${money(c.comprometido)}</b><small>dispersiones autorizadas sin ejecutar</small></div>
     <div class="kpi ${Number(c.disponible)<0?'b':'c'}"><span>Disponible</span><b>${money(c.disponible)}</b><small>contra esto se puede dispersar</small></div>
     <div class="kpi"><span>Egreso mensual promedio</span><b style="font-size:20px">${money(egresoProm)}</b><small>últimos ${ult3.length} meses</small></div>
-    <div class="kpi ${cobertura!==null&&cobertura<1?'b':''}"><span>Cobertura</span><b>${cobertura===null?'—':cobertura.toFixed(1)}</b><small>meses que aguanta el disponible</small></div>
+    <div class="kpi ${Number(FL.por_cobrar_vencido)>0?'b':'t'}"><span>Por cobrar</span><b style="font-size:20px">${money(FL.por_cobrar_total)}</b><small>${Number(FL.por_cobrar_vencido)>0?money(FL.por_cobrar_vencido)+' ya vencido':'facturado sin pagar'}</small></div>
+    <div class="kpi ${Number(FL.punto_mas_bajo)<0?'b':(Number(FL.punto_mas_bajo)<50000?'w':'c')}"><span>Punto más bajo en 15 días</span><b style="font-size:20px">${money(FL.punto_mas_bajo)}</b><small>${FL.fecha_mas_baja?'el '+fecha(FL.fecha_mas_baja):'sin movimientos previstos'}</small></div>
   </div>
 
   ${Number(c.disponible)<0?'<div class="note" style="background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16"><b>Disponible en negativo</b>Lo comprometido supera al saldo real. No dispersar hasta que entre un cobro.</div>':''}
+
+  ${PROY.length?`
+  <div class="head" style="margin:24px 0 10px"><div><h1 style="font-size:17px">Los próximos 15 días</h1>
+    <p>Entran ${money(FL.entra_15)} · salen ${money(FL.sale_15)} · el punto más bajo es ${money(FL.punto_mas_bajo)}${FL.fecha_mas_baja?' el '+fecha(FL.fecha_mas_baja):''}</p></div></div>
+  ${Number(FL.punto_mas_bajo)<0?`<div class="note" style="background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16">
+    <b>La cuenta se queda corta</b>Con lo previsto, el ${fecha(FL.fecha_mas_baja)} llegaría a ${money(FL.punto_mas_bajo)}. Faltarían ${money(Math.abs(Number(FL.punto_mas_bajo)))}.</div>`:''}
+  <div class="tw" style="margin-bottom:24px"><table>
+    <thead><tr><th>Fecha</th><th>Concepto</th><th style="text-align:right">Entra</th>
+      <th style="text-align:right">Sale</th><th style="text-align:right">Queda</th></tr></thead>
+    <tbody>${PROY.map(x=>`<tr>
+      <td class="mono" style="font-size:12.5px">${fecha(x.fecha)}</td>
+      <td>${esc(x.concepto)}</td>
+      <td class="num" style="color:var(--ok)">${x.tipo==='entra'?money(x.monto):'—'}</td>
+      <td class="num" style="color:var(--bad)">${x.tipo==='sale'?money(Math.abs(x.monto)):'—'}</td>
+      <td class="num nm" style="color:${Number(x.acumulado)<0?'var(--bad)':'var(--txt)'}">${money(x.acumulado)}</td>
+    </tr>`).join('')}
+    </tbody></table></div>`:''}
 
   <div class="head" style="margin:22px 0 12px"><div><h1 style="font-size:17px">Resultado por mes</h1></div></div>
   <div class="tw" style="margin-bottom:22px"><table>
