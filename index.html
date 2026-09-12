@@ -2905,14 +2905,15 @@ async function pintarDetalleDisp(D, cta){
        return `<div class="note"><b>Dispersión cancelada</b>No salió nada de la cuenta.
          ${D.nota?esc(D.nota):''}</div>`;
      }
-     const libre=Number(cta.saldo_real)-Number(cta.comprometido||0)
-                 + (D.estatus==='autorizada'?Number(D.total):0);
+     const libre=Number(cta.saldo_real)-Number(D.otras_autorizadas||0);
      const alcanza=libre>=Number(D.total);
+     const cambio=D.saldo_al_generar!=null && Math.abs(Number(D.saldo_al_generar)-Number(cta.saldo_real))>1;
      return `<div class="note" style="${alcanza?'':'background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16'}">
-       <b>Efecto en la cuenta</b>
-       Hay ${money(cta.saldo_real)}${Number(cta.comprometido)?` · ${money(cta.comprometido)} ya autorizado en otras dispersiones`:''} ·
+       <b>Efecto en la cuenta hoy</b>
+       Hay ${money(cta.saldo_real)}${Number(D.otras_autorizadas)?` · ${money(D.otras_autorizadas)} ya autorizado en otras dispersiones`:''} ·
        esta dispersión son ${money(D.total)} · quedarían <b>${money(libre-Number(D.total))}</b>
-       ${alcanza?'':` · <b>faltan ${money(Number(D.total)-libre)}</b>`}</div>`;
+       ${alcanza?'':` · <b>faltan ${money(Number(D.total)-libre)}</b>`}
+       ${cambio?`<br><span style="font-size:12px">Cuando se generó había ${money(D.saldo_al_generar)}. El archivo del banco se actualiza solo al descargarlo.</span>`:''}</div>`;
    })()}
 
   <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px">
@@ -3079,6 +3080,14 @@ async function avanzarDisp(D,est){
 
 async function excelDispersion(D, det){
   if(typeof ExcelJS==='undefined'){ toast('No se pudo cargar el generador de Excel.','bad'); return; }
+  // El saldo se toma al momento de generar el archivo, no el de cuando se creó
+  // la dispersión: si la cuenta cambió, el encabezado tiene que decir la verdad.
+  let antes=Number(D.saldo_antes||0), viva=false;
+  if(['borrador','autorizada'].includes(D.estatus)){
+    const {data:sc}=await sb.from('v_saldo_cuenta').select('saldo_real').limit(1).maybeSingle();
+    if(sc){ antes=Number(sc.saldo_real||0); viva=true; }
+  }
+  const despues=antes-Number(D.total||0);
   const wb=new ExcelJS.Workbook();
   wb.creator='Gestión CDMX'; wb.created=new Date();
   const INK='FF101720', TEAL='FF0B6E6E', LINEA='FFD9DEE5';
@@ -3093,8 +3102,15 @@ async function excelDispersion(D, det){
   ws.getCell('A2').value=`Fecha en que debe caer el pago: ${D.fecha_pago} · ${det.length} personas`;
   ws.getCell('A2').font={size:10,color:{argb:'FF5A6673'}};
   ws.mergeCells('A3:F3');
-  ws.getCell('A3').value=`Antes del pago hay ${money(D.saldo_antes)} · después quedarían ${money(Number(D.saldo_antes)-Number(D.total))}`;
-  ws.getCell('A3').font={size:10,bold:true,color:{argb:TEAL}};
+  ws.getCell('A3').value=viva
+    ? `Al ${new Date().toLocaleString('es-MX')} hay ${money(antes)} en la cuenta · después de este pago quedarían ${money(despues)}`
+    : `Antes del pago había ${money(antes)} · quedaron ${money(despues)}`;
+  ws.getCell('A3').font={size:10,bold:true,color:{argb:despues<0?'FFB42318':TEAL}};
+  ws.mergeCells('A4:F4');
+  ws.getCell('A4').value=viva
+    ? 'El saldo se tomó al momento de generar este archivo.'
+    : 'Saldo del día en que se ejecutó la dispersión.';
+  ws.getCell('A4').font={size:9,italic:true,color:{argb:'FF8A95A2'}};
 
   const enc=['Nombre','Concepto','Banco','CLABE','Fecha de pago','Monto'];
   const hr=ws.getRow(5);
@@ -3989,7 +4005,7 @@ async function cargarRejilla(){
     <div class="acts">
       <button class="btn" id="b-bio">Cargar checador</button>
       <button class="btn btn-p" id="b-calc" title="Solo agrega los días que faltan. No toca nada de lo que ya está.">Calificar días nuevos</button>
-      <button class="btn" id="b-recalc" title="Rehace el periodo completo desde los marcajes. Úsalo solo si cambiaste una regla.">Recalcular todo</button>
+      <button class="btn" id="b-rastro">Ver cambios</button>
     </div>
   </div>
 
@@ -4038,8 +4054,8 @@ async function cargarRejilla(){
   </div>
 
   <div class="note" style="font-size:12.5px"><b>El día a día</b>
-    Carga el archivo del checador, dale a <b>Calificar días nuevos</b>, corrige en la cuadrícula lo que falte y guarda.
-    <b>Recalcular todo</b> solo se usa cuando cambiaste un horario o una fecha de baja y necesitas que aplique hacia atrás.</div>
+    Carga el archivo del checador, dale a <b>Calificar días nuevos</b>, corrige en la cuadrícula lo que falte y guarda con su motivo.
+    Si cambiaste un horario o una fecha de baja y necesitas que aplique hacia atrás, eso se hace desde Configuración.</div>
 
   <div class="pincel">
     <span style="font-size:12.5px;color:var(--txt-2);font-weight:500">Pintar como:</span>
@@ -4154,7 +4170,7 @@ async function cargarRejilla(){
     else toast('No hay un periodo en curso.','');
   };
   $('#b-calc').onclick=()=>calcularPeriodo(true);
-  $('#b-recalc').onclick=()=>calcularPeriodo(false);
+  if($('#b-rastro')) $('#b-rastro').onclick=abrirRastro;
   $('#b-bio').onclick=()=>{ S.bioPrev=null; $('#bio-res').innerHTML='';
     $('#bio-go').disabled=true; $('#bio-go').style.display=''; $('#bio-go').textContent='Cargar marcajes';
     if($('#bio-no')) $('#bio-no').style.display='none';
@@ -4239,6 +4255,57 @@ async function calcularPeriodo(soloFaltantes){
     ? `${data} días nuevos calificados. Nada de lo que ya estaba se modificó.`
     : `${data} días recalculados. Los que corregiste a mano se respetaron.`,'ok');
   cargarRejilla();
+}
+
+/* ---------- Rastro de cambios ---------- */
+async function abrirRastro(){
+  $('#bio-res').innerHTML='<div class="empty">Cargando…</div>';
+  $('#bio-go').style.display='none';
+  if($('#bio-no')) $('#bio-no').style.display='none';
+  $('#ov-bio').classList.add('on');
+  const [ra,qu]=await Promise.all([
+    sb.from('v_rastro_asistencia').select('*').order('fecha',{ascending:false}).limit(120),
+    sb.from('v_quien_pide_ajustes').select('*')
+  ]);
+  const R=ra.data||[], Q=qu.data||[];
+  const RES={pendiente:['p-warn','esperando'],aprobada:['p-ok','aprobada'],
+             rechazada:['p-bad','rechazada'],cancelada:['p-gray','cancelada']};
+  $('#bio-res').innerHTML=`
+    <div class="note"><b>Todo cambio manual queda con nombre y fecha</b>
+      Los que dicen <b>directo</b> los hizo dirección sin pasar por solicitud.
+      Los demás los propuso supervisión y dirección los resolvió.</div>
+    ${Q.length?`
+    <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-2);margin:14px 0 8px">Quién pide ajustes</div>
+    <div class="tw"><table><thead><tr><th>Quién</th><th style="text-align:right">Total</th>
+      <th style="text-align:right">Aprobadas</th><th style="text-align:right">Rechazadas</th>
+      <th style="text-align:right">Pendientes</th><th style="text-align:right">% rechazo</th></tr></thead>
+      <tbody>${Q.map(q=>`<tr>
+        <td class="nm">${esc(q.quien)}</td>
+        <td class="num">${q.total}</td>
+        <td class="num" style="color:var(--ok)">${q.aprobadas}</td>
+        <td class="num" style="color:var(--bad)">${q.rechazadas}</td>
+        <td class="num" style="color:var(--warn)">${q.pendientes}</td>
+        <td class="num nm" style="${Number(q.pct_rechazo)>30?'color:var(--bad)':''}">${q.pct_rechazo!=null?q.pct_rechazo+'%':'—'}</td>
+      </tr>`).join('')}</tbody></table></div>`:''}
+
+    <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-2);margin:16px 0 8px">Últimos cambios</div>
+    <div style="max-height:340px;overflow:auto">
+    ${R.length?R.map(x=>{
+      const [rc,rt]=RES[x.resultado]||['p-gray',x.resultado];
+      return `<div style="padding:9px 0;border-bottom:1px solid var(--line-2);font-size:13px">
+        <b>${esc(x.persona)}</b> · ${fecha(x.fecha)}
+        <span class="p ${rc}" style="margin-left:6px">${rt}</span>
+        ${x.via==='directo'?'<span class="p p-gray" style="margin-left:4px">directo</span>':''}
+        <br><span style="color:var(--txt-2)">De <b>${esc(EST_A[x.decia]||x.decia||'sin dato')}</b>
+        a <b style="color:var(--teal)">${esc(EST_A[x.quedo]||x.quedo)}</b> · ${esc(x.motivo||'sin motivo')}</span>
+        ${x.explicacion?`<br><span style="color:var(--txt-3);font-size:12.5px">${esc(x.explicacion)}</span>`:''}
+        <br><span style="color:var(--txt-3);font-size:11.5px">
+          ${x.via==='directo'
+            ? `Lo hizo ${esc(x.lo_pidio||'—')} el ${x.pedido_el?new Date(x.pedido_el).toLocaleDateString('es-MX'):'—'}`
+            : `Lo pidió ${esc(x.lo_pidio||'—')}${x.lo_resolvio?' · lo resolvió '+esc(x.lo_resolvio):''}${x.resuelto_el?' el '+new Date(x.resuelto_el).toLocaleDateString('es-MX'):''}`}
+          ${x.nota_resolucion?' · '+esc(x.nota_resolucion):''}</span>
+      </div>`;}).join(''):'<div class="empty"><b>Sin cambios manuales</b>Todo lo calificado salió del checador.</div>'}
+    </div>`;
 }
 
 /* ---------- Solicitudes de ajuste ---------- */
@@ -5112,6 +5179,19 @@ async function vistaConfig(){
     </tr>`).join('')}
     </tbody></table></div>
 
+  <div class="note" style="background:var(--warn-l);border-color:#F0DCC0;color:#7C3D06">
+    <b>Después de cambiar un horario</b>
+    Los periodos ya calificados no cambian solos. Si necesitas que la regla nueva aplique hacia atrás,
+    recalcula el periodo aquí. Los días que se corrigieron a mano quedan protegidos.
+    <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input type="date" id="rc-d" value="${new Date(Date.now()-13*864e5).toISOString().slice(0,10)}"
+        style="padding:5px 8px;border:1px solid var(--line);border-radius:var(--r)">
+      <span style="font-size:12.5px">al</span>
+      <input type="date" id="rc-h" value="${new Date().toISOString().slice(0,10)}"
+        style="padding:5px 8px;border:1px solid var(--line);border-radius:var(--r)">
+      <button class="btn btn-sm btn-d" id="rc-go">Recalcular asistencia de esas fechas</button>
+    </div></div>
+
   <div class="head" style="margin:26px 0 10px"><div><h1 style="font-size:17px">Esquemas de comisión</h1>
     <p>Lo que se paga por venta y los escalones de cada esquema</p></div></div>
 
@@ -5209,6 +5289,22 @@ async function vistaConfig(){
     if(error){ toast('No se guardó: '+error.message,'bad'); return; }
     toast('Horario actualizado.','ok'); vistaConfig();
   });
+
+  if($('#rc-go')) $('#rc-go').onclick=async()=>{
+    const d1=$('#rc-d').value, d2=$('#rc-h').value;
+    if(!d1||!d2||d1>d2){ toast('Revisa las fechas.','bad'); return; }
+    if(!confirm(`Recalcular la asistencia del ${fecha(d1)} al ${fecha(d2)}?\n\n`
+      +`Se rehacen todos los días de ese rango a partir de los marcajes.\n`
+      +`Lo que se corrigió a mano queda protegido.\n\n`
+      +`Esto solo se usa cuando cambiaste una regla y necesitas que aplique hacia atrás.`)) return;
+    const b=$('#rc-go'); b.disabled=true; b.textContent='Recalculando…';
+    const {data,error}=await sb.rpc('calcular_asistencia',
+      {p_desde:d1,p_hasta:d2,p_empleado:null,p_solo_faltantes:false});
+    if(!error) await sb.rpc('marcar_origen_asistencia',{p_desde:d1,p_hasta:d2});
+    b.disabled=false; b.textContent='Recalcular asistencia de esas fechas';
+    if(error){ toast('No se pudo: '+error.message,'bad'); return; }
+    toast(`${data} días recalculados. Los ajustes manuales se respetaron.`,'ok');
+  };
 
   document.querySelectorAll('[data-pl-save]').forEach(b=>b.onclick=async()=>{
     const id=Number(b.dataset.plSave);
