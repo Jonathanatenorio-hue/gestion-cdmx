@@ -3139,7 +3139,7 @@ async function excelDispersion(D, det){
   ws.getCell('A1').fill={type:'pattern',pattern:'solid',fgColor:{argb:INK}};
   ws.getRow(1).height=28;
   ws.mergeCells('A2:F2');
-  ws.getCell('A2').value=`Fecha en que debe caer el pago: ${D.fecha_pago} · ${det.length} pagos`
+  ws.getCell('A2').value=`Fecha en que debe caer el pago: ${D.fecha_pago}`
     + (D._grupo?` · junta ${D._grupo.length} dispersiones`:'');
   ws.getCell('A2').font={size:10,color:{argb:'FF5A6673'}};
   ws.mergeCells('A3:F3');
@@ -3148,10 +3148,27 @@ async function excelDispersion(D, det){
     : `Antes del pago había ${money(antes)} · quedaron ${money(despues)}`;
   ws.getCell('A3').font={size:10,bold:true,color:{argb:despues<0?'FFB42318':TEAL}};
   ws.mergeCells('A4:F4');
-  ws.getCell('A4').value=viva
-    ? 'El saldo se tomó al momento de generar este archivo.'
-    : 'Saldo del día en que se ejecutó la dispersión.';
+  ws.getCell('A4').value=(viva
+      ? 'El saldo se tomó al momento de generar este archivo.'
+      : 'Saldo del día en que se ejecutó la dispersión.')
+    + ' Una transferencia por persona; el desglose de cada pago está en la hoja Detalle.';
   ws.getCell('A4').font={size:9,italic:true,color:{argb:'FF8A95A2'}};
+
+  // Una transferencia por persona: si alguien tiene varios pagos se suman.
+  const clave=x=>(x.clabe&&String(x.clabe).length===18)
+    ? String(x.clabe) : ('sin|'+(x.empleado_id||x.nombre_completo));
+  const grupos=new Map();
+  det.forEach(x=>{
+    const k=clave(x);
+    if(!grupos.has(k)) grupos.set(k,{nombre:x.nombre_completo, banco:x.banco, clabe:x.clabe,
+      codigo:x.codigo, monto:0, conceptos:new Map(), pagos:0});
+    const g=grupos.get(k);
+    g.monto+=Number(x.monto||0); g.pagos++;
+    const c=CONC[x.concepto_pago]||x.concepto_pago||'Otro';
+    g.conceptos.set(c,(g.conceptos.get(c)||0)+Number(x.monto||0));
+  });
+  const filas=[...grupos.values()].sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
+  const unidos=filas.filter(g=>g.pagos>1).length;
 
   const enc=['Nombre','Concepto','Banco','CLABE','Fecha de pago','Monto'];
   const hr=ws.getRow(5);
@@ -3163,16 +3180,23 @@ async function excelDispersion(D, det){
   hr.height=22;
 
   let r=6;
-  det.forEach(x=>{
+  filas.forEach(g=>{
     const row=ws.getRow(r);
-    const clabeOk = x.clabe && String(x.clabe).length===18;
-    row.values=[x.nombre_completo, CONC[x.concepto_pago]||x.concepto_pago||'Otro',
-                x.banco||'', clabeOk?String(x.clabe):'SIN CLABE',
-                D.fecha_pago, Number(x.monto)];
+    const clabeOk = g.clabe && String(g.clabe).length===18;
+    const cs=[...g.conceptos.keys()];
+    row.values=[g.nombre, cs.length===1?cs[0]:cs.join(' y '),
+                g.banco||'', clabeOk?String(g.clabe):'SIN CLABE',
+                D.fecha_pago, Number(g.monto.toFixed(2))];
     row.getCell(4).numFmt='@';
     row.getCell(5).numFmt='dd/mm/yyyy';
     row.getCell(6).numFmt='"$"#,##0.00';
     row.getCell(6).font={bold:true};
+    if(g.pagos>1){
+      row.getCell(1).font={bold:true};
+      row.getCell(2).font={color:{argb:'FF0B6E6E'}};
+      row.getCell(2).note=[...g.conceptos.entries()]
+        .map(([k,v])=>`${k}: ${v.toFixed(2)}`).join('\n');
+    }
     if(!clabeOk){ [3,4].forEach(i=>{ row.getCell(i).font={bold:true,color:{argb:'FFB42318'}};
       row.getCell(i).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFDEBE9'}}; }); }
     else if(r%2===0) row.eachCell(c=>c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFAFBFC'}});
@@ -3189,7 +3213,7 @@ async function excelDispersion(D, det){
   tr.getCell(6).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE4F1F0'}};
   tr.getCell(6).border={top:{style:'medium',color:{argb:TEAL}}};
 
-  // Resumen por concepto debajo del total
+  // Desglose por concepto
   const porC={};
   det.forEach(x=>{ const k=CONC[x.concepto_pago]||x.concepto_pago||'Otro';
     porC[k]=(porC[k]||0)+Number(x.monto||0); });
@@ -3204,26 +3228,76 @@ async function excelDispersion(D, det){
     rc++;
   });
 
-  // Si el archivo junta varias dispersiones, se dice cuáles y por cuánto
   if(D._grupo && D._grupo.length>1){
-    let rd=rc+1;
-    ws.getCell('A'+rd).value='Dispersiones que incluye este archivo';
-    ws.getCell('A'+rd).font={bold:true,size:11,color:{argb:TEAL}};
-    rd++;
+    rc++;
+    ws.getCell('A'+rc).value='Dispersiones que incluye este archivo';
+    ws.getCell('A'+rc).font={bold:true,size:11,color:{argb:TEAL}};
+    rc++;
     const porD={};
     det.forEach(x=>{ porD[x.dispersion_id]=(porD[x.dispersion_id]||0)+Number(x.monto||0); });
     D._grupo.forEach(g=>{
-      ws.getCell('A'+rd).value=g.concepto;
-      ws.getCell('C'+rd).value=det.filter(x=>x.dispersion_id===g.id).length+' pagos';
-      ws.getCell('F'+rd).value=Number(porD[g.id]||0);
-      ws.getCell('F'+rd).numFmt='"$"#,##0.00';
-      ['A','C','F'].forEach(cc=>ws.getCell(cc+rd).font={size:10});
-      rd++;
+      ws.getCell('A'+rc).value=g.concepto;
+      ws.getCell('C'+rc).value=det.filter(x=>x.dispersion_id===g.id).length+' pagos';
+      ws.getCell('F'+rc).value=Number(porD[g.id]||0);
+      ws.getCell('F'+rc).numFmt='"$"#,##0.00';
+      ['A','C','F'].forEach(cc=>ws.getCell(cc+rc).font={size:10});
+      rc++;
     });
   }
 
-  ws.columns=[{width:38},{width:18},{width:18},{width:24},{width:16},{width:16}];
+  ws.columns=[{width:38},{width:22},{width:18},{width:24},{width:16},{width:16}];
   ws.autoFilter={from:{row:5,column:1},to:{row:r-1,column:6}};
+
+  // ---------------- Hoja de detalle ----------------
+  const w2=wb.addWorksheet('Detalle');
+  w2.mergeCells('A1:G1');
+  w2.getCell('A1').value='DETALLE DE CADA PAGO';
+  w2.getCell('A1').font={bold:true,size:13,color:{argb:'FFFFFFFF'}};
+  w2.getCell('A1').fill={type:'pattern',pattern:'solid',fgColor:{argb:INK}};
+  w2.getRow(1).height=24;
+  w2.mergeCells('A2:G2');
+  w2.getCell('A2').value=unidos
+    ? `${unidos} persona(s) reciben una sola transferencia que junta varios pagos. Aquí está cada pago por separado.`
+    : 'Cada pago por separado con su concepto de origen.';
+  w2.getCell('A2').font={size:9,italic:true,color:{argb:'FF5A6673'}};
+
+  const e2=['Nombre','Dispersión','Concepto','Banco','CLABE','Monto','Nota'];
+  const h2=w2.getRow(4);
+  e2.forEach((h,i)=>{ const c=h2.getCell(i+1);
+    c.value=h; c.font={bold:true,size:10,color:{argb:'FFFFFFFF'}};
+    c.fill={type:'pattern',pattern:'solid',fgColor:{argb:TEAL}};
+    c.alignment={vertical:'middle',horizontal:i===5?'right':'left'}; });
+  h2.height=22;
+
+  let r2=5;
+  det.slice().sort((a,b)=>a.nombre_completo.localeCompare(b.nombre_completo,'es'))
+    .forEach(x=>{
+      const g=grupos.get(clave(x));
+      const row=w2.getRow(r2);
+      row.values=[x.nombre_completo, x.concepto||D.concepto,
+                  CONC[x.concepto_pago]||x.concepto_pago||'Otro',
+                  x.banco||'', x.clabe?String(x.clabe):'SIN CLABE',
+                  Number(x.monto), x.nota||''];
+      row.getCell(5).numFmt='@';
+      row.getCell(6).numFmt='"$"#,##0.00';
+      if(g && g.pagos>1){
+        row.getCell(1).font={bold:true,color:{argb:'FF0B6E6E'}};
+        row.eachCell(c=>c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF0F7F6'}});
+      } else if(r2%2===0) row.eachCell(c=>c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFAFBFC'}});
+      row.eachCell(c=>c.border={bottom:{style:'hair',color:{argb:LINEA}}});
+      r2++;
+    });
+  const t2=w2.getRow(r2);
+  t2.getCell(1).value='TOTAL';
+  t2.getCell(1).font={bold:true,size:11};
+  t2.getCell(6).value={formula:`SUM(F5:F${r2-1})`};
+  t2.getCell(6).numFmt='"$"#,##0.00';
+  t2.getCell(6).font={bold:true,size:12};
+  t2.getCell(6).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE4F1F0'}};
+  t2.getCell(6).border={top:{style:'medium',color:{argb:TEAL}}};
+  w2.columns=[{width:38},{width:30},{width:18},{width:18},{width:24},{width:15},{width:44}];
+  w2.autoFilter={from:{row:4,column:1},to:{row:r2-1,column:7}};
+  w2.views=[{state:'frozen',ySplit:4}];
 
   const buf=await wb.xlsx.writeBuffer();
   const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
