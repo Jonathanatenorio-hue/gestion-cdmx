@@ -2827,6 +2827,9 @@ async function vistaDispersion(){
   <div class="head">
     <div><h1>Dispersión de pagos</h1><p>De la nómina confirmada al archivo del banco</p></div>
     <div class="acts">
+      ${(()=>{const dias=[...new Set(S.disp.filter(x=>['borrador','autorizada'].includes(x.estatus))
+          .map(x=>x.fecha_pago))];
+        return dias.length?`<button class="btn btn-p" id="d-junto">Archivo del banco del día</button>`:'';})()}
       ${S.direccion?'<button class="btn" id="d-libre">Nueva dispersión</button>':''}
       ${S.pendConf.length&&S.direccion?`<button class="btn btn-p" id="d-gen">Generar de una nómina</button>`:''}
     </div>
@@ -2868,6 +2871,7 @@ async function vistaDispersion(){
   document.querySelectorAll('[data-dv]').forEach(b=>b.onclick=()=>{ S.selDisp=Number(b.dataset.dv); vistaDispersion(); });
   if($('#d-gen')) $('#d-gen').onclick=generarDispersion;
   if($('#d-libre')) $('#d-libre').onclick=crearDispersionLibre;
+  if($('#d-junto')) $('#d-junto').onclick=archivoDelDia;
   if(D) pintarDetalleDisp(D, c);
 }
 
@@ -3078,6 +3082,42 @@ async function avanzarDisp(D,est){
   toast(data,'ok'); vistaDispersion();
 }
 
+/* ---------- Un solo archivo para el banco con todo lo del día ---------- */
+async function archivoDelDia(){
+  const pend=S.disp.filter(x=>['borrador','autorizada'].includes(x.estatus));
+  if(!pend.length){ toast('No hay dispersiones pendientes.','bad'); return; }
+  const dias=[...new Set(pend.map(x=>x.fecha_pago))].sort();
+
+  let dia=dias[0];
+  if(dias.length>1){
+    const op=dias.map((d,i)=>`${i+1}. ${fecha(d)} · ${pend.filter(x=>x.fecha_pago===d).length} dispersión(es) · ${money(pend.filter(x=>x.fecha_pago===d).reduce((a,b)=>a+Number(b.total||0),0))}`).join('\n');
+    const r=prompt(`De qué día se arma el archivo?\n\n${op}\n\nEscribe el número:`,'1');
+    if(r===null) return;
+    dia=dias[Number(r)-1];
+    if(!dia){ toast('Número inválido.','bad'); return; }
+  }
+  const grupo=pend.filter(x=>x.fecha_pago===dia);
+  const total=grupo.reduce((a,b)=>a+Number(b.total||0),0);
+  if(!confirm(`Archivo del banco del ${fecha(dia)}\n\n`
+    +grupo.map(g=>`· ${g.concepto} · ${money(g.total)}`).join('\n')
+    +`\n\nTotal ${money(total)}\n\n`
+    +`Se arma un solo archivo con todos los renglones. En el sistema las dispersiones siguen separadas.`)) return;
+
+  const b=$('#d-junto'); b.disabled=true; b.textContent='Generando…';
+  const {data:det}=await sb.from('v_dispersion_detalle').select('*')
+    .in('dispersion_id', grupo.map(g=>g.id)).order('nombre_completo');
+  const {data:sc}=await sb.from('v_saldo_cuenta').select('saldo_real').limit(1).maybeSingle();
+  b.disabled=false; b.textContent='Archivo del banco del día';
+  if(!det||!det.length){ toast('Esas dispersiones no tienen renglones.','bad'); return; }
+
+  await excelDispersion({
+    concepto:'Dispersión del '+fecha(dia),
+    fecha_pago:dia, total, estatus:'borrador',
+    saldo_antes:Number(sc?.saldo_real||0),
+    _grupo:grupo
+  }, det);
+}
+
 async function excelDispersion(D, det){
   if(typeof ExcelJS==='undefined'){ toast('No se pudo cargar el generador de Excel.','bad'); return; }
   // El saldo se toma al momento de generar el archivo, no el de cuando se creó
@@ -3099,7 +3139,8 @@ async function excelDispersion(D, det){
   ws.getCell('A1').fill={type:'pattern',pattern:'solid',fgColor:{argb:INK}};
   ws.getRow(1).height=28;
   ws.mergeCells('A2:F2');
-  ws.getCell('A2').value=`Fecha en que debe caer el pago: ${D.fecha_pago} · ${det.length} personas`;
+  ws.getCell('A2').value=`Fecha en que debe caer el pago: ${D.fecha_pago} · ${det.length} pagos`
+    + (D._grupo?` · junta ${D._grupo.length} dispersiones`:'');
   ws.getCell('A2').font={size:10,color:{argb:'FF5A6673'}};
   ws.mergeCells('A3:F3');
   ws.getCell('A3').value=viva
@@ -3163,13 +3204,33 @@ async function excelDispersion(D, det){
     rc++;
   });
 
+  // Si el archivo junta varias dispersiones, se dice cuáles y por cuánto
+  if(D._grupo && D._grupo.length>1){
+    let rd=rc+1;
+    ws.getCell('A'+rd).value='Dispersiones que incluye este archivo';
+    ws.getCell('A'+rd).font={bold:true,size:11,color:{argb:TEAL}};
+    rd++;
+    const porD={};
+    det.forEach(x=>{ porD[x.dispersion_id]=(porD[x.dispersion_id]||0)+Number(x.monto||0); });
+    D._grupo.forEach(g=>{
+      ws.getCell('A'+rd).value=g.concepto;
+      ws.getCell('C'+rd).value=det.filter(x=>x.dispersion_id===g.id).length+' pagos';
+      ws.getCell('F'+rd).value=Number(porD[g.id]||0);
+      ws.getCell('F'+rd).numFmt='"$"#,##0.00';
+      ['A','C','F'].forEach(cc=>ws.getCell(cc+rd).font={size:10});
+      rd++;
+    });
+  }
+
   ws.columns=[{width:38},{width:18},{width:18},{width:24},{width:16},{width:16}];
   ws.autoFilter={from:{row:5,column:1},to:{row:r-1,column:6}};
 
   const buf=await wb.xlsx.writeBuffer();
   const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
   const a=document.createElement('a'); a.href=url;
-  a.download=`dispersion_${(D.concepto||'').replace(/[^\w]+/g,'_')}_${D.fecha_pago}.xlsx`; a.click();
+  a.download=(D._grupo?`dispersion_banco_${D.fecha_pago}`
+              :`dispersion_${(D.concepto||'').replace(/[^\w]+/g,'_')}_${D.fecha_pago}`)+'.xlsx';
+  a.click();
   URL.revokeObjectURL(url);
   toast('Archivo generado.','ok');
 }
