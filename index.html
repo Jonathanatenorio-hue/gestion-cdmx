@@ -5305,15 +5305,31 @@ async function vistaConfig(){
     <p>Mensual por puesto y turno. El semanal y el diario se calculan solos</p></div></div>
   <div class="tw" style="margin-bottom:22px"><table>
     <thead><tr><th>Puesto</th><th>Turno</th><th style="text-align:right">Mensual</th>
-      <th style="text-align:right">Semanal</th><th style="text-align:right">Diario</th><th style="text-align:right">Personas</th></tr></thead>
+      <th style="text-align:right">Semanal</th><th style="text-align:right">Diario</th>
+      <th>Vigente desde</th><th style="text-align:right">Personas</th></tr></thead>
     <tbody>${S.tabul.map(t=>`<tr>
       <td class="nm">${esc(t.puesto)}</td><td>${esc(t.turno)}</td>
       <td class="num">${money(t.sueldo_mensual)}</td>
       <td class="num nm">${money(t.sueldo_semanal)}</td>
       <td class="num">${money(t.sueldo_diario)}</td>
+      <td class="mono" style="font-size:12.5px">${t.vigente_desde?fecha(t.vigente_desde):'—'}</td>
       <td class="num">${t.personas}</td></tr>`).join('')}
     </tbody></table></div>
-  <div class="note" style="margin-bottom:22px"><b>Para cambiar un sueldo</b>No se edita el renglón: se da de alta uno nuevo con su fecha de vigencia, para que el histórico no se altere. Pídemelo cuando lo necesites.</div>
+  <div class="note" style="margin-bottom:22px"><b>Para cambiar un sueldo</b>
+    No se edita el renglón: se cierra el vigente y entra uno nuevo con su fecha. Así las nóminas ya pagadas
+    conservan el cálculo con el que se pagaron.
+    <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="su-pue" style="padding:5px 8px;border:1px solid var(--line);border-radius:var(--r);min-width:190px">
+        ${[...new Set(S.tabul.map(t=>t.puesto))].map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('')}
+      </select>
+      <input id="su-mon" type="number" step="500" placeholder="Nuevo mensual" class="mono"
+        style="width:150px;padding:5px 8px;border:1px solid var(--line);border-radius:var(--r);text-align:right">
+      <span style="font-size:12.5px">desde</span>
+      <input type="date" id="su-des" value="${new Date().toISOString().slice(0,10)}"
+        style="padding:5px 8px;border:1px solid var(--line);border-radius:var(--r)">
+      <span id="su-calc" style="font-size:12.5px;color:var(--txt-2)"></span>
+      <button class="btn btn-sm btn-p" id="su-go">Aplicar</button>
+    </div></div>
 
   <div class="head" style="margin:22px 0 10px"><div><h1 style="font-size:17px">Niveles y metas</h1>
     <p>Meta mensual de ventas y umbral que perdona retardos, según los días activos</p></div></div>
@@ -5442,6 +5458,30 @@ async function vistaConfig(){
     if(error){ toast('No se guardó: '+error.message,'bad'); return; }
     toast('Horario actualizado.','ok'); vistaConfig();
   });
+
+  if($('#su-mon')) $('#su-mon').oninput=()=>{
+    const m=Number($('#su-mon').value||0);
+    $('#su-calc').textContent = m>0
+      ? `= ${money(m*12/52)} semanales · ${money(m*12/52/7)} el día` : '';
+  };
+  if($('#su-go')) $('#su-go').onclick=async()=>{
+    const pueNom=$('#su-pue').value, m=Number($('#su-mon').value||0), des=$('#su-des').value;
+    if(!m||m<=0){ toast('Escribe el sueldo mensual nuevo.','bad'); return; }
+    if(!des){ toast('Falta la fecha desde la que aplica.','bad'); return; }
+    const {data:pu}=await sb.from('puestos').select('clave,nombre').eq('nombre',pueNom).maybeSingle();
+    if(!pu){ toast('No se encontró ese puesto.','bad'); return; }
+    const t=S.tabul.find(x=>x.puesto===pueNom);
+    if(!confirm(`Cambiar el sueldo de ${pueNom}?\n\n`
+      +`De ${money(t?.sueldo_mensual)} a ${money(m)} mensuales, desde el ${fecha(des)}.\n`
+      +`Quedaría en ${money(m*12/52)} semanales.\n\n`
+      +`Las nóminas ya calculadas no cambian hasta que las recalcules.`)) return;
+    const mot=prompt('Motivo del ajuste','Ajuste de sueldo');
+    if(mot===null) return;
+    const {data,error}=await sb.rpc('cambiar_sueldo',
+      {p_puesto:pu.clave, p_turno:(t?.turno||'completo'), p_mensual:m, p_desde:des, p_motivo:mot});
+    if(error){ toast('No se pudo: '+error.message,'bad'); return; }
+    toast(data,'ok'); vistaConfig();
+  };
 
   if($('#rc-go')) $('#rc-go').onclick=async()=>{
     const d1=$('#rc-d').value, d2=$('#rc-h').value;
