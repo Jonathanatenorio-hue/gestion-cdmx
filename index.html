@@ -3879,6 +3879,7 @@ async function excelNomina(P){
     const regDe={};
     (det||[]).forEach(d=>{ const c=(porDet[d.detalle_id]||[]).find(x=>x.clave==='REGISTROS');
       if(c) regDe[d.detalle_id]={cant:Number(c.cantidad||0), imp:Number(c.importe||0)}; });
+    const totBase=Object.values(regDe).reduce((a,b)=>a+Number(b.imp||0),0);
 
     let r=6;
     (det||[]).forEach(d=>{
@@ -3899,10 +3900,17 @@ async function excelNomina(P){
         row.eachCell(c=>c.border={bottom:{style:'hair',color:{argb:LINEA}}});
         r++; return;
       }
-      row.values=[d.codigo, d.nombre_completo, d.puesto, (d.esquema_pago||'').replace(/_/g,' '),
+      const gb=regDe[d.detalle_id];
+      const mixto = gb && Number(gb.imp)>0 && Number(d.total_percepciones)>Number(gb.imp);
+      row.values=[d.codigo, d.nombre_completo, d.puesto,
+        mixto ? 'sueldo + base de datos' : (d.esquema_pago||'').replace(/_/g,' '),
         d.dias_pagados, Number(d.faltas), Number(d.retardos),
         Number(d.total_percepciones), Number(d.total_deducciones), Number(d.neto),
         d.banco_texto||'', d.clabe?String(d.clabe):'SIN CLABE'];
+      if(mixto){
+        row.getCell(4).font={bold:true,color:{argb:'FF0B6E6E'}};
+        row.getCell(8).note=`Sueldo ${(Number(d.total_percepciones)-Number(gb.imp)).toFixed(2)}\nBase de datos ${Number(gb.imp).toFixed(2)} · ${gb.cant} registros`;
+      }
       if(r%2===0) row.eachCell(c=>c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFAFBFC'}});
       [8,9,10].forEach(i=>row.getCell(i).numFmt='"$"#,##0.00');
       row.getCell(10).font={bold:true};
@@ -3941,6 +3949,16 @@ async function excelNomina(P){
     });
     tr.getCell(6).value={formula:`SUM(F6:F${r-1})`}; tr.getCell(6).font={bold:true};
     tr.getCell(7).value={formula:`SUM(G6:G${r-1})`}; tr.getCell(7).font={bold:true};
+    if(totBase>0){
+      const rn=r+3;
+      ws.getCell('B'+rn).value='Del total, corresponden a base de datos';
+      ws.getCell('B'+rn).font={size:10,color:{argb:'FF5A6673'}};
+      ws.getCell('J'+rn).value=Number(totBase.toFixed(2));
+      ws.getCell('J'+rn).numFmt='"$"#,##0.00';
+      ws.getCell('J'+rn).font={size:10,bold:true,color:{argb:'FF0B6E6E'}};
+      ws.getCell('B'+(rn+1)).value='El resto es sueldo, capacitación y demás conceptos de nómina.';
+      ws.getCell('B'+(rn+1)).font={size:9,italic:true,color:{argb:'FF8A95A2'}};
+    }
 
     ws.columns=[{width:7},{width:36},{width:20},{width:16},{width:8},{width:9},{width:10},
                 {width:15},{width:15},{width:15},{width:16},{width:24}];
