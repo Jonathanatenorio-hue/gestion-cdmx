@@ -2607,6 +2607,17 @@ async function cargarMensual(){
   try{
     // 1. Cabecera
     let cobroId;
+    // Antes de crear, se revisa que no exista ya un corte con el mismo monto
+    const montoM=P.cas.total??P.totCalc;
+    const {data:par}=await sb.from('cobros_expertcell')
+      .select('periodo_clave,fecha_archivo,monto_archivo,estatus')
+      .eq('tipo','mensual')
+      .gte('monto_archivo',Number(montoM)-1).lte('monto_archivo',Number(montoM)+1);
+    if((par||[]).length && !confirm(
+      `Ya hay un corte mensual por ${money(montoM)}:\n\n`
+      +par.map(x=>`· ${x.periodo_clave} del ${fecha(x.fecha_archivo)} · ${x.estatus}`).join('\n')
+      +`\n\nSi es el mismo archivo, cancela y ábrelo en lugar de volver a cargarlo.\n\nCargar de todas formas?`)) return;
+
     const {data:ex}=await sb.from('cobros_expertcell').select('id')
       .eq('periodo_clave',per).eq('tipo','mensual').maybeSingle();
     if(ex) cobroId=ex.id;
@@ -2617,7 +2628,11 @@ async function cargarMensual(){
         anticipos_aplicados:P.antTotal||0, afecta_saldo:!hist,
         estatus:'archivo_recibido', registrado_por:S.perfil.id
       }).select().single();
-      if(error) throw error;
+      if(error){
+        if(/ya está cargado como|ux_cobro_periodo/i.test(error.message||''))
+          throw new Error(error.message.replace(/^.*?:\s*/,''));
+        throw error;
+      }
       cobroId=data.id;
     }
 
