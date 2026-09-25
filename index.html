@@ -2277,17 +2277,30 @@ function procesarMensual(aoa,nombre){
   }
 
   // 3. Etiquetas sueltas: anticipos, descuentos y cascada
+  // La cascada vive al final del archivo. Se busca en todo el documento y de
+  // abajo hacia arriba, primero por coincidencia exacta: así "ANTICIPO" no se
+  // confunde con la línea de "ANTICIPOS" que aparece más arriba.
   const buscaEtiqueta=(...claves)=>{
-    for(let i=fin;i<aoa.length;i++){
-      const row=aoa[i]||[];
-      for(let j=0;j<row.length;j++){
-        const n=nrm(row[j]);
-        if(n && claves.some(k=>n===k||n.startsWith(k))){
-          for(let k=j+1;k<row.length;k++){ const v=numero(row[k]); if(v!==null && row[k]!=='') return v; }
+    const barrido=(exacto)=>{
+      for(let i=aoa.length-1;i>=0;i--){
+        const row=aoa[i]||[];
+        for(let j=0;j<row.length;j++){
+          const n=nrm(row[j]);
+          if(!n) continue;
+          const pega = exacto ? claves.some(k=>n===k)
+                              : claves.some(k=>n.startsWith(k));
+          if(pega){
+            for(let k=j+1;k<row.length;k++){
+              const v=numero(row[k]);
+              if(v!==null && row[k]!=='') return v;
+            }
+          }
         }
       }
-    }
-    return null;
+      return null;
+    };
+    const ex=barrido(true);
+    return ex!==null?ex:barrido(false);
   };
   const anticipos=[];
   for(let i=fin;i<aoa.length;i++){
@@ -2299,9 +2312,12 @@ function procesarMensual(aoa,nombre){
     }
   }
   const desc=[
-    {tipo:'dhl',         concepto:'Guías DHL',              monto:Math.abs(buscaEtiqueta('DESCGUIASDHL','DESCGUIAS')||0)},
-    {tipo:'covex',       concepto:'Excedentes COVEX',       monto:Math.abs(buscaEtiqueta('DESCEXCEDENTESCOVEX','DESCEXCEDENTES')||0)},
-    {tipo:'fulfillment', concepto:'Fulfillment (morado)',   monto:Math.abs(buscaEtiqueta('DESCFULFILLMENT')||0)}
+    {tipo:'dhl',         concepto:'Guías DHL',            monto:Math.abs(buscaEtiqueta('DESCGUIASDHL','DESCGUIAS')||0)},
+    {tipo:'covex',       concepto:'Excedentes COVEX',     monto:Math.abs(buscaEtiqueta('DESCEXCEDENTESCOVEX','DESCEXCEDENTES')||0)},
+    {tipo:'fulfillment', concepto:'Fulfillment (morado)', monto:Math.abs(buscaEtiqueta('DESCFULFILLMENT')||0)},
+    {tipo:'otro',        concepto:'Pérdida de equipo',    monto:Math.abs(buscaEtiqueta('DESCPERDIDADEEQUIPO','DESCPERDIDA')||0)},
+    {tipo:'otro',        concepto:'Equipos vencidos',     monto:Math.abs(buscaEtiqueta('DESCUENTOEQUIPOSVENCIDOS')||0)},
+    {tipo:'otro',        concepto:'Expedientes penalizados', monto:Math.abs(buscaEtiqueta('DESCUENTOEXPEDIENTESPENALIZADOS')||0)}
   ].filter(d=>d.monto>0);
 
   const cas={
@@ -2806,11 +2822,14 @@ const CONC={nomina:'Nómina',comision:'Comisión',bono:'Bono',prestamo:'Préstam
 
 async function vistaDispersion(){
   $('#main').innerHTML='<div class="empty">Cargando dispersiones…</div>';
-  const [di,sa,pe]=await Promise.all([
+  const [di,sa,pe,lb,cs]=await Promise.all([
     sb.from('v_dispersiones').select('*').order('fecha_pago',{ascending:false}).limit(60),
     sb.from('v_saldo_cuenta').select('*').limit(3),
-    sb.from('v_nomina_resumen').select('*').eq('estatus','confirmado').order('fecha_pago')
+    sb.from('v_nomina_resumen').select('*').eq('estatus','confirmado').order('fecha_pago'),
+    sb.from('v_libro_banco').select('*').limit(40),
+    sb.from('v_cobros_sin_pago').select('*')
   ]);
+  S.libro=lb.data||[]; S.sinPago=cs.data||[];
   if(di.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(di.error.message)}<br><span style="font-size:12.5px">Si falta la vista, corre el SQL 45.</span></div>`; return; }
   S.disp=di.data||[]; S.pendConf=pe.data||[];
   const c=(sa.data||[])[0]||{saldo_real:0,comprometido:0,disponible:0};
@@ -2864,6 +2883,25 @@ async function vistaDispersion(){
         <td><span class="p ${dc}">${dt}</span></td>
         <td style="text-align:right"><button class="btn btn-sm" data-dv="${x.id}">${x.id===S.selDisp?'Abierta':'Abrir'}</button></td>
       </tr>`;}).join(''):'<tr><td colspan="9"><div class="empty"><b>Sin dispersiones</b>Genera una a partir de una nómina confirmada.</div></td></tr>'}
+    </tbody></table></div>
+
+  ${S.sinPago.length?`<div class="note" style="background:var(--warn-l);border-color:#F0DCC0;color:#7C3D06">
+    <b>${S.sinPago.length} cobro${S.sinPago.length===1?'':'s'} sin registrar su pago</b>
+    ${S.sinPago.map(x=>`${esc(x.periodo_clave)} · ${money(x.monto_neto||x.monto_archivo)} · esperado el ${fecha(x.fecha_pago_esperada)}${Number(x.dias_de_retraso)>0?` · ${x.dias_de_retraso} días`:''}`).join('<br>')}
+    <br>Si ese dinero ya cayó al banco, captúralo en Cobros ExpertCell: el saldo no lo incluye hasta entonces.</div>`:''}
+
+  <div class="head" style="margin:22px 0 10px"><div><h1 style="font-size:17px">Libro de banco</h1>
+    <p>Entradas y salidas en orden, con el saldo que va quedando. Aquí se ve por qué entre una dispersión y otra el saldo cambia.</p></div></div>
+  <div class="tw" style="margin-bottom:24px"><table>
+    <thead><tr><th>Fecha</th><th>Concepto</th><th style="text-align:right">Entra</th>
+      <th style="text-align:right">Sale</th><th style="text-align:right">Saldo</th></tr></thead>
+    <tbody>${S.libro.map(x=>`<tr>
+      <td class="mono" style="font-size:12.5px">${fecha(x.fecha)}</td>
+      <td>${esc(x.concepto||'—')}${x.origen?`<br><span style="font-size:11px;color:var(--txt-3)">${esc(x.origen)}</span>`:''}</td>
+      <td class="num" style="color:var(--ok)">${x.tipo==='entra'?money(x.monto):'—'}</td>
+      <td class="num" style="color:var(--bad)">${x.tipo==='sale'?money(Math.abs(x.monto)):'—'}</td>
+      <td class="num nm" style="color:${Number(x.saldo)<0?'var(--bad)':'var(--txt)'}">${money(x.saldo)}</td>
+    </tr>`).join('')}
     </tbody></table></div>
 
   <div id="d-detalle"></div>`;
