@@ -3384,13 +3384,16 @@ async function vistaNomina(){
   const P=S.periodos.find(p=>p.id===S.perSel);
   if(!P){ $('#main').innerHTML='<div class="empty"><b>Sin periodos</b>Corre el SQL 26 para generar el calendario.</div>'; return; }
 
-  const [dt,rg,cp,bs,nr]=await Promise.all([
+  const [dt,rg,cp,bs,nr,rt]=await Promise.all([
     sb.from('v_nomina_detalle').select('*').eq('periodo',P.clave).order('nombre_completo'),
     sb.from('v_registros_periodo').select('*').eq('periodo',P.clave).order('nombre_completo'),
     sb.from('v_capacitacion').select('*').order('inicio',{ascending:false}),
     sb.from('v_base_semanas').select('*').order('fecha_inicio',{ascending:false}).limit(30),
-    sb.from('v_nomina_resumen').select('*').gt('personas',0).order('fecha_inicio',{ascending:false}).limit(30)
+    sb.from('v_nomina_resumen').select('*').gt('personas',0).order('fecha_inicio',{ascending:false}).limit(30),
+    sb.from('v_cierre_retardos').select('*').order('mes',{ascending:false}).order('nombre_completo').limit(200)
   ]);
+  S.retardos=(rt?.data)||[];
+  S.retPend=S.retardos.filter(x=>x.estatus==='pendiente'&&Number(x.importe)>0);
   S.baseSem=bs.data||[]; S.nomGen=nr.data||[];
   S.nomDet=dt.data||[]; S.regs=rg.data||[]; S.capac=cp.data||[];
   S.nTab=S.nTab||'resumen';
@@ -3415,6 +3418,7 @@ async function vistaNomina(){
     <button class="${S.nTab==='resumen'?'on':''}" data-ntab="resumen">Resumen</button>
     <button class="${S.nTab==='base'?'on':''}" data-ntab="base">Base de datos${S.regs.length?` · ${S.regs.length}`:''}</button>
     <button class="${S.nTab==='capac'?'on':''}" data-ntab="capac">Capacitación${S.capac.length?` · ${S.capac.length}`:''}</button>
+    <button class="${S.nTab==='retardos'?'on':''}" data-ntab="retardos">Retardos${(S.retPend||[]).length?` · ${S.retPend.length}`:''}</button>
   </div>
 
   <div class="kpis" ${S.nTab==='resumen'?'':'style="display:none"'}>
@@ -3532,6 +3536,46 @@ async function vistaNomina(){
     :'<div class="empty"><b>Nadie en capacitación</b>Aquí aparece quien esté en su semana de prueba.</div>'}
   </div>
 
+  <div ${S.nTab==='retardos'?'':'style="display:none"'}>
+  <div class="head" style="margin:4px 0 10px"><div><h1 style="font-size:17px">Cierre de retardos</h1>
+    <p>Cada 3 retardos del mes son una falta descontable. Los sobrantes se depuran. Quien llegó a su meta de ventas no paga nada.</p></div>
+    ${S.direccion?`<div class="acts">
+      <input type="month" id="rt-mes" value="${new Date().toISOString().slice(0,7)}"
+        style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--r)">
+      <button class="btn btn-p" id="rt-cerrar">Cerrar el mes</button></div>`:''}</div>
+
+  ${S.retardos.length?`
+  <div class="tw" style="margin-bottom:16px"><table>
+    <thead><tr><th>Mes</th><th>Nombre</th><th>Nivel</th>
+      <th style="text-align:right">Retardos</th><th style="text-align:right">Faltas</th>
+      <th style="text-align:right">Se depuran</th><th style="text-align:right">Descuento</th>
+      <th>Se cobra en</th><th>Estatus</th><th></th></tr></thead>
+    <tbody>${S.retardos.map(x=>`<tr style="${x.es_baja?'background:var(--bad-l)':''}">
+      <td class="mono">${esc(x.mes)}</td>
+      <td class="nm">${esc(x.nombre_completo)}${x.es_baja?'<br><span class="p p-bad" style="font-size:10px">baja · liquidar en su pago final</span>':''}</td>
+      <td style="font-size:12.5px">${esc(x.nivel||'—')}${x.meta?`<br><span style="color:var(--txt-3);font-size:11px">meta ${x.meta}</span>`:''}</td>
+      <td class="num" style="color:var(--warn);font-weight:600">${x.retardos}</td>
+      <td class="num" style="${x.faltas_generadas?'color:var(--bad);font-weight:600':''}">${x.faltas_generadas}</td>
+      <td class="num" style="color:var(--txt-3)">${x.sobrantes||'—'}</td>
+      <td class="num nm" style="color:${Number(x.importe)?'var(--bad)':'var(--ok)'}">${money(x.importe)}</td>
+      <td class="mono" style="font-size:12.5px">${esc(x.se_cobra_en||'—')}${x.se_paga_el?`<br><span style="color:var(--txt-3);font-size:11px">${fecha(x.se_paga_el)}</span>`:''}</td>
+      <td>${x.perdonado?'<span class="p p-ok">perdonado</span>'
+            :x.estatus==='aplicado'?'<span class="p p-teal">cobrado</span>'
+            :'<span class="p p-warn">pendiente</span>'}
+          ${x.motivo_perdon?`<br><span style="font-size:11px;color:var(--txt-3)">${esc(x.motivo_perdon)}</span>`:''}</td>
+      <td style="text-align:right">${x.estatus==='pendiente'&&Number(x.importe)&&S.direccion
+        ?`<button class="btn btn-sm" data-rt-perd="${x.empleado_id}" data-mes="${x.mes}">Perdonar</button>`:''}</td>
+    </tr>`).join('')}
+    <tr style="background:var(--teal-l)"><td></td><td class="nm">Total pendiente</td><td></td><td></td><td></td><td></td>
+      <td class="num nm">${money(S.retPend.reduce((a,b)=>a+Number(b.importe||0),0))}</td><td></td><td></td><td></td></tr>
+    </tbody></table></div>
+  <div class="note"><b>Cómo se cobra</b>
+    El descuento entra en la primera semana que paga dentro del mes siguiente.
+    A quien causa baja se le liquida en su pago final sin esperar al cierre.
+    Si alguien llegó a la meta de ventas de su nivel, dale a Perdonar y su descuento queda en cero con el motivo registrado.</div>
+  `:'<div class="empty"><b>Sin retardos cerrados</b>Elige el mes y dale a Cerrar el mes para calcularlos a partir de la asistencia.</div>'}
+  </div>
+
   <div ${S.nTab==='resumen'?'':'style="display:none"'}>
   ${S.nomGen.length?`
   <div class="head" style="margin:4px 0 10px"><div><h1 style="font-size:17px">Nóminas generadas</h1>
@@ -3590,6 +3634,31 @@ async function vistaNomina(){
   </table></div></div>`;
 
   document.querySelectorAll('[data-ntab]').forEach(b=>b.onclick=()=>{ S.nTab=b.dataset.ntab; vistaNomina(); });
+  if($('#rt-cerrar')) $('#rt-cerrar').onclick=async()=>{
+    const mes=$('#rt-mes').value;
+    if(!mes){ toast('Elige el mes.','bad'); return; }
+    if(!confirm(`Cerrar los retardos de ${mes}?\n\n`
+      +`Se cuentan los retardos de la asistencia y se convierten en faltas descontables.\n`
+      +`Lo que ya esté cobrado o perdonado no se toca.`)) return;
+    const b=$('#rt-cerrar'); b.disabled=true; b.textContent='Cerrando…';
+    const {data,error}=await sb.rpc('cerrar_retardos',{p_mes:mes,p_solo_empleado:null});
+    b.disabled=false; b.textContent='Cerrar el mes';
+    if(error){ toast(error.message,'bad'); return; }
+    toast(`${data} persona(s) con retardos en ${mes}.`,'ok'); vistaNomina();
+  };
+  document.querySelectorAll('[data-rt-perd]').forEach(b=>b.onclick=async()=>{
+    const emp=Number(b.dataset.rtPerd), mes=b.dataset.mes;
+    const x=S.retardos.find(y=>y.empleado_id===emp&&y.mes===mes);
+    const v=prompt(`Cuántas ventas hizo ${x.nombre_completo} en ${mes}?\n\n`
+      +`Su meta es ${x.meta||'—'}. Si la alcanzó, se le perdonan los ${x.retardos} retardos y el descuento de ${money(x.importe)} queda en cero.`,
+      String(x.meta||''));
+    if(v===null) return;
+    const {data,error}=await sb.rpc('perdonar_retardos',
+      {p_mes:mes, p_empleados:[emp], p_ventas:[Number(v)||null],
+       p_motivo:`Alcanzó la meta de su nivel con ${v} ventas`});
+    if(error){ toast(error.message,'bad'); return; }
+    toast('Retardos perdonados.','ok'); vistaNomina();
+  });
   if($('#n-filtro')){ $('#n-filtro').value=S.nFiltro||'';
     $('#n-filtro').onchange=e=>{ S.nFiltro=e.target.value; vistaNomina(); }; }
   document.querySelectorAll('[data-nw]').forEach(b=>b.onclick=()=>{ S.perSel=Number(b.dataset.nw); S.nTab='resumen'; vistaNomina(); });
@@ -3765,6 +3834,7 @@ async function procesarSemanaBase(periodoId){
   let r=await sb.rpc('calcular_nomina',{p_periodo_id:periodoId});
   if(r.error){ toast('No se pudo calcular: '+r.error.message,'bad'); return; }
   await sb.rpc('registros_a_nomina',{p_periodo:periodoId});
+  await sb.rpc('retardos_a_nomina',{p_periodo:periodoId});
 
   paso('Confirmando…');
   r=await sb.rpc('avanzar_periodo',{p_periodo:periodoId,p_estatus:'confirmado'});
@@ -3825,6 +3895,10 @@ async function cerrarCapacitacion(empId, aprueba){
 async function calcularNomina(P){
   const b=$('#n-calc'); b.disabled=true; b.textContent='Calculando…';
   const {data,error}=await sb.rpc('calcular_nomina',{p_periodo_id:P.id});
+  if(!error){
+    await sb.rpc('registros_a_nomina',{p_periodo:P.id});
+    await sb.rpc('retardos_a_nomina',{p_periodo:P.id});
+  }
   b.disabled=false; b.textContent='Calcular';
   if(error){ toast('No se pudo: '+error.message,'bad'); return; }
   toast(`${data} personas calculadas a partir de la asistencia.`,'ok');
