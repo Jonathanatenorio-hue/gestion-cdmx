@@ -508,6 +508,7 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
           <option value="nomina">Nómina</option><option value="comision">Comisión</option>
           <option value="bono">Bono</option><option value="base_datos">Base de datos</option>
           <option value="prestamo">Préstamo</option><option value="proveedor">Proveedor</option>
+          <option value="dinamica">Dinámica</option>
           <option value="finiquito">Finiquito</option><option value="otro">Otro</option></select></div>
         <div class="f"><label for="rn-monto">Monto</label><input id="rn-monto" type="number" step="0.01" class="mono"></div>
         <div class="f full"><label for="rn-cat">Categoría de gasto</label><select id="rn-cat"></select>
@@ -2833,7 +2834,8 @@ function vistaGuia(){
 const EST_D={borrador:['p-gray','Borrador'],autorizada:['p-warn','Autorizada'],
   dispersada:['p-ok','Dispersada'],cancelada:['p-bad','Cancelada']};
 const CONC={nomina:'Nómina',comision:'Comisión',bono:'Bono',prestamo:'Préstamo',
-  proveedor:'Proveedor',base_datos:'Base de datos',finiquito:'Finiquito',otro:'Otro'};
+  proveedor:'Proveedor',base_datos:'Base de datos',finiquito:'Finiquito',
+  dinamica:'Dinámica',otro:'Otro'};
 
 async function vistaDispersion(){
   $('#main').innerHTML='<div class="empty">Cargando dispersiones…</div>';
