@@ -125,13 +125,13 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
   background:var(--line);color:var(--txt-2);font-size:10px;font-weight:700;margin-left:6px;cursor:help;
   position:relative;vertical-align:middle;flex:none;font-family:'IBM Plex Sans',sans-serif;text-transform:none;letter-spacing:0}
 .help:hover{background:var(--teal);color:#fff}
-.help:hover:after,.help.on:after{content:attr(data-tip);position:absolute;bottom:calc(100% + 7px);left:50%;
-  transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 12px;border-radius:var(--r);
-  font-size:12.5px;font-weight:400;line-height:1.45;width:250px;text-align:left;z-index:90;
-  box-shadow:0 6px 20px rgba(16,23,32,.28);white-space:normal;pointer-events:none}
-.help:hover:before,.help.on:before{content:'';position:absolute;bottom:calc(100% + 2px);left:50%;
-  transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--ink);z-index:91}
 .help.on{background:var(--teal);color:#fff}
+/* La ayuda flota por encima de todo y se coloca con JS, para que no la
+   recorte el modal cuando el campo queda pegado a una orilla. */
+#tipbox{position:fixed;z-index:9999;max-width:300px;background:var(--ink);color:#fff;
+  padding:10px 13px;border-radius:var(--r);font-size:12.5px;font-weight:400;line-height:1.5;
+  box-shadow:0 8px 26px rgba(16,23,32,.32);pointer-events:none;display:none}
+#tipbox.on{display:block}
 .f label{display:flex;align-items:center}
 .hint{background:var(--teal-l);border:1px solid #C5E0DE;border-radius:var(--r);padding:9px 12px;
   font-size:12.5px;color:#0A5555;margin-top:12px;display:none}
@@ -309,7 +309,9 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
           <div class="f"><label for="e-tipo">Tipo de registro</label><select id="e-tipo">
             <option value="empleado">Empleado</option>
             <option value="destino_pago">Destino de pago, no es personal</option></select></div>
-          <div class="f"><label for="e-cod">Código de dispersión</label><input id="e-cod" type="number" class="mono"></div>
+          <div class="f"><label for="e-cod">Código de dispersión</label>
+            <input id="e-cod" type="number" class="mono" readonly style="background:#F7F8FA;color:var(--txt-2)">
+            <small>Se asigna solo. Solo lo usa el importador del Excel viejo.</small></div>
           <div class="f full"><label for="e-nom">Nombre completo</label><input id="e-nom" placeholder="Nombres y apellidos, como en la cuenta bancaria"></div>
           <div class="f"><label for="e-fnac">Fecha de nacimiento</label><input id="e-fnac" type="date"></div>
           <div class="f"><label for="e-tel">Teléfono</label><input id="e-tel" class="mono"></div>
@@ -337,17 +339,42 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
           <div class="f"><label for="e-sup">Supervisor</label><select id="e-sup"></select></div>
           <div class="f"><label for="e-ing">Fecha de ingreso</label><input id="e-ing" type="date"></div>
           <div class="f"><label for="e-est">Estatus</label><select id="e-est">
-            <option value="activo">Activo</option><option value="incapacidad">Incapacidad</option>
-            <option value="permiso">Permiso</option><option value="vacaciones">Vacaciones</option>
-            <option value="baja">Baja</option></select></div>
-          <div class="f"><label for="e-baja">Fecha de baja</label><input id="e-baja" type="date"></div>
-          <div class="f full"><label for="e-mot">Motivo de baja</label><input id="e-mot"></div>
+            <option value="activo">Activo</option>
+            <option value="baja">Baja</option></select>
+            <small>Una incapacidad, un permiso o unas vacaciones se marcan día por día en Asistencia, no aquí.</small></div>
+          <div class="f" id="box-fbaja" style="display:none"><label for="e-baja">Fecha de baja</label><input id="e-baja" type="date"></div>
+
+          <div class="f full" id="box-baja" style="display:none;background:var(--bad-l);border:1px solid #E7C9C6;border-radius:var(--r);padding:13px">
+            <label style="margin-bottom:10px;color:#7A1E16">Por qué se va</label>
+            <div class="grid" style="gap:10px">
+              <div class="f"><label for="e-motc">Motivo</label><select id="e-motc"></select></div>
+              <div class="f"><label for="e-submot">Submotivo</label><select id="e-submot"></select></div>
+              <div class="f"><label for="e-origen">Quién decidió la salida</label><select id="e-origen">
+                <option value="empleado">La persona</option>
+                <option value="empresa">La empresa</option>
+                <option value="acuerdo_mutuo">De común acuerdo</option>
+                <option value="no_determinado">No se determinó</option></select></div>
+              <div class="f"><label for="e-recon">¿Se le volvería a contratar?</label><select id="e-recon">
+                <option value="">Sin definir</option>
+                <option value="si">Sí</option>
+                <option value="condicionado">Condicionado</option>
+                <option value="no">No</option></select></div>
+              <div class="f full"><label for="e-platico">¿Lo platicó antes con alguien?</label><select id="e-platico">
+                <option value="">Sin definir</option>
+                <option value="si">Sí, lo habló antes</option>
+                <option value="no">No, nadie lo vio venir</option></select>
+                <small>Si nadie lo vio venir, suele ser señal de poca cercanía con su jefe directo.</small></div>
+              <div class="f full"><label for="e-mot">Qué pasó</label><textarea id="e-mot" rows="2" placeholder="En tus palabras: qué pasó, con quién se habló, qué se acordó"></textarea>
+                <small>Obligatorio. Es lo que vas a leer dentro de seis meses cuando quieras entender la rotación.</small></div>
+            </div>
+          </div>
           <div class="f full"><label for="e-esq">Esquema de pago</label><select id="e-esq">
             <option value="sueldo_semanal">Sueldo semanal con horario</option>
             <option value="base_datos">Base de datos, por registro</option>
             <option value="comisionista">Comisionista, solo comisión</option>
             <option value="capacitacion">En capacitación</option></select></div>
-          <div class="f" id="box-sueldo"><label for="e-sue">Sueldo semanal</label><input id="e-sue" type="number" step="0.01" class="mono"></div>
+          <div class="f" id="box-sueldo"><label for="e-sue">Sueldo semanal</label><input id="e-sue" type="number" step="0.01" class="mono" placeholder="Lo que diga el puesto">
+            <small id="e-sue-msg"></small></div>
           <div class="f" id="box-tarifa" style="display:none"><label for="e-tar">Pago por registro</label><input id="e-tar" type="number" step="0.01" class="mono"></div>
           <div class="f full"><label for="e-fcap">Termina capacitación</label><input id="e-fcap" type="date">
             <small>El sistema propone el inicio de producción para el lunes siguiente.</small></div>
@@ -369,7 +396,7 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
           <div class="f full"><label style="display:flex;flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px">
             <input type="checkbox" id="e-base" style="width:auto"> Además saca base de datos y se le pagan sus registros</label></div>
           <div class="f full"><label style="display:flex;flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px">
-            <input type="checkbox" id="e-nom" style="width:auto"> Entra a la nómina</label>
+            <input type="checkbox" id="e-ennom" style="width:auto"> Entra a la nómina</label>
             <small>Desmárcalo para quien se le pague por fuera con movimientos extraordinarios.</small></div>
           <div class="f full"><label for="e-checa">¿Se le controla asistencia?</label><select id="e-checa">
             <option value="">Lo que diga su puesto</option>
@@ -393,7 +420,9 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
 
       <div id="tab-exp" style="display:none">
         <div class="grid">
-          <div class="f full"><label for="e-dom">Domicilio</label><input id="e-dom" placeholder="Calle, número, colonia, alcaldía, CP"></div>
+          <div class="f full"><label for="e-dom">Domicilio del INE</label><input id="e-dom" placeholder="Calle, número, colonia, alcaldía, CP"></div>
+          <div class="f full"><label for="e-dom2">Domicilio actual</label><input id="e-dom2" placeholder="Solo si vive en otro lado que el del INE">
+            <small>Déjalo vacío si el comprobante coincide con el INE.</small></div>
           <div class="f"><label for="e-emnom">Contacto de emergencia</label><input id="e-emnom"></div>
           <div class="f"><label for="e-emtel">Teléfono de emergencia</label><input id="e-emtel" class="mono"></div>
           <div class="f full"><label for="e-empar">Parentesco</label><input id="e-empar"></div>
@@ -916,12 +945,33 @@ function vistaSoon(m){
    CATÁLOGOS
    ============================================================ */
 async function cargarCatalogos(){
-  const [p,c,b]=await Promise.all([
+  const [p,c,b,mb,sm,tb]=await Promise.all([
     sb.from('puestos').select('*').eq('activo',true).order('nombre'),
     sb.from('centros').select('*').eq('activo',true).order('nombre'),
-    sb.from('bancos').select('*').eq('activo',true).order('nombre')
+    sb.from('bancos').select('*').eq('activo',true).order('nombre'),
+    sb.from('motivos_baja').select('*').eq('activo',true).order('orden'),
+    sb.from('submotivos_baja').select('*').eq('activo',true).order('orden'),
+    sb.from('tabuladores').select('*')
   ]);
   S.puestos=p.data||[]; S.centros=c.data||[]; S.bancos=b.data||[];
+  S.motivosBaja=mb.error?[]:(mb.data||[]);
+  S.submotivos=sm.error?[]:(sm.data||[]);
+  S.tabuladores=tb.error?[]:(tb.data||[]);
+}
+
+/* Lo que marca el tabulador para un puesto y turno, hoy. Es lo que de verdad
+   usa el motor de nómina; el campo de la ficha solo sirve como excepción. */
+function sueldoDelPuesto(puestoId, turno){
+  if(!puestoId) return null;
+  const hoy=new Date().toISOString().slice(0,10);
+  const t=(S.tabuladores||[]).filter(x=>String(x.puesto_id)===String(puestoId)
+      && (x.turno||'completo')===(turno||'completo')
+      && (x.vigente_desde||'1900-01-01')<=hoy
+      && (!x.vigente_hasta || x.vigente_hasta>=hoy))
+    .sort((a,b)=>String(b.vigente_desde).localeCompare(String(a.vigente_desde)))[0];
+  if(!t) return null;
+  // El tabulador guarda mensual; la semana es mensual x 12 / 52.
+  return Math.round(Number(t.sueldo_mensual||0)*12/52*100)/100;
 }
 
 /* ============================================================
@@ -1189,9 +1239,133 @@ $('#e-calcrfc').onclick=e=>{
 function llenarSelects(){
   $('#e-pue').innerHTML='<option value="">— sin asignar —</option>'+S.puestos.map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
   $('#e-cen').innerHTML='<option value="">— sin asignar —</option>'+S.centros.map(c=>`<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
-  $('#e-sup').innerHTML='<option value="">— sin asignar —</option>'+S.empleados.filter(e=>e.estatus!=='baja'&&e.tipo_registro!=='destino_pago').map(e=>`<option value="${e.id}">${esc(e.nombre_completo)}</option>`).join('');
+  llenarSupervisores();
   $('#b-ban').innerHTML='<option value="">— elegir banco —</option>'+S.bancos.map(b=>`<option value="${b.id}">${esc(b.nombre)}</option>`).join('');
 }
+
+/* A un ejecutivo de ventas lo trae un supervisor; a cualquier otro puesto, la
+   dirección. Por eso la lista cambia según el puesto elegido. */
+function llenarSupervisores(){
+  const sel=$('#e-sup'); if(!sel) return;
+  const prev=sel.value;
+  const pue=S.puestos.find(p=>String(p.id)===String($('#e-pue')?.value||''));
+  const esEjecutivo=/ejecutiv|vendedor|agente/i.test(pue?.nombre||'');
+  const vivos=S.empleados.filter(e=>e.estatus!=='baja'&&e.tipo_registro!=='destino_pago');
+  let cand;
+  if(esEjecutivo){
+    cand=vivos.filter(e=>{
+      const n=S.puestos.find(p=>p.id===e.puesto_id)?.nombre||'';
+      return /supervis|coordinad|gerente|direc/i.test(n);
+    });
+  }else{
+    cand=vivos.filter(e=>{
+      const n=S.puestos.find(p=>p.id===e.puesto_id)?.nombre||'';
+      return /direc|gerente|coordinad/i.test(n);
+    });
+  }
+  if(!cand.length) cand=vivos;
+  const lab=sel.closest('.f')?.querySelector('label');
+  if(lab) lab.childNodes[0].nodeValue = esEjecutivo ? 'Supervisor' : 'Jefe directo';
+  sel.innerHTML='<option value="">— sin asignar —</option>'+
+    cand.sort((a,b)=>a.nombre_completo.localeCompare(b.nombre_completo,'es'))
+        .map(e=>`<option value="${e.id}">${esc(e.nombre_completo)}</option>`).join('');
+  if(prev && cand.some(e=>String(e.id)===String(prev))) sel.value=prev;
+}
+
+/* Al cambiar el puesto cambian el jefe y el sueldo que propone el tabulador */
+function alCambiarPuesto(){
+  llenarSupervisores();
+  const sug=sueldoDelPuesto($('#e-pue').value, S.empActual?.turno);
+  const msg=$('#e-sue-msg');
+  if(msg){
+    if(sug) msg.innerHTML=`El tabulador de este puesto marca <b>${money(sug)}</b> a la semana. `
+      +`Déjalo vacío para usar ese, o escribe otro solo si esta persona gana distinto.`;
+    else msg.innerHTML='<span style="color:var(--warn)">Este puesto no tiene tabulador vigente. '
+      +'Si no le pones sueldo aquí, su nómina saldría en cero.</span>';
+  }
+}
+
+/* ---------- Motivo y submotivo de la baja ---------- */
+function llenarMotivosBaja(){
+  const m=$('#e-motc'); if(!m) return;
+  m.innerHTML='<option value="">— elegir —</option>'+
+    (S.motivosBaja||[]).map(x=>`<option value="${x.clave}">${x.clave} · ${esc(x.nombre)}</option>`).join('');
+}
+
+function llenarSubmotivos(){
+  const sel=$('#e-submot'); if(!sel) return;
+  const mot=$('#e-motc').value;
+  const hijos=(S.submotivos||[]).filter(x=>x.motivo_clave===mot);
+  sel.innerHTML = mot
+    ? '<option value="">— elegir —</option>'+hijos.map(x=>`<option value="${x.clave}">${esc(x.nombre)}</option>`).join('')
+    : '<option value="">Elige primero el motivo</option>';
+  sel.disabled = !mot;
+}
+
+/* El origen se propone según el motivo, pero se puede cambiar: a veces una
+   renuncia fue empujada y conviene que quede dicho. */
+const ORIGEN_POR_MOTIVO={'01':'empleado','02':'empleado','03':'empresa','04':'empresa',
+  '05':'empresa','06':'no_determinado','07':'empresa','08':'empresa','09':'no_determinado'};
+
+function alCambiarMotivo(){
+  llenarSubmotivos();
+  const sug=ORIGEN_POR_MOTIVO[$('#e-motc').value];
+  if(sug && $('#e-origen')) $('#e-origen').value=sug;
+}
+
+function alCambiarEstatus(){
+  const esBaja = $('#e-est').value==='baja';
+  $('#box-baja').style.display  = esBaja?'':'none';
+  $('#box-fbaja').style.display = esBaja?'':'none';
+  if(esBaja && !$('#e-baja').value) $('#e-baja').value=new Date().toISOString().slice(0,10);
+}
+
+/* ---------- RFC a partir del CURP ---------- */
+function rfcDesdeCurp(){
+  const c=($('#e-curp').value||'').trim().toUpperCase();
+  const msg=$('#e-rfc-msg');
+  if(c.length<10){ toast('Captura primero el CURP completo.','bad'); return; }
+  $('#e-rfc').value=c.slice(0,10);
+  S.rfcCalculado=true;
+  if(msg) msg.innerHTML='<span style="color:var(--warn)">Son los 10 caracteres del CURP. '
+    +'Faltan los 3 de la homoclave, que solo da el SAT en la constancia fiscal.</span>';
+  // La fecha de nacimiento también vive en el CURP
+  if(c.length>=10 && !$('#e-fnac').value){
+    const a=c.slice(4,6), m=c.slice(6,8), d=c.slice(8,10);
+    const siglo = Number(a) > 30 ? '19' : '20';
+    $('#e-fnac').value=`${siglo}${a}-${m}-${d}`;
+  }
+}
+
+/* ---------- Ayuda flotante que no se recorta ---------- */
+(function(){
+  let box;
+  function caja(){ box = box || document.getElementById('tipbox'); return box; }
+  function mostrar(el){
+    const b=caja(); if(!b) return;
+    b.textContent = el.dataset.tip || '';
+    b.classList.add('on');
+    const r=el.getBoundingClientRect(), bb=b.getBoundingClientRect();
+    let left = r.left + r.width/2 - bb.width/2;
+    left = Math.max(10, Math.min(left, window.innerWidth - bb.width - 10));
+    let top = r.top - bb.height - 9;
+    if(top < 10) top = r.bottom + 9;           // si arriba no cabe, va abajo
+    b.style.left = left+'px';
+    b.style.top  = top+'px';
+  }
+  function ocultar(){ const b=caja(); if(b) b.classList.remove('on'); }
+  document.addEventListener('mouseover', e=>{
+    const h=e.target.closest('.help'); if(h) mostrar(h);
+  });
+  document.addEventListener('mouseout', e=>{
+    if(e.target.closest('.help')) ocultar();
+  });
+  document.addEventListener('click', e=>{
+    const h=e.target.closest('.help');
+    if(h){ mostrar(h); setTimeout(ocultar, 4000); } else ocultar();
+  });
+  window.addEventListener('scroll', ocultar, true);
+})();
 
 function ajustarPorEsquema(){
   const q=$('#e-esq').value, tipo=$('#e-tipo').value;
@@ -1207,6 +1381,13 @@ function ajustarPorEsquema(){
   }else av.style.display='none';
 }
 $('#e-esq').onchange=ajustarPorEsquema;
+$('#e-pue').onchange=alCambiarPuesto;
+$('#e-est').onchange=alCambiarEstatus;
+$('#e-motc').onchange=alCambiarMotivo;
+$('#e-calcrfc').addEventListener('click', ev=>{
+  // Si hay CURP se usa, que es exacto; si no, se calcula con los apellidos.
+  if(($('#e-curp').value||'').trim().length>=10){ ev.stopImmediatePropagation(); rfcDesdeCurp(); }
+}, true);
 $('#e-tipo').onchange=ajustarPorEsquema;
 $('#e-fcap').onchange=()=>{
   const v=$('#e-fcap').value; if(!v||$('#e-fprod').value) return;
@@ -1230,7 +1411,16 @@ function abrirEmpleado(id){
   $('#e-rfc-msg').innerHTML = e?.rfc_calculado ? '<span style="color:var(--warn)">El RFC guardado fue calculado, no verificado.</span>' : '';
   $('#e-pue').value=v('puesto_id'); $('#e-cen').value=v('centro_id',S.centros[0]?.id||'');
   $('#e-sup').value=v('supervisor_id'); $('#e-ing').value=v('fecha_ingreso');
-  $('#e-est').value=v('estatus','activo'); $('#e-baja').value=v('fecha_baja'); $('#e-mot').value=v('motivo_baja');
+  $('#e-est').value = (v('estatus','activo')==='baja') ? 'baja' : 'activo';
+  $('#e-baja').value=v('fecha_baja'); $('#e-mot').value=v('motivo_baja');
+  llenarMotivosBaja();
+  $('#e-motc').value=v('motivo_baja_clave','');
+  llenarSubmotivos();
+  $('#e-submot').value=v('submotivo_baja','');
+  $('#e-origen').value=v('origen_decision','empleado');
+  $('#e-recon').value=v('recontratable','');
+  $('#e-platico').value = e?.lo_platico_antes===true?'si':e?.lo_platico_antes===false?'no':'';
+  alCambiarEstatus();
   $('#e-esq').value=v('esquema_pago','sueldo_semanal');
   $('#e-sue').value=v('sueldo_semanal')||v('sueldo_quincenal');
   $('#e-tar').value=v('tarifa_registro',0.30);
@@ -1239,9 +1429,15 @@ function abrirEmpleado(id){
   $('#e-desc').value=v('dia_descanso',7); $('#e-sab').value = e?.trabaja_sabado===false?'no':'si';
   $('#e-checa').value = e?.checa_asistencia===true?'si':e?.checa_asistencia===false?'no':'';
   $('#e-base').checked = !!e?.hace_base_datos;
-  $('#e-nom').checked = e ? e.entra_nomina !== false : true;
-  $('#e-dom').value=v('domicilio'); $('#e-emnom').value=v('emergencia_nombre');
+  $('#e-ennom').checked = e ? e.entra_nomina !== false : true;
+  $('#e-dom').value=v('domicilio'); $('#e-dom2').value=v('domicilio_comprobante'); $('#e-emnom').value=v('emergencia_nombre');
   $('#e-emtel').value=v('emergencia_telefono'); $('#e-empar').value=v('emergencia_parentesco');
+  alCambiarPuesto();
+  if(!e){
+    // Código consecutivo: nadie lo inventa
+    const max=Math.max(0, ...S.empleados.map(x=>Number(x.codigo)||0));
+    $('#e-cod').value = max+1;
+  }
   const b=e?._banco;
   $('#b-ban').value=b?.banco_id??''; $('#b-tit').value=b?.titular??'';
   $('#b-cla').value=b?.clabe??''; $('#b-ver').checked=!!b?.verificada; $('#b-cla-msg').textContent='';
@@ -1424,7 +1620,14 @@ $('#emp-save').onclick=async()=>{
   const clabe=clabeLimpia($('#b-cla').value);
   if(clabe && clabe.length!==18){ toast('La CLABE debe tener 18 dígitos.','bad'); return; }
   const est=$('#e-est').value, esq=$('#e-esq').value, tipo=$('#e-tipo').value;
-  if(est==='baja' && !$('#e-baja').value){ toast('Una baja necesita fecha de baja.','bad'); return; }
+  if(est==='baja'){
+    if(!$('#e-baja').value){ toast('Una baja necesita fecha de baja.','bad'); return; }
+    if(!$('#e-motc').value){ toast('Elige el motivo de la baja.','bad'); return; }
+    if(!$('#e-submot').value){ toast('Elige el submotivo.','bad'); return; }
+    if(!$('#e-mot').value.trim()){ toast('Escribe qué pasó. Es lo que vas a leer después.','bad'); return; }
+    const ing=$('#e-ing').value;
+    if(ing && $('#e-baja').value < ing){ toast('La baja no puede ser anterior al ingreso.','bad'); return; }
+  }
   if(tipo==='empleado' && esq==='sueldo_semanal' && !Number($('#e-sue').value||0)){
     toast('Un sueldo semanal necesita monto. Si no lleva sueldo, cambia el esquema.','bad'); return; }
 
@@ -1452,7 +1655,15 @@ $('#emp-save').onclick=async()=>{
     trabaja_sabado: $('#e-sab').value==='si',
     checa_asistencia: $('#e-checa').value===''?null:$('#e-checa').value==='si',
     hace_base_datos: $('#e-base').checked,
-    entra_nomina: $('#e-nom').checked,
+    entra_nomina: $('#e-ennom').checked,
+    domicilio_comprobante: $('#e-dom2').value.trim()||null,
+    motivo_baja_clave: est==='baja' ? ($('#e-motc').value||null) : null,
+    submotivo_baja:    est==='baja' ? ($('#e-submot').value||null) : null,
+    origen_decision:   est==='baja' ? ($('#e-origen').value||null) : null,
+    recontratable:     est==='baja' ? ($('#e-recon').value||null) : null,
+    lo_platico_antes:  est==='baja' ? ($('#e-platico').value==='si' ? true
+                        : $('#e-platico').value==='no' ? false : null) : null,
+    rfc_homoclave_pendiente: !!S.rfcCalculado,
     fecha_fin_capacitacion: $('#e-fcap').value||null,
     fecha_inicio_produccion: $('#e-fprod').value||null,
     capacitacion_aprobada: $('#e-capap').value===''?null:$('#e-capap').value==='si',
@@ -6339,5 +6550,6 @@ document.addEventListener('click',()=>document.querySelectorAll('.help.on').forE
   if(session) await iniciar();
 })();
 </script>
+<div id="tipbox"></div>
 </body>
 </html>
