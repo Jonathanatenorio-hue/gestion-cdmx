@@ -591,6 +591,37 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
   </div>
 </div>
 
+<div class="ov" id="ov-falta">
+  <div class="md" style="max-width:560px">
+    <div class="md-h"><b>Qué pasa con esta persona</b><button data-close="ov-falta">&times;</button></div>
+    <div class="md-b">
+      <div id="fa-quien" class="note"></div>
+      <label>Qué está pasando</label>
+      <select id="fa-res">
+        <option value="sigue_trabajando">Sigue trabajando · las faltas quedan revisadas</option>
+        <option value="permiso">Tenía permiso autorizado</option>
+        <option value="incapacidad">Está incapacitada o incapacitado</option>
+        <option value="es_baja">Ya no viene · darle de baja</option>
+        <option value="otro">Otro</option>
+      </select>
+      <div id="fa-baja-wrap" style="display:none;margin-top:12px">
+        <label>Fecha de baja</label>
+        <input type="date" id="fa-baja">
+        <div style="font-size:12px;color:var(--txt-2);margin-top:5px">
+          Si la dejas vacía se toma el último día que checó. La baja le cierra el acceso al sistema.</div>
+      </div>
+      <label style="margin-top:12px">Detalle</label>
+      <textarea id="fa-nota" rows="3" placeholder="Qué averiguaste, con quién hablaste, qué se acordó"></textarea>
+      <div style="font-size:12px;color:var(--txt-2);margin-top:5px">
+        Obligatorio salvo que sigan trabajando con normalidad.</div>
+    </div>
+    <div class="md-f">
+      <button class="btn" data-close="ov-falta">Cancelar</button>
+      <button class="btn btn-p" id="fa-save">Guardar revisión</button>
+    </div>
+  </div>
+</div>
+
 <div class="ov" id="ov-creds">
   <div class="md" style="max-width:640px">
     <div class="md-h"><b>Accesos generados</b><button data-close="ov-creds">&times;</button></div>
@@ -931,6 +962,7 @@ function filtrar(){
 }
 
 async function vistaPlantilla(){
+  S.volverA=null;
   $('#main').innerHTML='<div class="empty">Cargando plantilla…</div>';
   await cargarEmpleados();
   pintarPlantilla();
@@ -954,7 +986,7 @@ function pintarPlantilla(){
       ${S.direccion?'<button class="btn btn-d" id="b-del" style="display:none">Eliminar seleccionados</button>':''}
       ${S.direccion?'<button class="btn" id="b-imp">Importar Excel</button>':''}
       <button class="btn" id="b-exp">Exportar Excel</button>
-      ${S.rh?'<button class="btn btn-p" id="b-new">Nuevo empleado</button>':''}
+      ${(S.rh||S.direccion)?'<button class="btn btn-p" id="b-new">Dar de alta a alguien nuevo</button>':''}
     </div>
   </div>
 
@@ -1344,6 +1376,11 @@ async function cargarBiometricos(){
   };
 }
 
+function trasGuardarEmpleado(){
+  if(S.volverA==='usuarios'){ S.volverA=null; vistaUsuarios(); return; }
+  pintarPlantilla();
+}
+
 $('#emp-save').onclick=async()=>{
   if(S.rh && !S.direccion){
     const nom=$('#e-nom').value.trim();
@@ -1358,7 +1395,7 @@ $('#emp-save').onclick=async()=>{
       if(error){ toast('No se pudo dar de alta: '+error.message,'bad'); return; }
       cerrar('ov-emp');
       toast('Alta registrada. Dirección tiene que definir su puesto, esquema y sueldo.','ok');
-      await cargarEmpleados(); pintarPlantilla(); return;
+      await cargarEmpleados(); trasGuardarEmpleado(); return;
     }
     const {data,error}=await sb.rpc('guardar_expediente',{
       p_empleado:S.empActual.id, p_nombre:nom,
@@ -1376,7 +1413,7 @@ $('#emp-save').onclick=async()=>{
     $('#emp-save').disabled=false;
     if(error){ toast('No se guardó: '+error.message,'bad'); return; }
     cerrar('ov-emp'); toast(data||'Expediente actualizado.','ok');
-    await cargarEmpleados(); pintarPlantilla(); return;
+    await cargarEmpleados(); trasGuardarEmpleado(); return;
   }
   if(!S.direccion) return;
   const nom=$('#e-nom').value.trim();
@@ -1475,7 +1512,7 @@ $('#emp-save').onclick=async()=>{
   $('#emp-save').disabled=false;
   cerrar('ov-emp');
   toast(prev?'Cambios guardados.':'Registro creado.','ok');
-  await cargarEmpleados(); pintarPlantilla();
+  await cargarEmpleados(); trasGuardarEmpleado();
 };
 
 /* ============================================================
@@ -5132,37 +5169,76 @@ const ROLES={director:'Dirección · ve y hace todo',admin:'Administración · d
 async function vistaUsuarios(){
   if(!S.direccion){ $('#main').innerHTML='<div class="empty"><b>Solo dirección</b>Esta sección administra el acceso al sistema.</div>'; return; }
   $('#main').innerHTML='<div class="empty">Cargando accesos…</div>';
-  const [us,pc]=await Promise.all([
+  const [us,pc,inc,al]=await Promise.all([
     sb.from('v_usuarios_sistema').select('*').order('nombre_completo'),
-    sb.from('v_usuarios_por_crear').select('*')
+    sb.from('v_usuarios_por_crear').select('*'),
+    sb.from('v_plantilla_incompleta').select('*'),
+    sb.from('v_alertas_faltas').select('*')
   ]);
   if(us.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(us.error.message)}</div>`; return; }
   S.usuarios=us.data||[]; S.porCrear=pc.data||[];
+  S.incompletos=inc.error?[]:(inc.data||[]);
+  S.alertas=al.error?[]:(al.data||[]);
+  if(S.uTab==='historial') return pintarHistorico();
+  pintarUsuarios();
+}
+
+function pintarUsuarios(){
   const con=S.usuarios.filter(u=>u.correo).length;
   const sin=S.porCrear.length;
   const porRol=r=>S.usuarios.filter(u=>u.rol===r).length;
+  const incompletos=S.incompletos.length;
+  const alertas=S.alertas.length;
+  const nunca=S.usuarios.filter(u=>u.correo&&!u.ultimo_acceso&&u.acceso_activo).length;
 
   $('#main').innerHTML=`
   <div class="head">
     <div><h1>Usuarios y accesos</h1><p>Quién puede entrar al sistema y con qué permisos</p></div>
     <div class="acts">
+      <button class="btn" id="b-alta-u">Dar de alta a alguien nuevo</button>
       ${sin?`<button class="btn btn-p" id="b-crear">Dar acceso a ${sin} persona${sin===1?'':'s'}</button>`:''}
     </div>
   </div>
+
+  <div class="tabs" style="margin-bottom:16px">
+    <button class="tab on" data-ut="operacion">En operación</button>
+    <button class="tab" data-ut="historial">Historial de bajas</button>
+  </div>
+
   <div class="kpis">
     <div class="kpi t"><span>Con acceso</span><b>${con}</b><small>pueden entrar hoy</small></div>
     <div class="kpi ${sin?'w':''}"><span>Sin acceso</span><b>${sin}</b><small>personal activo sin usuario</small></div>
+    <div class="kpi ${nunca?'w':''}"><span>Nunca han entrado</span><b>${nunca}</b><small>tienen usuario sin usar</small></div>
     <div class="kpi"><span>Dirección</span><b>${porRol('director')+porRol('admin')}</b><small>ven dinero y nómina</small></div>
     <div class="kpi"><span>Supervisión</span><b>${porRol('supervisor')+porRol('coordinador')}</b><small>ven equipos</small></div>
     <div class="kpi"><span>Agentes</span><b>${porRol('agente')}</b><small>capturan sus ventas</small></div>
   </div>
+
+  ${alertas?`<div class="note" style="background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16">
+    <b>${alertas} persona${alertas===1?'':'s'} con faltas sin explicar</b>
+    Acumularon el tope de faltas en la ventana configurada. Hay que definir qué pasa con cada quien antes de que siga corriendo nómina.
+    <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
+      ${S.alertas.map(a=>`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <b style="min-width:230px">${esc(a.nombre_completo)}</b>
+        <span style="font-size:12.5px">${a.faltas} faltas · ${esc(a.dias||'')}</span>
+        <span style="font-size:12.5px;color:#7A1E16">último día que checó: ${a.ultimo_dia_que_checo?fecha(a.ultimo_dia_que_checo):'nunca'}</span>
+        <button class="btn btn-sm" data-falta="${a.empleado_id}">Definir qué pasa</button>
+      </div>`).join('')}
+    </div></div>`:''}
+
+  ${incompletos?`<div class="note"><b>${incompletos} persona${incompletos===1?'':'s'} sin poder cobrar</b>
+    Les falta algo del expediente, así que no entran a dispersión aunque trabajen.
+    <div style="margin-top:8px;font-size:13px">
+      ${S.incompletos.map(i=>`<div>${esc(i.nombre_completo)} — le falta: <b>${esc(i.le_falta)}</b></div>`).join('')}
+    </div></div>`:''}
 
   ${sin?`<div class="note"><b>${sin} personas del personal activo todavía no tienen acceso</b>
     Al darles acceso el sistema genera una contraseña para cada quien y te la muestra una sola vez.
     Puedes elegir a quiénes dar de alta primero.</div>`:''}
 
   <div class="tw"><table>
-    <thead><tr><th>Nombre</th><th>Puesto</th><th>Correo de acceso</th><th>Permiso</th><th>Estado</th><th></th></tr></thead>
+    <thead><tr><th>Nombre</th><th>Puesto</th><th>Correo de acceso</th><th>Permiso</th>
+      <th>Último acceso</th><th>Estado</th><th></th></tr></thead>
     <tbody>
       ${S.usuarios.map(u=>`<tr>
         <td class="nm">${esc(u.nombre_completo)}</td>
@@ -5170,20 +5246,38 @@ async function vistaUsuarios(){
         <td class="mono" style="font-size:12.5px">${u.correo?esc(u.correo):'<span style="color:var(--txt-3)">sin acceso</span>'}</td>
         <td>${u.rol?`<span class="p p-teal">${esc(u.rol)}</span>`:'—'}
             ${u.acceso_rh?'<br><span class="p p-warn" style="margin-top:3px">recursos humanos</span>':''}</td>
+        <td style="font-size:12.5px;color:var(--txt-2)">${
+          !u.correo?'—':(u.ultimo_acceso?fecha(String(u.ultimo_acceso).slice(0,10)):'<span style="color:var(--warn)">nunca</span>')}</td>
         <td>${u.correo
-             ? (u.acceso_activo?'<span class="p p-ok">activo</span>':'<span class="p p-bad">desactivado</span>')
+             ? (u.acceso_activo
+                 ? (u.debe_cambiar_password
+                     ? '<span class="p p-warn">contraseña sin cambiar</span>'
+                     : '<span class="p p-ok">activo</span>')
+                 : '<span class="p p-bad">desactivado</span>')
              : '<span class="p p-gray">pendiente</span>'}</td>
-        <td style="text-align:right">${u.correo
+        <td style="text-align:right;white-space:nowrap">${u.correo
           ? `<button class="btn btn-sm" data-rh="${u.empleado_id}" data-on="${u.acceso_rh?1:0}">${u.acceso_rh?'Quitar RH':'Dar RH'}</button>
-             <button class="btn btn-sm" data-reset="${u.empleado_id}">Reponer contraseña</button>`
+             <button class="btn btn-sm" data-reset="${u.empleado_id}">Reponer contraseña</button>
+             <button class="btn btn-sm ${u.acceso_activo?'btn-d':''}" data-acc="${u.empleado_id}" data-act="${u.acceso_activo?0:1}">${u.acceso_activo?'Quitar acceso':'Devolver acceso'}</button>`
           : `<button class="btn btn-sm" data-alta="${u.empleado_id}">Dar acceso</button>`}</td>
       </tr>`).join('')}
     </tbody>
   </table></div>`;
 
+  ligarUsuarios();
+}
+
+function ligarUsuarios(){
+  document.querySelectorAll('[data-ut]').forEach(b=>b.onclick=()=>{
+    S.uTab=b.dataset.ut; vistaUsuarios();
+  });
   if($('#b-crear')) $('#b-crear').onclick=abrirAltaMasiva;
+  if($('#b-alta-u')) $('#b-alta-u').onclick=altaDesdeUsuarios;
   document.querySelectorAll('[data-alta]').forEach(b=>b.onclick=()=>altaUno(Number(b.dataset.alta)));
   document.querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>resetPassword(Number(b.dataset.reset)));
+  document.querySelectorAll('[data-falta]').forEach(b=>b.onclick=()=>abrirRevisionFaltas(Number(b.dataset.falta)));
+  document.querySelectorAll('[data-acc]').forEach(b=>b.onclick=()=>
+    cambiarAcceso(Number(b.dataset.acc), b.dataset.act==='1'));
   document.querySelectorAll('[data-rh]').forEach(b=>b.onclick=async()=>{
     const on=b.dataset.on==='1';
     const u=S.usuarios.find(x=>x.empleado_id===Number(b.dataset.rh));
@@ -5195,6 +5289,105 @@ async function vistaUsuarios(){
     toast(on?'Permiso retirado.':'Permiso otorgado.','ok'); vistaUsuarios();
   });
 }
+
+/* ---------- Historial de bajas ---------- */
+async function pintarHistorico(){
+  $('#main').innerHTML='<div class="empty">Cargando historial…</div>';
+  const {data,error}=await sb.from('v_historico_personal').select('*').order('fecha_baja',{ascending:false});
+  const h=error?[]:(data||[]);
+  $('#main').innerHTML=`
+  <div class="head">
+    <div><h1>Usuarios y accesos</h1><p>Historial de quien ya no está en la operación</p></div>
+  </div>
+  <div class="tabs" style="margin-bottom:16px">
+    <button class="tab" data-ut="operacion">En operación</button>
+    <button class="tab on" data-ut="historial">Historial de bajas</button>
+  </div>
+  ${error?`<div class="note"><b>No se pudo cargar</b>${esc(error.message)}</div>`:''}
+  <div class="kpis">
+    <div class="kpi"><span>Bajas registradas</span><b>${h.length}</b><small>histórico completo</small></div>
+    <div class="kpi ${h.filter(x=>x.acceso_sigue_activo).length?'b':'t'}">
+      <span>Con acceso vivo</span><b>${h.filter(x=>x.acceso_sigue_activo).length}</b>
+      <small>deberían ser cero</small></div>
+    <div class="kpi ${h.filter(x=>x.retardos_sin_liquidar).length?'w':''}">
+      <span>Con retardos pendientes</span><b>${h.filter(x=>x.retardos_sin_liquidar).length}</b>
+      <small>quedaron sin cobrar</small></div>
+    <div class="kpi"><span>Sin motivo registrado</span><b>${h.filter(x=>!x.motivo_baja).length}</b>
+      <small>no se sabe por qué se fueron</small></div>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Nombre</th><th>Puesto</th><th>Ingreso</th><th>Baja</th><th>Duró</th>
+      <th>Motivo</th><th class="r">Total pagado</th><th>Acceso</th></tr></thead>
+    <tbody>
+      ${h.map(x=>`<tr>
+        <td class="nm">${esc(x.nombre_completo)}</td>
+        <td style="color:var(--txt-2)">${esc(x.puesto||'—')}</td>
+        <td style="font-size:12.5px">${x.fecha_ingreso?fecha(x.fecha_ingreso):'—'}</td>
+        <td style="font-size:12.5px">${x.fecha_baja?fecha(x.fecha_baja):'<span style="color:var(--bad)">sin fecha</span>'}</td>
+        <td style="font-size:12.5px;color:var(--txt-2)">${x.dias_en_la_empresa!=null?x.dias_en_la_empresa+' días':'—'}</td>
+        <td style="font-size:12.5px">${x.motivo_baja?esc(x.motivo_baja):'<span style="color:var(--txt-3)">sin registrar</span>'}</td>
+        <td class="r mono">${x.total_pagado?esc(x.total_pagado):'—'}</td>
+        <td>${x.acceso_sigue_activo?'<span class="p p-bad">sigue activo</span>'
+             :(x.correo_de_acceso?'<span class="p p-gray">cerrado</span>':'—')}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table></div>`;
+  document.querySelectorAll('[data-ut]').forEach(b=>b.onclick=()=>{ S.uTab=b.dataset.ut; vistaUsuarios(); });
+}
+
+/* ---------- Alta de alguien nuevo desde esta pantalla ---------- */
+async function altaDesdeUsuarios(){
+  if(!S.empleados.length) await cargarEmpleados();
+  S.volverA='usuarios';
+  abrirEmpleado(null);
+}
+
+/* ---------- Quitar o devolver el acceso ---------- */
+async function cambiarAcceso(empId, activar){
+  const u=S.usuarios.find(x=>x.empleado_id===empId); if(!u) return;
+  if(!confirm(`${activar?'Devolver':'Quitar'} el acceso de ${u.nombre_completo}?\n\n`
+    +(activar?'Volverá a poder entrar con su correo y contraseña actuales.'
+             :'Dejará de poder entrar de inmediato. Su información y su historial se conservan.'))) return;
+  const {data:ua}=await sb.from('usuarios_app').select('id').eq('empleado_id',empId).maybeSingle();
+  if(!ua){ toast('No encontramos su usuario.','bad'); return; }
+  try{
+    await llamarAdmin({accion: activar?'reactivar':'desactivar', usuario_id:ua.id});
+    toast(activar?'Acceso devuelto.':'Acceso retirado.','ok');
+    vistaUsuarios();
+  }catch(e){ toast('No se pudo: '+e.message,'bad'); }
+}
+
+/* ---------- Revisión de faltas ---------- */
+function abrirRevisionFaltas(empId){
+  const a=S.alertas.find(x=>x.empleado_id===empId); if(!a) return;
+  S.faltaActual=empId;
+  $('#fa-quien').innerHTML=`<b>${esc(a.nombre_completo)}</b>
+    ${a.faltas} faltas en los últimos ${a.ventana_dias} días: ${esc(a.dias||'')}.<br>
+    Último día que checó: <b>${a.ultimo_dia_que_checo?fecha(a.ultimo_dia_que_checo):'nunca'}</b>.
+    ${a.supervisor?`<br>Supervisa: ${esc(a.supervisor)}`:''}`;
+  $('#fa-res').value='sigue_trabajando';
+  $('#fa-nota').value=''; $('#fa-baja').value='';
+  $('#fa-baja-wrap').style.display='none';
+  $('#ov-falta').classList.add('on');
+}
+
+$('#fa-res').onchange=()=>{
+  $('#fa-baja-wrap').style.display = $('#fa-res').value==='es_baja' ? '' : 'none';
+};
+
+$('#fa-save').onclick=async()=>{
+  const res=$('#fa-res').value, nota=$('#fa-nota').value.trim();
+  if(res!=='sigue_trabajando' && !nota){ toast('Escribe qué está pasando.','bad'); return; }
+  $('#fa-save').disabled=true;
+  const {data,error}=await sb.rpc('revisar_faltas',{
+    p_empleado:S.faltaActual, p_resolucion:res, p_nota:nota||null,
+    p_fecha_baja: res==='es_baja' ? ($('#fa-baja').value||null) : null});
+  $('#fa-save').disabled=false;
+  if(error){ toast('No se guardó: '+error.message,'bad'); return; }
+  cerrar('ov-falta');
+  toast(data||'Revisión registrada.','ok');
+  vistaUsuarios();
+};
 
 async function llamarAdmin(body){
   const {data,error}=await sb.functions.invoke('admin-usuarios',{body});
