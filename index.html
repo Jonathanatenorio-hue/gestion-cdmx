@@ -5179,11 +5179,41 @@ async function vistaUsuarios(){
   S.usuarios=us.data||[]; S.porCrear=pc.data||[];
   S.incompletos=inc.error?[]:(inc.data||[]);
   S.alertas=al.error?[]:(al.data||[]);
+  S.uFil = S.uFil || {q:'', puesto:'', estado:''};
+  S.uOrd = S.uOrd || {col:'nombre_completo', dir:1};
   if(S.uTab==='historial') return pintarHistorico();
   pintarUsuarios();
 }
 
+function usuariosFiltrados(){
+  const {q,puesto,estado}=S.uFil;
+  let r=S.usuarios.filter(u=>{
+    if(puesto && (u.puesto||'')!==puesto) return false;
+    if(estado==='con'  && !u.correo) return false;
+    if(estado==='sin'  &&  u.correo) return false;
+    if(estado==='nunca'&& !(u.correo && !u.ultimo_acceso)) return false;
+    if(estado==='rh'   && !u.acceso_rh) return false;
+    if(q){
+      const t=((u.nombre_completo||'')+' '+(u.puesto||'')+' '+(u.correo||'')+' '+(u.rol||'')).toLowerCase();
+      if(!t.includes(q.toLowerCase())) return false;
+    }
+    return true;
+  });
+  const {col,dir}=S.uOrd;
+  r.sort((a,b)=>{
+    let x=a[col]??'', y=b[col]??'';
+    if(col==='ultimo_acceso'){ x=x||''; y=y||''; }
+    return String(x).localeCompare(String(y),'es',{numeric:true})*dir;
+  });
+  return r;
+}
+
+function flechaU(c){
+  return S.uOrd.col===c ? `<span style="opacity:.5"> ${S.uOrd.dir>0?'↑':'↓'}</span>` : '';
+}
+
 function pintarUsuarios(){
+  const lista=usuariosFiltrados();
   const con=S.usuarios.filter(u=>u.correo).length;
   const sin=S.porCrear.length;
   const porRol=r=>S.usuarios.filter(u=>u.rol===r).length;
@@ -5236,11 +5266,32 @@ function pintarUsuarios(){
     Al darles acceso el sistema genera una contraseña para cada quien y te la muestra una sola vez.
     Puedes elegir a quiénes dar de alta primero.</div>`:''}
 
+  <div class="bar">
+    <input type="search" id="u-q" placeholder="Buscar por nombre, puesto o correo" value="${esc(S.uFil.q)}">
+    <select id="u-pue"><option value="">Todos los puestos</option>
+      ${[...new Set(S.usuarios.map(u=>u.puesto).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'))
+         .map(p=>`<option value="${esc(p)}"${S.uFil.puesto===p?' selected':''}>${esc(p)}</option>`).join('')}
+    </select>
+    <select id="u-est">
+      <option value="">Todos</option>
+      <option value="con"${S.uFil.estado==='con'?' selected':''}>Solo con acceso</option>
+      <option value="sin"${S.uFil.estado==='sin'?' selected':''}>Solo sin acceso</option>
+      <option value="nunca"${S.uFil.estado==='nunca'?' selected':''}>Nunca han entrado</option>
+      <option value="rh"${S.uFil.estado==='rh'?' selected':''}>Con permiso de RH</option>
+    </select>
+    <span class="cnt" id="u-cnt"></span>
+  </div>
+
   <div class="tw"><table>
-    <thead><tr><th>Nombre</th><th>Puesto</th><th>Correo de acceso</th><th>Permiso</th>
-      <th>Último acceso</th><th>Estado</th><th></th></tr></thead>
+    <thead><tr>
+      <th class="s" data-uo="nombre_completo">Nombre${flechaU('nombre_completo')}</th>
+      <th class="s" data-uo="puesto">Puesto${flechaU('puesto')}</th>
+      <th class="s" data-uo="correo">Correo de acceso${flechaU('correo')}</th>
+      <th class="s" data-uo="rol">Permiso${flechaU('rol')}</th>
+      <th class="s" data-uo="ultimo_acceso">Último acceso${flechaU('ultimo_acceso')}</th>
+      <th>Estado</th><th></th></tr></thead>
     <tbody>
-      ${S.usuarios.map(u=>`<tr>
+      ${lista.map(u=>`<tr>
         <td class="nm">${esc(u.nombre_completo)}</td>
         <td style="color:var(--txt-2)">${esc(u.puesto||'—')}</td>
         <td class="mono" style="font-size:12.5px">${u.correo?esc(u.correo):'<span style="color:var(--txt-3)">sin acceso</span>'}</td>
@@ -5268,6 +5319,17 @@ function pintarUsuarios(){
 }
 
 function ligarUsuarios(){
+  const n=usuariosFiltrados().length, tot=S.usuarios.length;
+  if($('#u-cnt')) $('#u-cnt').textContent = n===tot ? `${tot} personas` : `${n} de ${tot}`;
+  if($('#u-q')) $('#u-q').oninput=e=>{ S.uFil.q=e.target.value; pintarUsuarios();
+    const i=$('#u-q'); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } };
+  if($('#u-pue')) $('#u-pue').onchange=e=>{ S.uFil.puesto=e.target.value; pintarUsuarios(); };
+  if($('#u-est')) $('#u-est').onchange=e=>{ S.uFil.estado=e.target.value; pintarUsuarios(); };
+  document.querySelectorAll('[data-uo]').forEach(th=>th.onclick=()=>{
+    const c=th.dataset.uo;
+    if(S.uOrd.col===c) S.uOrd.dir*=-1; else { S.uOrd.col=c; S.uOrd.dir=1; }
+    pintarUsuarios();
+  });
   document.querySelectorAll('[data-ut]').forEach(b=>b.onclick=()=>{
     S.uTab=b.dataset.ut; vistaUsuarios();
   });
