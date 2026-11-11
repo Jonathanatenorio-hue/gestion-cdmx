@@ -1871,27 +1871,9 @@ async function cargarMovimientos(){
 }
 
 async function cargarDocumentos(){
-  const c=$('#e-docs');
-  if(!S.empActual){ c.innerHTML='<div style="color:var(--txt-2);font-size:13px">Guarda al empleado para registrar sus documentos.</div>'; return; }
-  c.innerHTML='<div style="color:var(--txt-2);font-size:13px">Cargando…</div>';
-  const [dr,ed]=await Promise.all([
-    sb.from('documentos_requeridos').select('*').eq('activo',true).order('orden'),
-    sb.from('empleado_documentos').select('*').eq('empleado_id',S.empActual.id)
-  ]);
-  const mapa={}; (ed.data||[]).forEach(x=>mapa[x.documento_id]=x);
-  c.innerHTML=(dr.data||[]).map(d=>`
-    <label style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line-2);font-size:13.5px;cursor:pointer">
-      <input type="checkbox" data-doc="${d.id}" ${mapa[d.id]?.entregado?'checked':''} style="width:auto">
-      <span style="flex:1">${esc(d.nombre)}${d.obligatorio?'':' <span style="color:var(--txt-3);font-size:12px">(opcional)</span>'}</span>
-      ${mapa[d.id]?.entregado?`<span class="p p-ok">entregado</span>`:`<span class="p ${d.obligatorio?'p-bad':'p-gray'}">${d.obligatorio?'falta':'pendiente'}</span>`}
-    </label>`).join('');
-  c.querySelectorAll('[data-doc]').forEach(ch=>ch.onchange=async()=>{
-    const {error}=await sb.from('empleado_documentos').upsert({
-      empleado_id:S.empActual.id, documento_id:Number(ch.dataset.doc),
-      entregado:ch.checked, fecha_entrega:ch.checked?new Date().toISOString().slice(0,10):null
-    },{onConflict:'empleado_id,documento_id'});
-    if(error) toast('No se guardó: '+error.message,'bad'); else cargarDocumentos();
-  });
+  // Quedó como puente: la pantalla real de documentos es pintarDocumentos,
+  // que además sube archivos y lee el INE y la carátula del banco.
+  return pintarDocumentos(S.empActual?.id || null);
 }
 
 async function cargarBiometricos(){
