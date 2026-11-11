@@ -10,6 +10,11 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+  if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+</script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <style>
 /* ============================================================
@@ -945,18 +950,20 @@ function vistaSoon(m){
    CATÁLOGOS
    ============================================================ */
 async function cargarCatalogos(){
-  const [p,c,b,mb,sm,tb]=await Promise.all([
+  const [p,c,b,mb,sm,tb,dr]=await Promise.all([
     sb.from('puestos').select('*').eq('activo',true).order('nombre'),
     sb.from('centros').select('*').eq('activo',true).order('nombre'),
     sb.from('bancos').select('*').eq('activo',true).order('nombre'),
     sb.from('motivos_baja').select('*').eq('activo',true).order('orden'),
     sb.from('submotivos_baja').select('*').eq('activo',true).order('orden'),
-    sb.from('tabuladores').select('*')
+    sb.from('tabuladores').select('*'),
+    sb.from('documentos_requeridos').select('*').order('orden')
   ]);
   S.puestos=p.data||[]; S.centros=c.data||[]; S.bancos=b.data||[];
   S.motivosBaja=mb.error?[]:(mb.data||[]);
   S.submotivos=sm.error?[]:(sm.data||[]);
   S.tabuladores=tb.error?[]:(tb.data||[]);
+  S.docsRequeridos=dr.error?[]:(dr.data||[]).filter(d=>d.obligatorio);
 }
 
 /* Lo que marca el tabulador para un puesto y turno, hoy. Es lo que de verdad
@@ -1295,36 +1302,57 @@ const DOC_LEIBLE = { INE_FRENTE:'INE', CUENTA:'CLABE', DOMICILIO:'domicilio' };
 
 async function pintarDocumentos(empId){
   const c = $('#e-docs'); if(!c) return;
-  if(!empId){
-    c.innerHTML = '<div class="note">Guarda primero el registro y después podrás subir sus documentos.</div>';
-    return;
-  }
   c.innerHTML = '<div class="empty" style="padding:18px">Cargando documentos…</div>';
-  const {data,error} = await sb.from('v_documentos_empleado')
-    .select('*').eq('empleado_id', empId).order('orden');
-  if(error){ c.innerHTML = `<div class="note"><b>No se pudieron cargar</b>${esc(error.message)}</div>`; return; }
-  const docs = data||[];
+
+  let docs;
+  if(empId){
+    const {data,error} = await sb.from('v_documentos_empleado')
+      .select('*').eq('empleado_id', empId).order('orden');
+    if(error){ c.innerHTML = `<div class="note"><b>No se pudieron cargar</b>${esc(error.message)}</div>`; return; }
+    docs = data||[];
+  }else{
+    // Alta nueva: todavía no hay a quién colgarle archivos, pero sí se pueden
+    // elegir y leer. Se suben al guardar.
+    docs = (S.docsRequeridos||[]).map(d=>({
+      empleado_id:null, documento_id:d.id, clave:d.clave, documento:d.nombre,
+      obligatorio:d.obligatorio, orden:d.orden, archivo_url:null, entregado:false
+    }));
+  }
+  // Lo que está en cola esperando a que se guarde la persona
+  docs.forEach(d=>{ if(S.docsEnCola && S.docsEnCola[d.clave]) d._enCola = S.docsEnCola[d.clave].name; });
   const faltan = docs.filter(d=>d.obligatorio && !d.entregado).length;
 
   c.innerHTML = `
-    ${faltan
-      ? `<div class="note"><b>Faltan ${faltan} documento${faltan===1?'':'s'}</b>Sin ellos el expediente queda incompleto.</div>`
-      : `<div class="note" style="background:var(--ok-l);border-color:#BFDCCB;color:#14532D"><b>Expediente completo</b>Están todos los documentos que se exigen.</div>`}
+    ${!empId
+      ? `<div class="note" style="background:var(--teal-l);border-color:#C5E0DE"><b>Empieza por aquí</b>
+         Sube el INE y la carátula del banco, en foto o en PDF: de ahí salen el nombre, el CURP,
+         la fecha de nacimiento, el domicilio y la CLABE, y no tienes que capturarlos.
+         Los archivos se guardan cuando guardes el registro.</div>`
+      : (faltan
+        ? `<div class="note"><b>Faltan ${faltan} documento${faltan===1?'':'s'}</b>Sin ellos el expediente queda incompleto.</div>`
+        : `<div class="note" style="background:var(--ok-l);border-color:#BFDCCB;color:#14532D"><b>Expediente completo</b>Están todos los documentos que se exigen.</div>`)}
     <div id="doc-leido"></div>
     <div class="tw" style="margin-top:10px"><table>
       <thead><tr><th>Documento</th><th>Estado</th><th>Quién y cuándo</th><th></th></tr></thead>
       <tbody>
       ${docs.map(d=>`<tr>
         <td class="nm">${esc(d.documento)}${d.obligatorio?'':' <span style="color:var(--txt-3);font-weight:400">(opcional)</span>'}</td>
-        <td>${d.entregado
-             ? '<span class="p p-ok">cargado</span>'
-             : (d.obligatorio?'<span class="p p-warn">falta</span>':'<span class="p p-gray">sin cargar</span>')}</td>
+        <td>${d._enCola
+             ? '<span class="p p-teal">listo para guardar</span>'
+             : (d.entregado
+               ? '<span class="p p-ok">cargado</span>'
+               : (d.obligatorio?'<span class="p p-warn">falta</span>':'<span class="p p-gray">sin cargar</span>'))}</td>
         <td style="font-size:12.5px;color:var(--txt-2)">${
-          d.subido_en ? esc(d.lo_subio||'—')+' · '+fecha(String(d.subido_en).slice(0,10)) : '—'}</td>
+          d._enCola ? esc(d._enCola)
+          : (d.subido_en ? esc(d.lo_subio||'—')+' · '+fecha(String(d.subido_en).slice(0,10)) : '—')}</td>
         <td style="text-align:right;white-space:nowrap">
           ${d.archivo_url?`<button class="btn btn-sm" data-docver="${esc(d.archivo_url)}">Ver</button>`:''}
-          <button class="btn btn-sm" data-docsub="${d.documento_id}" data-clave="${esc(d.clave)}"
-                  data-nom="${esc(d.documento)}">${d.entregado?'Reemplazar':'Subir'}</button>
+          <button class="btn btn-sm ${DOC_LEIBLE[d.clave]&&!d.entregado&&!d._enCola?'btn-p':''}"
+                  data-docsub="${d.documento_id}" data-clave="${esc(d.clave)}"
+                  data-nom="${esc(d.documento)}">${
+                    d._enCola ? 'Cambiar'
+                    : (d.entregado ? 'Reemplazar'
+                    : (DOC_LEIBLE[d.clave] ? 'Subir y leer' : 'Subir'))}</button>
         </td>
       </tr>`).join('')}
       </tbody>
@@ -1336,7 +1364,7 @@ async function pintarDocumentos(empId){
   c.querySelectorAll('[data-docsub]').forEach(b=>b.onclick=()=>{
     const inp=$('#doc-file');
     inp.value='';
-    inp.onchange=()=>{ if(inp.files[0]) subirDocumento(empId, Number(b.dataset.docsub),
+    inp.onchange=()=>{ if(inp.files[0]) tomarDocumento(empId, Number(b.dataset.docsub),
                                    b.dataset.clave, b.dataset.nom, inp.files[0]); };
     inp.click();
   });
@@ -1348,9 +1376,45 @@ async function verDocumento(ruta){
   window.open(data.signedUrl,'_blank');
 }
 
-async function subirDocumento(empId, docId, clave, nombreDoc, f){
+/* Se lee siempre, en el navegador, sin esperar a que el archivo esté subido.
+   Si la persona ya existe se sube enseguida; si es un alta, el archivo espera
+   en cola y se sube cuando se guarde el registro. */
+async function tomarDocumento(empId, docId, clave, nombreDoc, f){
   if(f.size > 10*1024*1024){ toast('El archivo pasa de 10 MB.','bad'); return; }
-  toast('Subiendo '+nombreDoc+'…','ok');
+
+  if(DOC_LEIBLE[clave]){
+    await leerDocumento(f, clave, empId, docId);
+  }
+
+  if(empId){
+    await subirDocumento(empId, docId, clave, nombreDoc, f);
+  }else{
+    S.docsEnCola = S.docsEnCola || {};
+    S.docsEnCola[clave] = Object.assign(f, {_docId: docId, _nombreDoc: nombreDoc});
+    toast(nombreDoc+' queda listo. Se guarda junto con el registro.','ok');
+    await pintarDocumentos(null);
+  }
+}
+
+/* Sube a la cola lo que quedó esperando, una vez que la persona ya existe. */
+async function subirDocsEnCola(empId){
+  const cola = S.docsEnCola || {};
+  const claves = Object.keys(cola);
+  if(!claves.length) return 0;
+  let n=0;
+  for(const clave of claves){
+    const f = cola[clave];
+    try{
+      await subirDocumento(empId, f._docId, clave, f._nombreDoc, f, true);
+      n++;
+    }catch(e){ /* se reporta abajo */ }
+  }
+  S.docsEnCola = {};
+  return n;
+}
+
+async function subirDocumento(empId, docId, clave, nombreDoc, f, silencioso){
+  if(!silencioso) toast('Subiendo '+nombreDoc+'…','ok');
   const ext = (f.name.split('.').pop()||'jpg').toLowerCase();
   const ruta = `${empId}/${clave}_${Date.now()}.${ext}`;
 
@@ -1363,30 +1427,67 @@ async function subirDocumento(empId, docId, clave, nombreDoc, f){
   },{onConflict:'empleado_id,documento_id'});
   if(eDb){ toast('Se subió el archivo pero no se registró: '+eDb.message,'bad'); return; }
 
-  toast(nombreDoc+' guardado.','ok');
-  await pintarDocumentos(empId);
+  if(!silencioso){ toast(nombreDoc+' guardado.','ok'); await pintarDocumentos(empId); }
+}
 
-  // Los documentos de los que se puede sacar información se leen enseguida
-  if(DOC_LEIBLE[clave] && !f.type.includes('pdf')) leerDocumento(f, clave, empId, docId);
+/* Un PDF puede traer el texto de verdad adentro, y entonces se lee exacto sin
+   adivinar nada; o puede ser un escaneo, que es una foto metida en un PDF y hay
+   que pasarla por el lector igual que una imagen. Esto decide cuál es. */
+async function textoDeArchivo(f, avisar){
+  const esPdf = f.type.includes('pdf') || /\.pdf$/i.test(f.name||'');
+
+  if(!esPdf){
+    if(avisar) avisar('Leyendo la imagen… <span id="doc-p">0%</span>');
+    const {data}=await Tesseract.recognize(f,'spa',{
+      logger:m=>{ if(m.status==='recognizing text'){ const p=$('#doc-p'); if(p) p.textContent=Math.round(m.progress*100)+'%'; } }
+    });
+    return {texto:data.text||'', modo:'imagen'};
+  }
+
+  if(typeof pdfjsLib==='undefined') throw new Error('No se pudo cargar el lector de PDF');
+  const pdf = await pdfjsLib.getDocument({data: await f.arrayBuffer()}).promise;
+
+  // Primero se intenta el texto que el PDF ya trae: es exacto.
+  let txt='';
+  const hojas = Math.min(pdf.numPages, 3);
+  for(let i=1;i<=hojas;i++){
+    const pg = await pdf.getPage(i);
+    const tc = await pg.getTextContent();
+    txt += tc.items.map(x=>x.str).join(' ') + '\n';
+  }
+  if(txt.replace(/\s/g,'').length > 40) return {texto:txt, modo:'pdf con texto'};
+
+  // Sin texto: es un escaneo. Se dibuja la página y se lee como imagen.
+  if(avisar) avisar('El PDF es un escaneo, hay que leerlo como imagen… <span id="doc-p">0%</span>');
+  const pg = await pdf.getPage(1);
+  const vp = pg.getViewport({scale:2});
+  const cv = document.createElement('canvas');
+  cv.width = vp.width; cv.height = vp.height;
+  await pg.render({canvasContext: cv.getContext('2d'), viewport: vp}).promise;
+  const {data}=await Tesseract.recognize(cv,'spa',{
+    logger:m=>{ if(m.status==='recognizing text'){ const p=$('#doc-p'); if(p) p.textContent=Math.round(m.progress*100)+'%'; } }
+  });
+  return {texto:data.text||'', modo:'PDF escaneado'};
 }
 
 /* ---------- Lo que se puede sacar de cada documento ---------- */
 async function leerDocumento(f, clave, empId, docId){
   const caja = $('#doc-leido'); if(!caja) return;
   if(typeof Tesseract==='undefined'){
-    caja.innerHTML='<div class="note"><b>Sin lector</b>No se pudo cargar el lector de imágenes; captura los datos a mano.</div>';
+    caja.innerHTML='<div class="note"><b>Sin lector</b>No se pudo cargar el lector; captura los datos a mano.</div>';
     return;
   }
-  caja.innerHTML='<div class="note"><b>Leyendo el documento… <span id="doc-p">0%</span></b>'
-    +'Esto tarda unos segundos. Lo que se reconozca te lo voy a proponer, no se guarda solo.</div>';
-  let texto='';
+  const avisar = t => caja.innerHTML='<div class="note"><b>'+t+'</b>'
+    +'Lo que se reconozca te lo voy a proponer, no se guarda solo.</div>';
+  avisar('Abriendo el documento…');
+
+  let texto='', modo='';
   try{
-    const {data}=await Tesseract.recognize(f,'spa',{
-      logger:m=>{ if(m.status==='recognizing text'){ const p=$('#doc-p'); if(p) p.textContent=Math.round(m.progress*100)+'%'; } }
-    });
-    texto=data.text||'';
+    const r = await textoDeArchivo(f, avisar);
+    texto = r.texto; modo = r.modo;
   }catch(err){
-    caja.innerHTML='<div class="note"><b>No se pudo leer</b>La imagen no se entendió. El archivo quedó guardado; captura los datos a mano.</div>';
+    caja.innerHTML='<div class="note"><b>No se pudo leer</b>'+esc(err.message||'El archivo no se entendió.')
+      +' El archivo queda guardado igual; captura los datos a mano.</div>';
     return;
   }
 
@@ -1395,10 +1496,13 @@ async function leerDocumento(f, clave, empId, docId){
                 : clave==='DOMICILIO'  ? leerComprobante(texto)
                 : {};
 
-  // Se guarda lo leído para poder rastrear de dónde salió un dato
-  await sb.from('empleado_documentos')
-    .update({texto_leido: texto.slice(0,4000), datos_leidos: hallado})
-    .eq('empleado_id', empId).eq('documento_id', docId);
+  // Se guarda lo leído para poder rastrear de dónde salió un dato. En un alta
+  // todavía no hay renglón que actualizar, así que se guarda al subirlo.
+  if(empId){
+    await sb.from('empleado_documentos')
+      .update({texto_leido: texto.slice(0,4000), datos_leidos: hallado})
+      .eq('empleado_id', empId).eq('documento_id', docId);
+  }
 
   const campos = Object.entries(hallado).filter(([k,v])=>v);
   if(!campos.length){
@@ -1414,7 +1518,9 @@ async function leerDocumento(f, clave, empId, docId){
   caja.innerHTML=`
     <div class="note" style="background:var(--teal-l);border-color:#C5E0DE">
       <b>Esto es lo que se reconoció</b>
-      Revísalo contra el documento antes de usarlo: el lector se equivoca con fotos borrosas o inclinadas.
+      ${modo==='pdf con texto'
+        ? 'El PDF traía el texto adentro, así que esto se leyó exacto. Aun así dale una vista.'
+        : 'Revísalo contra el documento antes de usarlo: el lector se equivoca con fotos borrosas o inclinadas.'}
       <div style="margin-top:9px;display:flex;flex-direction:column;gap:5px">
         ${campos.map(([k,v])=>`<div style="font-size:13px">
           <span style="color:var(--txt-2)">${ETIQ[k]||k}:</span> <b class="mono">${esc(String(v))}</b></div>`).join('')}
@@ -1632,6 +1738,13 @@ function abrirEmpleado(id){
   const e = id ? S.empleados.find(x=>x.id===id) : null;
   S.empActual=e; S.rfcCalculado=false;
   $('#emp-tit').textContent = e ? e.nombre_completo : 'Nuevo registro';
+  // En un alta se arranca por Expediente: ahí se sube el INE y de ahí salen
+  // el nombre, el CURP, la fecha de nacimiento y el domicilio.
+  const irTab = e ? 'gen' : 'exp';
+  document.querySelectorAll('#ov-emp [data-tab]').forEach(b=>{
+    b.classList.toggle('on', b.dataset.tab===irTab);
+    const d=$('#tab-'+b.dataset.tab); if(d) d.style.display = b.dataset.tab===irTab?'':'none';
+  });
   const v=(k,d='')=>e?.[k]??d;
   $('#e-tipo').value=v('tipo_registro','empleado'); $('#e-cod').value=v('codigo');
   $('#e-nom').value=v('nombre_completo'); $('#e-fnac').value=v('fecha_nacimiento');
@@ -1664,6 +1777,7 @@ function abrirEmpleado(id){
   $('#e-dom').value=v('domicilio'); $('#e-dom2').value=v('domicilio_comprobante'); $('#e-emnom').value=v('emergencia_nombre');
   $('#e-emtel').value=v('emergencia_telefono'); $('#e-empar').value=v('emergencia_parentesco');
   alCambiarPuesto();
+  S.docsEnCola = {}; S.claveElector = null;
   pintarDocumentos(e?.id||null);
   if(!e){
     // Código consecutivo: nadie lo inventa
@@ -1919,6 +2033,9 @@ $('#emp-save').onclick=async()=>{
     empId=data.id;
   }
 
+  // Los documentos que se eligieron antes de que la persona existiera
+  const nDocs = await subirDocsEnCola(empId);
+
   const movs=[]; const hoy=new Date().toISOString().slice(0,10);
   const nomPuesto=id=>S.puestos.find(p=>String(p.id)===String(id))?.nombre||'sin asignar';
   if(!prev){
@@ -1958,7 +2075,8 @@ $('#emp-save').onclick=async()=>{
 
   $('#emp-save').disabled=false;
   cerrar('ov-emp');
-  toast(prev?'Cambios guardados.':'Registro creado.','ok');
+  toast((prev?'Cambios guardados.':'Registro creado.')
+        + (nDocs?` Se guardaron ${nDocs} documento${nDocs===1?'':'s'}.`:''),'ok');
   await cargarEmpleados(); trasGuardarEmpleado();
 };
 
