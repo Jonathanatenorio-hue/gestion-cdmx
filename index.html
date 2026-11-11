@@ -870,7 +870,10 @@ async function iniciar(){
   pintarNav();
   pintarAyudas();
   S.inicio='guia';
-  sb.rpc('registrar_acceso');
+  sb.rpc('registrar_acceso').then(({error})=>{
+    if(error) console.warn('No se pudo registrar el acceso:', error.message, error.details||'');
+    else console.log('Acceso registrado.');
+  });
   if(perfil.debe_cambiar_password){ setTimeout(()=>abrirCambioPass(true),400); }
   await cargarCatalogos();
   irA(S.inicio||'plantilla');
