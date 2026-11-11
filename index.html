@@ -1285,6 +1285,237 @@ function alCambiarPuesto(){
   }
 }
 
+/* ============================================================
+   DOCUMENTOS DEL EXPEDIENTE
+   Se guardan en el almacén "expedientes", que solo abren dirección
+   y quien tenga el permiso de recursos humanos.
+   ============================================================ */
+
+const DOC_LEIBLE = { INE_FRENTE:'INE', CUENTA:'CLABE', DOMICILIO:'domicilio' };
+
+async function pintarDocumentos(empId){
+  const c = $('#e-docs'); if(!c) return;
+  if(!empId){
+    c.innerHTML = '<div class="note">Guarda primero el registro y después podrás subir sus documentos.</div>';
+    return;
+  }
+  c.innerHTML = '<div class="empty" style="padding:18px">Cargando documentos…</div>';
+  const {data,error} = await sb.from('v_documentos_empleado')
+    .select('*').eq('empleado_id', empId).order('orden');
+  if(error){ c.innerHTML = `<div class="note"><b>No se pudieron cargar</b>${esc(error.message)}</div>`; return; }
+  const docs = data||[];
+  const faltan = docs.filter(d=>d.obligatorio && !d.entregado).length;
+
+  c.innerHTML = `
+    ${faltan
+      ? `<div class="note"><b>Faltan ${faltan} documento${faltan===1?'':'s'}</b>Sin ellos el expediente queda incompleto.</div>`
+      : `<div class="note" style="background:var(--ok-l);border-color:#BFDCCB;color:#14532D"><b>Expediente completo</b>Están todos los documentos que se exigen.</div>`}
+    <div id="doc-leido"></div>
+    <div class="tw" style="margin-top:10px"><table>
+      <thead><tr><th>Documento</th><th>Estado</th><th>Quién y cuándo</th><th></th></tr></thead>
+      <tbody>
+      ${docs.map(d=>`<tr>
+        <td class="nm">${esc(d.documento)}${d.obligatorio?'':' <span style="color:var(--txt-3);font-weight:400">(opcional)</span>'}</td>
+        <td>${d.entregado
+             ? '<span class="p p-ok">cargado</span>'
+             : (d.obligatorio?'<span class="p p-warn">falta</span>':'<span class="p p-gray">sin cargar</span>')}</td>
+        <td style="font-size:12.5px;color:var(--txt-2)">${
+          d.subido_en ? esc(d.lo_subio||'—')+' · '+fecha(String(d.subido_en).slice(0,10)) : '—'}</td>
+        <td style="text-align:right;white-space:nowrap">
+          ${d.archivo_url?`<button class="btn btn-sm" data-docver="${esc(d.archivo_url)}">Ver</button>`:''}
+          <button class="btn btn-sm" data-docsub="${d.documento_id}" data-clave="${esc(d.clave)}"
+                  data-nom="${esc(d.documento)}">${d.entregado?'Reemplazar':'Subir'}</button>
+        </td>
+      </tr>`).join('')}
+      </tbody>
+    </table></div>
+    <input type="file" id="doc-file" style="display:none"
+           accept="image/jpeg,image/png,image/webp,image/heic,application/pdf">`;
+
+  c.querySelectorAll('[data-docver]').forEach(b=>b.onclick=()=>verDocumento(b.dataset.docver));
+  c.querySelectorAll('[data-docsub]').forEach(b=>b.onclick=()=>{
+    const inp=$('#doc-file');
+    inp.value='';
+    inp.onchange=()=>{ if(inp.files[0]) subirDocumento(empId, Number(b.dataset.docsub),
+                                   b.dataset.clave, b.dataset.nom, inp.files[0]); };
+    inp.click();
+  });
+}
+
+async function verDocumento(ruta){
+  const {data,error} = await sb.storage.from('expedientes').createSignedUrl(ruta, 3600);
+  if(error||!data){ toast('No se pudo abrir: '+(error?.message||''),'bad'); return; }
+  window.open(data.signedUrl,'_blank');
+}
+
+async function subirDocumento(empId, docId, clave, nombreDoc, f){
+  if(f.size > 10*1024*1024){ toast('El archivo pasa de 10 MB.','bad'); return; }
+  toast('Subiendo '+nombreDoc+'…','ok');
+  const ext = (f.name.split('.').pop()||'jpg').toLowerCase();
+  const ruta = `${empId}/${clave}_${Date.now()}.${ext}`;
+
+  const {error:eUp} = await sb.storage.from('expedientes').upload(ruta, f, {upsert:true});
+  if(eUp){ toast('No se pudo subir: '+eUp.message,'bad'); return; }
+
+  const {error:eDb} = await sb.from('empleado_documentos').upsert({
+    empleado_id: empId, documento_id: docId, archivo_url: ruta,
+    nombre_archivo: f.name, entregado: true, fecha_entrega: new Date().toISOString().slice(0,10)
+  },{onConflict:'empleado_id,documento_id'});
+  if(eDb){ toast('Se subió el archivo pero no se registró: '+eDb.message,'bad'); return; }
+
+  toast(nombreDoc+' guardado.','ok');
+  await pintarDocumentos(empId);
+
+  // Los documentos de los que se puede sacar información se leen enseguida
+  if(DOC_LEIBLE[clave] && !f.type.includes('pdf')) leerDocumento(f, clave, empId, docId);
+}
+
+/* ---------- Lo que se puede sacar de cada documento ---------- */
+async function leerDocumento(f, clave, empId, docId){
+  const caja = $('#doc-leido'); if(!caja) return;
+  if(typeof Tesseract==='undefined'){
+    caja.innerHTML='<div class="note"><b>Sin lector</b>No se pudo cargar el lector de imágenes; captura los datos a mano.</div>';
+    return;
+  }
+  caja.innerHTML='<div class="note"><b>Leyendo el documento… <span id="doc-p">0%</span></b>'
+    +'Esto tarda unos segundos. Lo que se reconozca te lo voy a proponer, no se guarda solo.</div>';
+  let texto='';
+  try{
+    const {data}=await Tesseract.recognize(f,'spa',{
+      logger:m=>{ if(m.status==='recognizing text'){ const p=$('#doc-p'); if(p) p.textContent=Math.round(m.progress*100)+'%'; } }
+    });
+    texto=data.text||'';
+  }catch(err){
+    caja.innerHTML='<div class="note"><b>No se pudo leer</b>La imagen no se entendió. El archivo quedó guardado; captura los datos a mano.</div>';
+    return;
+  }
+
+  const hallado = clave==='INE_FRENTE' ? leerINE(texto)
+                : clave==='CUENTA'     ? leerCaratula(texto)
+                : clave==='DOMICILIO'  ? leerComprobante(texto)
+                : {};
+
+  // Se guarda lo leído para poder rastrear de dónde salió un dato
+  await sb.from('empleado_documentos')
+    .update({texto_leido: texto.slice(0,4000), datos_leidos: hallado})
+    .eq('empleado_id', empId).eq('documento_id', docId);
+
+  const campos = Object.entries(hallado).filter(([k,v])=>v);
+  if(!campos.length){
+    caja.innerHTML='<div class="note"><b>No se reconoció nada</b>'
+      +'La foto puede estar borrosa o de lado. El archivo quedó guardado; captura los datos a mano.</div>';
+    return;
+  }
+
+  const ETIQ={curp:'CURP', nombre:'Nombre', fecha_nacimiento:'Fecha de nacimiento',
+              domicilio:'Domicilio', clave_elector:'Clave de elector',
+              clabe:'CLABE', banco:'Banco'};
+  S.docLeido = hallado;
+  caja.innerHTML=`
+    <div class="note" style="background:var(--teal-l);border-color:#C5E0DE">
+      <b>Esto es lo que se reconoció</b>
+      Revísalo contra el documento antes de usarlo: el lector se equivoca con fotos borrosas o inclinadas.
+      <div style="margin-top:9px;display:flex;flex-direction:column;gap:5px">
+        ${campos.map(([k,v])=>`<div style="font-size:13px">
+          <span style="color:var(--txt-2)">${ETIQ[k]||k}:</span> <b class="mono">${esc(String(v))}</b></div>`).join('')}
+      </div>
+      <button class="btn btn-sm btn-p" id="doc-aplicar" style="margin-top:11px">Usar estos datos</button>
+      <button class="btn btn-sm" id="doc-descartar" style="margin-top:11px">Descartar</button>
+    </div>`;
+  $('#doc-aplicar').onclick=()=>aplicarLeido(hallado);
+  $('#doc-descartar').onclick=()=>{ caja.innerHTML=''; };
+}
+
+/* El CURP tiene una forma muy precisa, así que es lo más confiable de un INE.
+   De él salen además la fecha de nacimiento y los 10 primeros del RFC. */
+function leerINE(t){
+  const T=(t||'').toUpperCase();
+  const r={};
+  const mCurp=T.match(/\b[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d\b/);
+  if(mCurp){
+    r.curp=mCurp[0];
+    const a=r.curp.slice(4,6), m=r.curp.slice(6,8), d=r.curp.slice(8,10);
+    const siglo = Number(a) > 30 ? '19' : '20';
+    r.fecha_nacimiento=`${siglo}${a}-${m}-${d}`;
+  }
+  const mCl=T.match(/CLAVE\s*DE\s*ELECTOR\s*[:\s]*([A-Z0-9]{18})/);
+  if(mCl) r.clave_elector=mCl[1];
+
+  const lineas=T.split('\n').map(x=>x.trim()).filter(Boolean);
+  const iNom=lineas.findIndex(l=>/^NOMBRE/.test(l));
+  if(iNom>=0){
+    const partes=lineas.slice(iNom+1,iNom+4)
+      .filter(l=>/^[A-ZÁ-ÚÑ\s]{3,}$/.test(l) && !/DOMICILIO|CLAVE|CURP|SEXO|FECHA/.test(l));
+    if(partes.length) r.nombre=partes.join(' ').replace(/\s+/g,' ').trim();
+  }
+  const iDom=lineas.findIndex(l=>/^DOMICILIO/.test(l));
+  if(iDom>=0){
+    const partes=[];
+    for(let i=iDom+1;i<lineas.length && partes.length<3;i++){
+      if(/CLAVE|CURP|ESTADO|MUNICIPIO|SECCION|LOCALIDAD|EMISION|VIGENCIA/.test(lineas[i])) break;
+      partes.push(lineas[i]);
+    }
+    if(partes.length) r.domicilio=partes.join(' ').replace(/\s+/g,' ').trim();
+  }
+  return r;
+}
+
+/* De una carátula bancaria lo que importa es la CLABE: 18 dígitos seguidos. */
+function leerCaratula(t){
+  const T=(t||'').toUpperCase().replace(/[\s\-]/g,' ');
+  const r={};
+  const cands=(T.match(/\b\d{18}\b/g)||[]);
+  if(cands.length) r.clabe=cands[0];
+  else {
+    const junto=T.replace(/\s/g,'');
+    const m=junto.match(/\d{18}/);
+    if(m) r.clabe=m[0];
+  }
+  const nom=(S.bancos||[]).map(b=>b.nombre).find(n=>T.includes(String(n).toUpperCase()));
+  if(nom) r.banco=nom;
+  return r;
+}
+
+/* De un comprobante de domicilio se saca el domicilio como viene, sin
+   intentar separarlo en partes: cada recibo lo acomoda distinto. */
+function leerComprobante(t){
+  const lineas=(t||'').toUpperCase().split('\n').map(x=>x.trim()).filter(Boolean);
+  const i=lineas.findIndex(l=>/\bC\.?P\.?\s*\d{5}\b|\bCP\s*\d{5}\b/.test(l));
+  if(i>=0){
+    const partes=lineas.slice(Math.max(0,i-2), i+1);
+    return {domicilio: partes.join(' ').replace(/\s+/g,' ').trim()};
+  }
+  return {};
+}
+
+/* Nada se escribe sin que alguien lo vea y lo acepte. */
+function aplicarLeido(h){
+  let n=0;
+  if(h.curp && $('#e-curp')){ $('#e-curp').value=h.curp; n++;
+    if($('#e-rfc') && !$('#e-rfc').value){ $('#e-rfc').value=h.curp.slice(0,10); S.rfcCalculado=true;
+      const m=$('#e-rfc-msg'); if(m) m.innerHTML='<span style="color:var(--warn)">RFC armado con el CURP. Faltan los 3 de la homoclave.</span>'; } }
+  if(h.fecha_nacimiento && $('#e-fnac') && !$('#e-fnac').value){ $('#e-fnac').value=h.fecha_nacimiento; n++; }
+  if(h.nombre && $('#e-nom') && !$('#e-nom').value){ $('#e-nom').value=h.nombre; n++; }
+  if(h.clave_elector) { S.claveElector=h.clave_elector; n++; }
+  if(h.domicilio && $('#e-dom')){
+    if(!$('#e-dom').value){ $('#e-dom').value=h.domicilio; n++; }
+    else if($('#e-dom').value.trim()!==h.domicilio && $('#e-dom2') && !$('#e-dom2').value){
+      $('#e-dom2').value=h.domicilio; n++;
+      toast('El domicilio no coincide con el del INE: quedó como domicilio actual.','ok');
+    }
+  }
+  if(h.clabe && $('#b-cla') && !$('#b-cla').value){ $('#b-cla').value=h.clabe; n++; }
+  if(h.banco && $('#b-ban')){
+    const op=[...$('#b-ban').options].find(o=>o.textContent.toUpperCase().includes(String(h.banco).toUpperCase()));
+    if(op && !$('#b-ban').value){ $('#b-ban').value=op.value; n++; }
+  }
+  $('#doc-leido').innerHTML = n
+    ? `<div class="note" style="background:var(--ok-l);border-color:#BFDCCB;color:#14532D">`
+      +`<b>Se llenaron ${n} campo${n===1?'':'s'}</b>Revísalos y guarda el registro para que queden.</div>`
+    : '<div class="note"><b>No se llenó nada</b>Esos campos ya tenían valor y no se pisan.</div>';
+  if(n) toast('Revisa los campos y guarda.','ok');
+}
+
 /* ---------- Motivo y submotivo de la baja ---------- */
 function llenarMotivosBaja(){
   const m=$('#e-motc'); if(!m) return;
@@ -1433,6 +1664,7 @@ function abrirEmpleado(id){
   $('#e-dom').value=v('domicilio'); $('#e-dom2').value=v('domicilio_comprobante'); $('#e-emnom').value=v('emergencia_nombre');
   $('#e-emtel').value=v('emergencia_telefono'); $('#e-empar').value=v('emergencia_parentesco');
   alCambiarPuesto();
+  pintarDocumentos(e?.id||null);
   if(!e){
     // Código consecutivo: nadie lo inventa
     const max=Math.max(0, ...S.empleados.map(x=>Number(x.codigo)||0));
@@ -1664,6 +1896,7 @@ $('#emp-save').onclick=async()=>{
     lo_platico_antes:  est==='baja' ? ($('#e-platico').value==='si' ? true
                         : $('#e-platico').value==='no' ? false : null) : null,
     rfc_homoclave_pendiente: !!S.rfcCalculado,
+    clave_elector: S.claveElector || undefined,
     fecha_fin_capacitacion: $('#e-fcap').value||null,
     fecha_inicio_produccion: $('#e-fprod').value||null,
     capacitacion_aprobada: $('#e-capap').value===''?null:$('#e-capap').value==='si',
