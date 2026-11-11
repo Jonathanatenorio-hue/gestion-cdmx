@@ -11,6 +11,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.4/heic2any.min.js"></script>
 <script>
   if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc =
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1358,7 +1359,7 @@ async function pintarDocumentos(empId){
       </tbody>
     </table></div>
     <input type="file" id="doc-file" style="display:none"
-           accept="image/jpeg,image/png,image/webp,image/heic,application/pdf">`;
+           accept="image/*,.heic,.heif,application/pdf">`;
 
   c.querySelectorAll('[data-docver]').forEach(b=>b.onclick=()=>verDocumento(b.dataset.docver));
   c.querySelectorAll('[data-docsub]').forEach(b=>b.onclick=()=>{
@@ -1379,13 +1380,37 @@ async function verDocumento(ruta){
 /* Se lee siempre, en el navegador, sin esperar a que el archivo esté subido.
    Si la persona ya existe se sube enseguida; si es un alta, el archivo espera
    en cola y se sube cuando se guarde el registro. */
+/* Las fotos del iPhone llegan en HEIC y ningún navegador las sabe abrir.
+   Se convierten a JPG antes de leerlas o guardarlas, para que después se
+   puedan ver desde cualquier lado. */
+async function normalizarArchivo(f){
+  const esHeic = /heic|heif/i.test(f.type) || /\.(heic|heif)$/i.test(f.name||'');
+  if(!esHeic) return f;
+  if(typeof heic2any==='undefined') throw new Error('No se pudo cargar el convertidor de fotos de iPhone');
+  const blob = await heic2any({blob:f, toType:'image/jpeg', quality:0.9});
+  const uno = Array.isArray(blob) ? blob[0] : blob;
+  return new File([uno], (f.name||'foto').replace(/\.(heic|heif)$/i,'')+'.jpg', {type:'image/jpeg'});
+}
+
 async function tomarDocumento(empId, docId, clave, nombreDoc, f){
   if(f.size > 10*1024*1024){ toast('El archivo pasa de 10 MB.','bad'); return; }
 
-  if(DOC_LEIBLE[clave]){
-    await leerDocumento(f, clave, empId, docId);
+  const esHeic = /heic|heif/i.test(f.type) || /\.(heic|heif)$/i.test(f.name||'');
+  if(esHeic){
+    const caja=$('#doc-leido');
+    if(caja) caja.innerHTML='<div class="note"><b>Convirtiendo la foto del iPhone…</b>'
+      +'Viene en HEIC y hay que pasarla a JPG para poder leerla y para que se vea después.</div>';
+    try{ f = await normalizarArchivo(f); }
+    catch(err){
+      if(caja) caja.innerHTML='<div class="note"><b>No se pudo convertir</b>'
+        +'Esa foto viene en HEIC. Mándatela por WhatsApp o cámbiale el formato en el iPhone '
+        +'(Ajustes · Cámara · Formatos · Más compatible) y vuelve a subirla.</div>';
+      return;
+    }
   }
 
+  // Primero queda guardado o en cola, porque eso repinta la tabla; la lectura
+  // va después para que su resultado no se borre al repintar.
   if(empId){
     await subirDocumento(empId, docId, clave, nombreDoc, f);
   }else{
@@ -1394,6 +1419,8 @@ async function tomarDocumento(empId, docId, clave, nombreDoc, f){
     toast(nombreDoc+' queda listo. Se guarda junto con el registro.','ok');
     await pintarDocumentos(null);
   }
+
+  if(DOC_LEIBLE[clave]) await leerDocumento(f, clave, empId, docId);
 }
 
 /* Sube a la cola lo que quedó esperando, una vez que la persona ya existe. */
