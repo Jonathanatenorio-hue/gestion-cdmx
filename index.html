@@ -7855,10 +7855,15 @@ async function marcar(tipo){
   }
 
   const cal=String(data.calificacion||'');
-  const col = cal==='Retardo' ? 'var(--warn-l,#FDF6E8)' : cal==='Falta' ? 'var(--bad-l)' : 'var(--ok-l,#E8F3EE)';
-  res.innerHTML=`<div class="note" style="background:${col}">
-    <b>${esc(data.mensaje)}</b>
-    Tu día quedó como <b>${esc(cal)}</b>.</div>`;
+  const est=data.estatus||'';
+  // Mientras no haya salida, el día no está calificado: color neutro
+  const col = data.provisional ? (est==='R' ? 'var(--warn-l,#FDF6E8)' : 'var(--card)')
+            : est==='F' ? 'var(--bad-l)' : est==='R' ? 'var(--warn-l,#FDF6E8)' : 'var(--ok-l,#E8F3EE)';
+  res.innerHTML = data.provisional
+    ? `<div class="note" style="background:${col}"><b>${esc(data.mensaje)} ${esc(cal)}.</b>
+        Tu día se califica cuando marques tu salida. Si no la marcas o te vas antes de tu hora, cuenta como falta.</div>`
+    : `<div class="note" style="background:${col}"><b>${esc(data.mensaje)}</b>
+        Tu día quedó como: <b>${esc(cal)}</b></div>`;
   toast(data.mensaje,'ok');
   await misChecadas();
 }
