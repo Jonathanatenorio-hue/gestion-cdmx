@@ -2290,8 +2290,9 @@ $('#emp-save').onclick=async()=>{
     const ing=$('#e-ing').value;
     if(ing && $('#e-baja').value < ing){ toast('La baja no puede ser anterior al ingreso.','bad'); return; }
   }
-  if(tipo==='empleado' && esq==='sueldo_semanal' && !Number($('#e-sue').value||0)){
-    toast('Un sueldo semanal necesita monto. Si no lleva sueldo, cambia el esquema.','bad'); return; }
+  if(tipo==='empleado' && esq==='sueldo_semanal' && !Number($('#e-sue').value||0)
+     && !sueldoDelPuesto($('#e-pue').value, S.empActual?.turno)){
+    toast('Este puesto no tiene tabulador vigente, asi que el sueldo semanal se captura a mano. Si no lleva sueldo, cambia el esquema.','bad'); return; }
 
   const payload={
     tipo_registro:tipo,
@@ -2302,7 +2303,7 @@ $('#emp-save').onclick=async()=>{
     centro_id: $('#e-cen').value||null,
     supervisor_id: $('#e-sup').value||null,
     esquema_pago: esq,
-    sueldo_semanal: Number($('#e-sue').value||0),
+    sueldo_semanal: $('#e-sue').value ? Number($('#e-sue').value) : null,
     tarifa_registro: esq==='base_datos' ? Number($('#e-tar').value||0) : null,
     fecha_ingreso: $('#e-ing').value||null,
     estatus: est,
