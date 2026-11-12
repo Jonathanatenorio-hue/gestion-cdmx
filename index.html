@@ -8308,7 +8308,8 @@ async function vistaMiAsistencia(){
 
   $('#main').innerHTML=`
   <div class="head">
-    <div><h1>Mi asistencia</h1><p>Informativa. Si algo está mal, avísale a tu jefe directo.</p></div>
+    <div><h1>${S.verComo?'Asistencia':'Mi asistencia'}</h1><p>Informativa. Si algo está mal, avísale a tu jefe directo.</p></div>
+    <div id="vc-wrap"></div>
   </div>
   <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:18px">
     <div><label style="margin-bottom:4px">Desde</label><input type="date" id="ma-d" value="${S.maDesde}" style="width:auto"></div>
@@ -8320,6 +8321,7 @@ async function vistaMiAsistencia(){
   </div>
   <div id="ma-cuerpo"><div class="empty">Cargando…</div></div>`;
 
+  pintarVerComo(false, ()=>{ vistaMiAsistencia(); });
   $('#ma-ver').onclick=()=>{ S.maDesde=$('#ma-d').value; S.maHasta=$('#ma-h').value; cargarMiAsistencia(); };
   document.querySelectorAll('[data-rango]').forEach(b=>b.onclick=()=>{
     const h=new Date(), r=b.dataset.rango;
@@ -8339,8 +8341,10 @@ async function vistaMiAsistencia(){
 async function cargarMiAsistencia(){
   const c=$('#ma-cuerpo'); c.innerHTML='<div class="empty">Cargando…</div>';
   const [d,r]=await Promise.all([
-    sb.rpc('mi_asistencia',{p_desde:S.maDesde,p_hasta:S.maHasta}),
-    sb.rpc('mi_asistencia_resumen',{p_desde:S.maDesde,p_hasta:S.maHasta})
+    S.verComo ? sb.rpc('ver_asistencia',{p_emp:S.verComo,p_desde:S.maDesde,p_hasta:S.maHasta})
+              : sb.rpc('mi_asistencia',{p_desde:S.maDesde,p_hasta:S.maHasta}),
+    S.verComo ? sb.rpc('ver_asistencia_resumen',{p_emp:S.verComo,p_desde:S.maDesde,p_hasta:S.maHasta})
+              : sb.rpc('mi_asistencia_resumen',{p_desde:S.maDesde,p_hasta:S.maHasta})
   ]);
   if(d.error){ c.innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(d.error.message)}</div>`; return; }
   const l=d.data||[], k=r.error?{}:(r.data||{});
@@ -8371,15 +8375,17 @@ async function cargarMiAsistencia(){
 
 async function vistaMisPagos(){
   $('#main').innerHTML='<div class="empty">Cargando…</div>';
-  const [p,m,r]=await Promise.all([
-    sb.rpc('mis_pagos'), sb.rpc('mis_pagos_por_mes'), sb.rpc('mis_pagos_resumen')
-  ]);
+  const vc = S.direccion ? S.verComo : null;
+  const [p,m,r]=await Promise.all(vc
+    ? [sb.rpc('ver_pagos',{p_emp:vc}), sb.rpc('ver_pagos_por_mes',{p_emp:vc}), sb.rpc('ver_pagos_resumen',{p_emp:vc})]
+    : [sb.rpc('mis_pagos'), sb.rpc('mis_pagos_por_mes'), sb.rpc('mis_pagos_resumen')]);
   if(p.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(p.error.message)}</div>`; return; }
   const l=p.data||[], mes=(m.error?[]:(m.data||[])), k=r.error?{}:(r.data||{});
 
   if(!l.length){
-    $('#main').innerHTML=`<div class="head"><div><h1>Mis pagos</h1></div></div>
-      <div class="empty"><b>Todavía no hay pagos registrados</b>En cuanto se calcule tu primera nómina aparece aquí.</div>`;
+    $('#main').innerHTML=`<div class="head"><div><h1>${vc?'Pagos':'Mis pagos'}</h1></div><div id="vc-wrap"></div></div>
+      <div class="empty"><b>Todavía no hay pagos registrados</b>${vc?'Esta persona aún no tiene nómina calculada.':'En cuanto se calcule tu primera nómina aparece aquí.'}</div>`;
+    pintarVerComo(true, ()=>vistaMisPagos());
     return;
   }
 
@@ -8391,7 +8397,8 @@ async function vistaMisPagos(){
 
   $('#main').innerHTML=`
   <div class="head">
-    <div><h1>Mis pagos</h1><p>Lo que has generado y cómo se compone cada periodo</p></div>
+    <div><h1>${vc?'Pagos':'Mis pagos'}</h1><p>Lo que has generado y cómo se compone cada periodo</p></div>
+    <div id="vc-wrap"></div>
   </div>
 
   <div class="kpis">
@@ -8449,6 +8456,7 @@ async function vistaMisPagos(){
   <div class="note" style="margin-top:18px">
     <b>Si un número no cuadra</b>
     Compara el total contra lo que te llegó al banco. Si difiere, habla con tu jefe directo o con dirección: el sistema guarda el detalle de cómo se calculó cada periodo y se puede revisar renglón por renglón.</div>`;
+  pintarVerComo(true, ()=>vistaMisPagos());
 }
 
 /* ---------------- BANDEJA DE SOLICITUDES ---------------- */
@@ -8602,6 +8610,27 @@ async function pintarUbicacionOficina(){
     if(error){ toast(error.message,'bad'); return; }
     toast(data, /^Oficina fijada/.test(data)?'ok':'bad'); pintarUbicacionOficina();
   });
+}
+
+
+/* "Ver como": los jefes ven la asistencia de cualquiera tal como la ve esa
+   persona; los pagos, solo dirección. Sirve para atender sus dudas viendo
+   la misma pantalla que ellos. */
+async function pintarVerComo(dinero, recargar){
+  const w=$('#vc-wrap'); if(!w) return;
+  const puede = dinero ? S.direccion : (S.direccion || S.rh || ['coordinador','supervisor'].includes(S.perfil?.rol));
+  if(!puede){ w.innerHTML=''; return; }
+  if(!S.listaVerComo){
+    const {data}=await sb.from('empleados').select('id,nombre_completo')
+      .eq('estatus','activo').eq('tipo_registro','empleado').order('nombre_completo');
+    S.listaVerComo=data||[];
+  }
+  w.innerHTML=`<label style="margin-bottom:4px">Ver como</label>
+    <select id="vc-sel" style="width:auto;min-width:240px">
+      <option value="">Yo</option>
+      ${S.listaVerComo.map(e=>`<option value="${e.id}"${Number(S.verComo)===e.id?' selected':''}>${esc(e.nombre_completo)}</option>`).join('')}
+    </select>`;
+  $('#vc-sel').onchange=()=>{ S.verComo = $('#vc-sel').value ? Number($('#vc-sel').value) : null; recargar(); };
 }
 
 /* ============================================================
