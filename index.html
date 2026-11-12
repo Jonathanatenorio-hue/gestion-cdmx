@@ -1688,6 +1688,7 @@ async function leerDocumento(f, clave, empId, docId){
   }
 
   const faltaNombre = hallado._falta_nombre; delete hallado._falta_nombre;
+  const faltaDom = hallado._falta_domicilio; delete hallado._falta_domicilio;
   const campos = Object.entries(hallado).filter(([k,v])=>v);
   if(!campos.length){
     const consejo = clave==='INE_FRENTE'
@@ -1720,6 +1721,9 @@ async function leerDocumento(f, clave, empId, docId){
       </div>
       ${faltaNombre?`<div style="margin-top:9px;font-size:12.5px;color:#7A1E16">
         No se pudo sacar el nombre del frente. Sube el <b>reverso</b>: los renglones de abajo lo dan exacto.</div>`:''}
+      ${faltaDom?`<div style="margin-top:9px;font-size:12.5px;color:#7A1E16">
+        El domicilio salió hecho pedazos por el fondo de la credencial, así que no se propone.
+        Sácalo del <b>comprobante de domicilio</b>, que además es el que vale: ahí vive hoy.</div>`:''}
       <button class="btn btn-sm btn-p" id="doc-aplicar" style="margin-top:11px">Usar estos datos</button>
       <button class="btn btn-sm" id="doc-descartar" style="margin-top:11px">Descartar</button>
     </div>`;
@@ -1743,12 +1747,17 @@ function buscarCurp(T){
   let m;
   while((m = re.exec(plano)) !== null){
     const c = m[0];
+    const aa = c.slice(4,6).split('').map(aNumero).join('');
+    // El penúltimo carácter distingue el siglo: número para quien nació antes
+    // del 2000, letra para quien nació después.
+    const antesDel2000 = Number(aa) > 30;
     const armado =
         c.slice(0,4).split('').map(aLetra).join('')
       + c.slice(4,10).split('').map(aNumero).join('')
       + c[10]
       + c.slice(11,16).split('').map(aLetra).join('')
-      + c[16] + aNumero(c[17]);
+      + (antesDel2000 ? aNumero(c[16]) : aLetra(c[16]))
+      + aNumero(c[17]);
     if(/^[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$/.test(armado)){
       const mm=Number(armado.slice(6,8)), dd=Number(armado.slice(8,10));
       if(mm>=1 && mm<=12 && dd>=1 && dd<=31) return armado;
@@ -1822,7 +1831,19 @@ function leerINE(t){
       const l=lineas[i].replace(/[^A-ZÁÉÍÓÚÑ0-9,.\- ]/g,'').replace(/\s+/g,' ').trim();
       if(l.length>=4) partes.push(l);
     }
-    if(partes.length) r.domicilio=partes.join(' ').replace(/\s+/g,' ').trim();
+    if(partes.length){
+      // El mapa de fondo de la credencial mete letras sueltas que no son
+      // palabras. Se tiran, y si lo que queda no parece un domicilio, mejor
+      // no proponer nada: un domicilio a medias se corrige más lento que uno
+      // escrito de cero.
+      const dom = partes.join(' ')
+        .split(/\s+/)
+        .filter(w=>/\d/.test(w) || w.replace(/[^A-ZÁÉÍÓÚÑ]/g,'').length>=3 || /^(DE|LA|EL|Y|DEL)$/.test(w))
+        .join(' ').replace(/\s+/g,' ').trim();
+      const utiles = dom.split(' ').filter(w=>w.length>=3).length;
+      if(utiles>=4) r.domicilio = dom;
+      else r._falta_domicilio = true;
+    }
   }
 
   // Si no se pudo sacar el nombre del frente, el reverso lo da exacto
