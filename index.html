@@ -1492,20 +1492,85 @@ function cargarImagen(f){
   });
 }
 
-/* El reverso del INE trae abajo la zona de lectura mecánica: tres renglones
-   de letras separadas por "<", hechas para que las lea una máquina. De ahí
-   salen el nombre y la fecha de nacimiento con mucha más certeza que del
-   frente, que es una foto llena de adornos y hologramas. */
-async function leerReverso(f, avisar){
-  const img = await cargarImagen(f);
-  const cv = prepararImagen(img, 'abajo');
-  if(avisar) avisar('Leyendo la zona mecánica del reverso… <span id="doc-p">0%</span>');
-  const {data} = await Tesseract.recognize(cv,'eng',{
-    tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<',
-    tessedit_pageseg_mode:'6',
-    logger:m=>{ if(m.status==='recognizing text'){ const p=$('#doc-p'); if(p) p.textContent=Math.round(m.progress*100)+'%'; } }
-  });
-  return data.text||'';
+/* De un archivo salen una o varias imágenes listas para leer: una foto da
+   una; un PDF escaneado, una por página. Si el PDF trae texto de verdad no
+   hace falta leer nada, se devuelve ese texto. */
+async function fuentesParaLeer(f, avisar){
+  const esPdf = f.type.includes('pdf') || /\.pdf$/i.test(f.name||'');
+
+  if(!esPdf){
+    if(avisar) avisar('Preparando la imagen…');
+    return {canvas:[prepararImagen(await cargarImagen(f))]};
+  }
+
+  if(typeof pdfjsLib==='undefined') throw new Error('No se pudo cargar el lector de PDF');
+  const pdf = await pdfjsLib.getDocument({data: await f.arrayBuffer()}).promise;
+
+  let txt='';
+  for(let i=1;i<=Math.min(pdf.numPages,3);i++){
+    const tc = await (await pdf.getPage(i)).getTextContent();
+    txt += tc.items.map(x=>x.str).join(' ') + '\n';
+  }
+  if(txt.replace(/\s/g,'').length > 40) return {texto:txt};
+
+  if(avisar) avisar('El PDF es un escaneo: preparando la imagen…');
+  const out=[];
+  for(let i=1;i<=Math.min(pdf.numPages,2);i++){
+    const pg = await pdf.getPage(i);
+    const vp = pg.getViewport({scale:3});
+    const cv = document.createElement('canvas');
+    cv.width=vp.width; cv.height=vp.height;
+    await pg.render({canvasContext:cv.getContext('2d'), viewport:vp}).promise;
+    out.push(prepararImagen(cv));
+  }
+  return {canvas:out};
+}
+
+/* Una credencial se lee dos veces y por eso tarda:
+   · una pasada normal, que saca el CURP, el domicilio y la clave de elector;
+   · otra con el alfabeto restringido, que busca la zona mecánica del reverso,
+     de donde salen el nombre y la fecha de nacimiento sin adivinar.
+   Así da igual si el archivo trae un lado, el otro, o los dos juntos. */
+async function leerCredencial(f, avisar){
+  const src = await fuentesParaLeer(f, avisar);
+
+  if(src.texto){
+    const r = Object.assign({}, leerINE(src.texto), limpiar(datosDeMrz(src.texto)));
+    return {datos:r, texto:src.texto, modo:'pdf con texto'};
+  }
+
+  let tNormal='', tMrz='';
+  for(let i=0;i<src.canvas.length;i++){
+    if(avisar) avisar(`Leyendo el documento… <span id="doc-p">0%</span>`);
+    const a = await Tesseract.recognize(src.canvas[i],'spa',{
+      tessedit_pageseg_mode:'6',
+      logger:m=>{ if(m.status==='recognizing text'){ const p=$('#doc-p'); if(p) p.textContent=Math.round(m.progress*100)+'%'; } }
+    });
+    tNormal += (a.data.text||'')+'\n';
+  }
+  for(let i=0;i<src.canvas.length;i++){
+    if(avisar) avisar(`Buscando la zona mecánica… <span id="doc-p">0%</span>`);
+    const b = await Tesseract.recognize(src.canvas[i],'eng',{
+      tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<',
+      tessedit_pageseg_mode:'6',
+      logger:m=>{ if(m.status==='recognizing text'){ const p=$('#doc-p'); if(p) p.textContent=Math.round(m.progress*100)+'%'; } }
+    });
+    tMrz += (b.data.text||'')+'\n';
+  }
+
+  const frente = leerINE(tNormal);
+  const mrz    = limpiar(datosDeMrz(tMrz));
+  // El nombre de la zona mecánica manda: ahí no hay adornos que confundan.
+  const datos  = Object.assign({}, frente, mrz);
+  // La fecha del CURP es exacta, así que se prefiere sobre la de la zona mecánica.
+  if(frente.fecha_nacimiento) datos.fecha_nacimiento = frente.fecha_nacimiento;
+  if(mrz.nombre) delete datos._falta_nombre;
+
+  return {datos, texto:tNormal+'\n'+tMrz, modo: mrz.nombre ? 'zona mecánica' : 'imagen'};
+}
+
+function limpiar(o){
+  const r={}; Object.entries(o||{}).forEach(([k,v])=>{ if(v) r[k]=v; }); return r;
 }
 
 function datosDeMrz(t){
@@ -1590,11 +1655,11 @@ async function leerDocumento(f, clave, empId, docId){
     +'Lo que se reconozca te lo voy a proponer, no se guarda solo.</div>';
   avisar('Abriendo el documento…');
 
-  let texto='', modo='';
+  let texto='', modo='', preLeido=null;
   try{
-    if(clave==='INE_REVERSO' && !/pdf/i.test(f.type)){
-      texto = await leerReverso(f, avisar);
-      modo  = 'zona mecánica';
+    if(clave==='INE_FRENTE' || clave==='INE_REVERSO'){
+      const r = await leerCredencial(f, avisar);
+      texto = r.texto; modo = r.modo; preLeido = r.datos;
     }else{
       const r = await textoDeArchivo(f, avisar);
       texto = r.texto; modo = r.modo;
@@ -1605,10 +1670,9 @@ async function leerDocumento(f, clave, empId, docId){
     return;
   }
 
-  const hallado = clave==='INE_FRENTE'  ? leerINE(texto)
-                : clave==='INE_REVERSO' ? datosDeMrz(texto)
-                : clave==='CUENTA'      ? leerCaratula(texto)
-                : clave==='DOMICILIO'   ? leerComprobante(texto)
+  const hallado = preLeido ? preLeido
+                : clave==='CUENTA'    ? leerCaratula(texto)
+                : clave==='DOMICILIO' ? leerComprobante(texto)
                 : {};
 
   // Se guarda lo leído para poder rastrear de dónde salió un dato. En un alta
