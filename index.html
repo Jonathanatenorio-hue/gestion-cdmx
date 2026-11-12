@@ -672,6 +672,54 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
   </div>
 </div>
 
+<div class="ov" id="ov-finiq">
+  <div class="md" style="max-width:800px">
+    <div class="md-h"><b id="fq-tit">Cálculo final</b><button data-close="ov-finiq">&times;</button></div>
+    <div class="md-b">
+      <div id="fq-cuerpo"><div class="empty">Calculando…</div></div>
+    </div>
+    <div class="md-f">
+      <button class="btn" data-close="ov-finiq">Cerrar</button>
+      <div id="fq-acciones" style="display:flex;gap:8px"></div>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="ov-encsal">
+  <div class="md" style="max-width:720px">
+    <div class="md-h"><b id="es-tit">Encuesta de salida</b><button data-close="ov-encsal">&times;</button></div>
+    <div class="md-b">
+      <div class="note">
+        <b>Se captura en la entrevista, no la llena la persona sola</b>
+        Quien se va molesto no entra a un sistema a contestar. Esto se llena mientras platican, el día que firma y cobra.</div>
+      <div id="es-form"></div>
+      <label style="margin-top:14px">Nota de quien la aplicó</label>
+      <textarea id="es-nota" rows="2" placeholder="Dónde y cuándo se hizo, o por qué no se pudo"></textarea>
+    </div>
+    <div class="md-f">
+      <button class="btn btn-d" id="es-nocontacto">No se pudo contactar</button>
+      <button class="btn btn-d" id="es-nego">Se negó a contestar</button>
+      <button class="btn btn-p" id="es-save">Guardar encuesta</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="ov-docsal">
+  <div class="md" style="max-width:820px">
+    <div class="md-h"><b id="ds-tit">Documento de salida</b><button data-close="ov-docsal">&times;</button></div>
+    <div class="md-b">
+      <label>Qué documento</label>
+      <select id="ds-sel"></select>
+      <div id="ds-aviso"></div>
+      <pre id="ds-texto" style="background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.55;margin-top:14px;max-height:50vh;overflow:auto"></pre>
+    </div>
+    <div class="md-f">
+      <button class="btn" id="ds-copy">Copiar</button>
+      <button class="btn btn-p" id="ds-print">Imprimir</button>
+    </div>
+  </div>
+</div>
+
 <div class="ov" id="ov-venta">
   <div class="md" style="max-width:700px">
     <div class="md-h"><b id="vt-tit">Nueva venta</b><button data-close="ov-venta">&times;</button></div>
@@ -842,6 +890,7 @@ const MODULOS = [
   {id:'balance',    n:'09', t:'Balance financiero',   lista:true},
   {id:'dispersion', n:'10', t:'Dispersión de pagos',  lista:true},
   {id:'dispersion_old', n:'10b', t:'Dispersión (guía)', bloque:8, desc:'Arma el archivo que subes al banco, con el mismo layout que hoy ya te acepta, tomando montos de nómina y comisiones.', pts:['Layout idéntico: código, nombre, banco, CLABE, fecha, total','Validación de CLABE antes de exportar','Autorización previa a la dispersión','Historial de lo dispersado con estatus por registro']},
+  {id:'salidas',    n:'12', t:'Salidas y finiquitos', lista:true, soloDir:true},
   {id:'tickets',    n:'11', t:'Buzón de tickets',     bloque:9, desc:'Pendientes entre el Call Center y la dirección, con folio, responsable y cierre obligatorio.', pts:['Folio automático y prioridad','Conversación por ticket','No se cierra sin resolución escrita','Tablero de abiertos por antigüedad']}
 ];
 
@@ -932,7 +981,7 @@ function irA(id){
   vistaActual=id;
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
   const m=MODULOS.find(x=>x.id===id);
-  const R={guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion};
+  const R={guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas};
   if(m.lista && R[id]) R[id](); else vistaSoon(m);
   window.scrollTo(0,0);
 }
@@ -7205,6 +7254,440 @@ function pintarAyudas(){
   });
 }
 document.addEventListener('click',()=>document.querySelectorAll('.help.on').forEach(h=>h.classList.remove('on')));
+
+
+/* ============================================================
+   MÓDULO 12 · SALIDAS Y FINIQUITOS
+   Entre "ya no viene" y "ya quedamos" hay dinero de por medio.
+   Esta pantalla existe para que nada se quede ahí en medio.
+   ============================================================ */
+
+async function vistaSalidas(){
+  if(!S.direccion){ $('#main').innerHTML='<div class="empty"><b>Solo dirección</b>Aquí vive el cálculo final de quien se va.</div>'; return; }
+  $('#main').innerHTML='<div class="empty">Cargando salidas…</div>';
+
+  const [bp,ep,rs,ev]=await Promise.all([
+    sb.from('v_bajas_pendientes').select('*'),
+    sb.from('v_encuestas_pendientes').select('*'),
+    sb.from('v_salida_resumen').select('*').maybeSingle(),
+    sb.from('v_encuesta_vs_empresa').select('*')
+  ]);
+  if(bp.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(bp.error.message)}<br><small>Revisa que hayan corrido los SQL 107, 108 y 109.</small></div>`; return; }
+
+  S.bajasPend = bp.data||[];
+  S.encPend   = ep.error?[]:(ep.data||[]);
+  S.salRes    = rs.error?null:rs.data;
+  S.salHist   = ev.error?[]:(ev.data||[]);
+  S.salTab    = S.salTab || 'pendientes';
+  pintarSalidas();
+}
+
+function pintarSalidas(){
+  const pend   = S.bajasPend;
+  const porPagar = pend.reduce((a,b)=>a+Number(b.finiquito_calculado||0),0);
+  const sinCalc  = pend.filter(b=>!b.finiquito_calculado && b.estatus_finiquito==null).length;
+  const expos    = pend.reduce((a,b)=>a+Number(b.prestaciones_no_cubiertas||0),0);
+  const r        = S.salRes||{};
+
+  $('#main').innerHTML=`
+  <div class="head">
+    <div><h1>Salidas y finiquitos</h1><p>Lo que falta para quedar a mano con quien ya no viene</p></div>
+  </div>
+
+  <div class="tabs" style="margin-bottom:16px">
+    <button class="tab ${S.salTab==='pendientes'?'on':''}" data-st="pendientes">Pendientes de cerrar</button>
+    <button class="tab ${S.salTab==='historial'?'on':''}" data-st="historial">Salidas cerradas</button>
+    <button class="tab ${S.salTab==='señales'?'on':''}" data-st="señales">Qué están diciendo</button>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi ${pend.length?'w':''}"><span>Sin cerrar</span><b>${pend.length}</b><small>ya no vienen y falta liquidar</small></div>
+    <div class="kpi ${sinCalc?'w':''}"><span>Sin calcular</span><b>${sinCalc}</b><small>no se sabe cuánto se les debe</small></div>
+    <div class="kpi t"><span>Por pagar</span><b>${money(porPagar)}</b><small>de lo ya calculado</small></div>
+    <div class="kpi ${expos?'b':''}"><span>Ley no cubierta</span><b>${money(expos)}</b><small>calculado, no pagado</small></div>
+    <div class="kpi ${S.encPend.length?'w':''}"><span>Encuestas</span><b>${S.encPend.length}</b><small>sin aplicar</small></div>
+  </div>
+  <div id="sal-cuerpo"></div>`;
+
+  document.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{ S.salTab=b.dataset.st; pintarSalidas(); });
+
+  if(S.salTab==='pendientes') pintarSalPendientes();
+  else if(S.salTab==='historial') pintarSalHistorial();
+  else pintarSalSenales();
+}
+
+function pintarSalPendientes(){
+  const pend=S.bajasPend;
+  if(!pend.length){
+    $('#sal-cuerpo').innerHTML='<div class="empty"><b>No hay nada pendiente</b>Todas las salidas están cerradas. Es el estado al que hay que volver siempre.</div>';
+    return;
+  }
+  $('#sal-cuerpo').innerHTML=`
+  <div class="tw"><table>
+    <thead><tr>
+      <th>Nombre</th><th>Puesto</th><th>Baja</th><th>Días</th>
+      <th>Motivo</th><th class="num">Se le debe</th><th>Qué falta</th><th></th>
+    </tr></thead>
+    <tbody>
+    ${pend.map(b=>{
+      const dias=Number(b.dias_desde_la_baja||0);
+      const urg = dias>14 ? 'p-bad' : dias>7 ? 'p-warn' : 'p-gray';
+      return `<tr>
+        <td><b>${esc(b.nombre_completo)}</b></td>
+        <td style="color:var(--txt-2)">${esc(b.puesto||'—')}</td>
+        <td class="mono" style="font-size:12.5px">${fecha(b.fecha_baja)}</td>
+        <td><span class="p ${urg}">${dias}</span></td>
+        <td style="color:var(--txt-2);font-size:12.5px">${esc(b.motivo||'sin clasificar')}</td>
+        <td class="num">${b.finiquito_calculado!=null?money(b.finiquito_calculado):'—'}</td>
+        <td style="font-size:12.5px">${esc(b.que_falta||'')}</td>
+        <td class="num" style="white-space:nowrap">
+          <button class="btn btn-sm" data-fq="${b.empleado_id}">Finiquito</button>
+          <button class="btn btn-sm" data-enc="${b.empleado_id}">Encuesta</button>
+          <button class="btn btn-sm" data-doc="${b.empleado_id}">Documento</button>
+        </td></tr>`;
+    }).join('')}
+    </tbody></table></div>
+
+  <div class="note" style="margin-top:16px">
+    <b>El orden importa</b>
+    Primero el finiquito, porque es dinero y porque el documento toma su desglose de ahí.
+    La encuesta va en la misma cita en la que firma y cobra.
+    La salida no se cierra hasta que el documento firmado está escaneado en el expediente.</div>`;
+
+  document.querySelectorAll('[data-fq]').forEach(b=>b.onclick=()=>abrirFiniquito(Number(b.dataset.fq)));
+  document.querySelectorAll('[data-enc]').forEach(b=>b.onclick=()=>abrirEncuesta(Number(b.dataset.enc)));
+  document.querySelectorAll('[data-doc]').forEach(b=>b.onclick=()=>abrirDocSalida(Number(b.dataset.doc)));
+}
+
+function pintarSalHistorial(){
+  const abiertas=new Set(S.bajasPend.map(b=>b.empleado_id));
+  const h=S.salHist.filter(x=>!abiertas.has(x.empleado_id));
+  if(!h.length){
+    $('#sal-cuerpo').innerHTML='<div class="empty"><b>Todavía no hay salidas cerradas</b>Esta lista se empieza a llenar desde el corte de medición.</div>';
+    return;
+  }
+  $('#sal-cuerpo').innerHTML=`
+  <div class="tw"><table>
+    <thead><tr>
+      <th>Nombre</th><th>Baja</th><th>Reportaba a</th>
+      <th>Según la empresa</th><th>Según la persona</th><th>Encuesta</th><th></th>
+    </tr></thead>
+    <tbody>
+    ${h.map(x=>`<tr${x.discrepancia?' style="background:var(--warn-l,#FDF6E8)"':''}>
+      <td><b>${esc(x.nombre_completo)}</b></td>
+      <td class="mono" style="font-size:12.5px">${fecha(x.fecha_baja)}</td>
+      <td style="color:var(--txt-2);font-size:12.5px">${esc(x.reportaba_a||'—')}</td>
+      <td style="font-size:12.5px">${esc(x.submotivo_empresa||x.motivo_empresa||'sin clasificar')}</td>
+      <td style="font-size:12.5px">${esc(x.motivo_persona||'—')}</td>
+      <td><span class="p ${x.estado_encuesta==='aplicada'?'p-ok':x.estado_encuesta==='pendiente'?'p-warn':'p-gray'}">${esc(x.estado_encuesta)}</span></td>
+      <td class="num"><button class="btn btn-sm" data-enc="${x.empleado_id}">Ver</button></td>
+    </tr>${x.discrepancia?`<tr><td colspan="7" style="padding-top:0;color:#7A1E16;font-size:12.5px"><b>↳ ${esc(x.discrepancia)}</b></td></tr>`:''}`).join('')}
+    </tbody></table></div>
+
+  <div class="note" style="margin-top:16px">
+    <b>Los renglones marcados son los que importan</b>
+    Ahí la empresa anotó una razón y la persona dijo otra. No significa que alguien mienta: significa que el jefe directo no supo por qué se le fue la gente. Eso es lo que hay que corregir, y no se ve en ninguna otra parte del sistema.</div>`;
+
+  document.querySelectorAll('[data-enc]').forEach(b=>b.onclick=()=>abrirEncuesta(Number(b.dataset.enc)));
+}
+
+function pintarSalSenales(){
+  const r=S.salRes;
+  if(!r){ $('#sal-cuerpo').innerHTML='<div class="empty">Sin datos todavía.</div>'; return; }
+  const n=Number(r.aplicadas||0);
+  const barra=(v,et)=>{
+    if(v==null) return `<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;font-size:13px"><span>${et}</span><span style="color:var(--txt-2)">sin datos</span></div></div>`;
+    const pct=Math.max(0,Math.min(100,(Number(v)/5)*100));
+    const col=Number(v)<2.5?'var(--bad)':Number(v)<3.5?'#C9922B':'var(--ok,#2F7A5B)';
+    return `<div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>${et}</span><b>${Number(v).toFixed(2)} / 5</b></div>
+      <div style="height:7px;background:var(--line);border-radius:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${col}"></div></div>
+    </div>`;
+  };
+
+  $('#sal-cuerpo').innerHTML=`
+  ${n<5?`<div class="note"><b>Con ${n} encuesta${n===1?'':'s'} esto todavía no dice nada</b>
+    Los promedios empiezan a significar algo alrededor de las cinco. Hasta entonces, léelas una por una en la pestaña de salidas cerradas.</div>`:''}
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;margin-top:16px">
+    <div class="tw" style="padding:20px">
+      <h3 style="margin:0 0 16px;font-size:14px">Cómo califican al salir</h3>
+      ${barra(r.trato_del_jefe,'Trato del jefe directo')}
+      ${barra(r.capacitacion,'Qué tan preparados se sintieron')}
+      ${barra(r.herramientas,'Herramientas y base de datos')}
+      ${barra(r.ingreso_justo,'El ingreso contra el esfuerzo')}
+      ${barra(r.recomendaria,'Lo recomendarían a un conocido')}
+    </div>
+    <div class="tw" style="padding:20px">
+      <h3 style="margin:0 0 16px;font-size:14px">Cómo va la aplicación</h3>
+      <div style="display:flex;flex-direction:column;gap:10px;font-size:13.5px">
+        <div style="display:flex;justify-content:space-between"><span>Aplicadas</span><b>${r.aplicadas||0}</b></div>
+        <div style="display:flex;justify-content:space-between"><span>Pendientes</span><b>${r.pendientes||0}</b></div>
+        <div style="display:flex;justify-content:space-between"><span>No se pudo contactar</span><b>${r.no_se_pudo||0}</b></div>
+        <div style="display:flex;justify-content:space-between"><span>Se negaron</span><b>${r.se_negaron||0}</b></div>
+        <div style="display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:10px;margin-top:4px">
+          <span>No lo platicaron con nadie antes</span><b>${r.no_lo_platicaron||0}</b></div>
+      </div>
+      ${Number(r.no_lo_platicaron||0)>=2?`<div class="note" style="margin-top:14px;font-size:12.5px">
+        <b>Esto es lo más accionable de aquí</b>
+        Cuando varias personas se van sin habérselo dicho a nadie, el problema no es la rotación: es que nadie se entera a tiempo para hacer algo.</div>`:''}
+    </div>
+  </div>`;
+}
+
+/* ---------------- FINIQUITO ---------------- */
+
+async function abrirFiniquito(empId){
+  const b=S.bajasPend.find(x=>x.empleado_id===empId)
+        || S.salHist.find(x=>x.empleado_id===empId) || {};
+  S.fqEmp=empId;
+  $('#fq-tit').textContent='Cálculo final · '+(b.nombre_completo||'');
+  $('#fq-cuerpo').innerHTML='<div class="empty">Calculando…</div>';
+  $('#fq-acciones').innerHTML='';
+  $('#ov-finiq').classList.add('on');
+
+  const [calc,guard]=await Promise.all([
+    sb.rpc('calcular_finiquito',{p_emp:empId}),
+    sb.from('finiquitos').select('*').eq('empleado_id',empId).neq('estatus','cancelado')
+      .order('calculado_en',{ascending:false}).limit(1).maybeSingle()
+  ]);
+
+  if(calc.error){ $('#fq-cuerpo').innerHTML=`<div class="empty"><b>No se pudo calcular</b>${esc(calc.error.message)}</div>`; return; }
+  const filas=calc.data||[];
+  const fin=guard.error?null:guard.data;
+  S.fqGuardado=fin;
+
+  const alerta=filas.find(f=>f.concepto==='FALTA CALCULAR NÓMINA');
+  const perc=filas.filter(f=>f.grupo==='percepcion');
+  const ded =filas.filter(f=>f.grupo==='deduccion');
+  const inf =filas.filter(f=>f.grupo==='informativo' && f.concepto!=='FALTA CALCULAR NÓMINA' && f.concepto!=='Valor del día usado');
+  const sum =a=>a.reduce((x,y)=>x+Number(y.importe||0),0);
+  const neto=Math.max(sum(perc)-sum(ded),0);
+
+  const bloque=(tit,arr,signo)=>!arr.length?'':`
+    <div style="margin-bottom:18px">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);margin-bottom:8px">${tit}</div>
+      ${arr.map(f=>`<div style="display:flex;justify-content:space-between;gap:16px;padding:7px 0;border-bottom:1px solid var(--line)">
+        <div><div style="font-size:13.5px">${esc(f.concepto)}</div>
+        ${f.detalle?`<div style="font-size:12px;color:var(--txt-2);margin-top:2px">${esc(f.detalle)}</div>`:''}</div>
+        <div class="mono" style="white-space:nowrap;font-size:13.5px">${signo}${money(f.importe)}</div>
+      </div>`).join('')}
+    </div>`;
+
+  $('#fq-cuerpo').innerHTML=`
+  ${alerta?`<div class="note" style="background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16">
+    <b>Falta calcular la nómina</b>${esc(alerta.detalle)}</div>`:''}
+
+  ${fin?`<div class="note"><b>Ya hay un cálculo congelado del ${fecha(fin.fecha_baja)}</b>
+    Estatus: ${esc(fin.estatus)} · neto ${money(fin.neto)}.
+    ${fin.estatus==='pagado'?'Este ya no se recalcula: es lo que la persona firmó.':'Si vuelves a guardar, se reemplaza por lo que ves abajo.'}</div>`:''}
+
+  ${bloque('Se le debe', perc, '')}
+  ${bloque('Se le descuenta', ded, '−')}
+
+  <div style="display:flex;justify-content:space-between;align-items:baseline;padding:14px 0;border-top:2px solid var(--txt);margin-bottom:18px">
+    <b style="font-size:15px">Neto a pagar</b>
+    <b class="mono" style="font-size:19px">${money(neto)}</b>
+  </div>
+
+  ${inf.length?`
+    <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-2);margin-bottom:8px">Prestaciones de ley · calculadas, no cubiertas</div>
+    ${inf.map(f=>`<div style="display:flex;justify-content:space-between;gap:16px;padding:6px 0;color:var(--txt-2);font-size:13px">
+      <div>${esc(f.concepto)}${f.detalle?`<div style="font-size:11.5px;margin-top:2px">${esc(f.detalle)}</div>`:''}</div>
+      <div class="mono" style="white-space:nowrap">${money(f.importe)}</div></div>`).join('')}
+    <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line);margin-top:6px;font-size:13.5px">
+      <b>Suman</b><b class="mono">${money(sum(inf))}</b></div>
+    <div class="note" style="margin-top:12px;font-size:12.5px">
+      <b>Esto no se paga hoy y no suma al neto</b>
+      Está aquí para que sepas de cuánto es la exposición. Si algún día alguien reclama, el número ya está calculado en vez de improvisarse.</div>
+  `:''}`;
+
+  const acc=[];
+  if(!alerta && (!fin || fin.estatus!=='pagado')) acc.push(`<button class="btn btn-p" id="fq-guardar">${fin?'Recalcular y guardar':'Guardar el cálculo'}</button>`);
+  if(fin && fin.estatus==='calculado')  acc.push('<button class="btn btn-p" id="fq-autorizar">Autorizar</button>');
+  if(fin && fin.estatus==='autorizado') acc.push('<button class="btn btn-p" id="fq-pagado">Marcar como pagado</button>');
+  if(fin && fin.estatus==='pagado')     acc.push('<button class="btn btn-p" id="fq-cerrar">Cerrar la salida</button>');
+  $('#fq-acciones').innerHTML=acc.join('');
+
+  const b1=$('#fq-guardar');   if(b1) b1.onclick=()=>guardarFiniquito(empId);
+  const b2=$('#fq-autorizar'); if(b2) b2.onclick=()=>moverFiniquito(fin.id,'autorizado');
+  const b3=$('#fq-pagado');    if(b3) b3.onclick=()=>moverFiniquito(fin.id,'pagado');
+  const b4=$('#fq-cerrar');    if(b4) b4.onclick=()=>cerrarSalida(empId);
+}
+
+async function guardarFiniquito(empId){
+  const {data,error}=await sb.rpc('guardar_finiquito',{p_emp:empId,p_nota:null});
+  if(error){ toast(error.message,'bad'); return; }
+  const malo=/^No se (guardó|puede)|ya tiene un finiquito pagado/.test(String(data||''));
+  toast(data||'Guardado.', malo?'bad':'ok');
+  if(!malo){ await vistaSalidas(); await abrirFiniquito(empId); }
+}
+
+async function moverFiniquito(finId,estatus){
+  const extra = estatus==='pagado' ? {pagado_en:new Date().toISOString().slice(0,10)} : {};
+  const {error}=await sb.from('finiquitos').update({estatus,...extra}).eq('id',finId);
+  if(error){ toast(error.message,'bad'); return; }
+  toast(estatus==='pagado'?'Marcado como pagado.':'Autorizado.','ok');
+  const emp=S.fqEmp; await vistaSalidas(); await abrirFiniquito(emp);
+}
+
+async function cerrarSalida(empId){
+  if(!confirm('Cerrar esta salida?\n\nSolo se puede si el finiquito está pagado y el documento firmado ya está escaneado en el expediente.')) return;
+  const {data,error}=await sb.rpc('cerrar_baja',{p_emp:empId,p_etapa:'finiquitada',p_nota:null});
+  if(error){ toast(error.message,'bad'); return; }
+  const malo=/^Falta|^No existe|no está/.test(String(data||''));
+  toast(data||'', malo?'bad':'ok');
+  if(!malo){ cerrar('ov-finiq'); await vistaSalidas(); }
+}
+
+/* ---------------- ENCUESTA ---------------- */
+
+async function abrirEncuesta(empId){
+  S.encEmp=empId;
+  const b=S.bajasPend.find(x=>x.empleado_id===empId)
+        || S.salHist.find(x=>x.empleado_id===empId) || {};
+  $('#es-tit').textContent='Encuesta de salida · '+(b.nombre_completo||'');
+  $('#es-form').innerHTML='<div class="empty">Cargando…</div>';
+  $('#es-nota').value='';
+  $('#ov-encsal').classList.add('on');
+
+  const [pr,enc]=await Promise.all([
+    sb.from('preguntas_salida').select('*').eq('activa',true).order('orden'),
+    sb.from('encuestas_salida').select('id,estado,nota').eq('empleado_id',empId)
+      .order('fecha_baja',{ascending:false}).limit(1).maybeSingle()
+  ]);
+  if(pr.error){ $('#es-form').innerHTML=`<div class="empty">${esc(pr.error.message)}</div>`; return; }
+  S.encPreguntas=pr.data||[];
+
+  let previas={};
+  if(!enc.error && enc.data){
+    $('#es-nota').value=enc.data.nota||'';
+    const {data:rs}=await sb.from('respuestas_salida').select('*').eq('encuesta_id',enc.data.id);
+    (rs||[]).forEach(r=>{
+      previas[r.pregunta] = r.valor_num!=null ? r.valor_num
+                          : r.valor_bool!=null ? r.valor_bool
+                          : r.valor_texto;
+    });
+  }
+
+  $('#es-form').innerHTML=S.encPreguntas.map(p=>{
+    const v=previas[p.clave];
+    let campo='';
+    if(p.tipo==='opcion'){
+      campo=`<select data-pq="${p.clave}"><option value="">Sin contestar</option>
+        ${(p.opciones||[]).map(o=>`<option${String(v)===String(o)?' selected':''}>${esc(o)}</option>`).join('')}</select>`;
+    }else if(p.tipo==='escala'){
+      campo=`<div style="display:flex;gap:6px">${[1,2,3,4,5].map(n=>
+        `<button type="button" class="btn btn-sm esc ${Number(v)===n?'btn-p':''}" data-pq="${p.clave}" data-val="${n}" style="min-width:42px">${n}</button>`).join('')}</div>`;
+    }else if(p.tipo==='si_no'){
+      campo=`<select data-pq="${p.clave}"><option value="">Sin contestar</option>
+        <option value="true"${v===true?' selected':''}>Sí</option>
+        <option value="false"${v===false?' selected':''}>No</option></select>`;
+    }else{
+      campo=`<input type="text" data-pq="${p.clave}" value="${esc(v||'')}" placeholder="Con sus palabras">`;
+    }
+    return `<div style="margin-bottom:16px">
+      <label style="margin-bottom:6px">${esc(p.texto)}</label>
+      ${campo}
+      ${p.ayuda?`<div style="font-size:11.5px;color:var(--txt-2);margin-top:5px">${esc(p.ayuda)}</div>`:''}
+    </div>`;
+  }).join('');
+
+  document.querySelectorAll('#es-form .esc').forEach(btn=>btn.onclick=()=>{
+    document.querySelectorAll(`#es-form .esc[data-pq="${btn.dataset.pq}"]`).forEach(o=>o.classList.remove('btn-p'));
+    btn.classList.add('btn-p');
+  });
+}
+
+function leerEncuesta(){
+  const r={};
+  S.encPreguntas.forEach(p=>{
+    if(p.tipo==='escala'){
+      const sel=document.querySelector(`#es-form .esc[data-pq="${p.clave}"].btn-p`);
+      if(sel) r[p.clave]=Number(sel.dataset.val);
+      return;
+    }
+    const el=document.querySelector(`#es-form [data-pq="${p.clave}"]`);
+    if(!el) return;
+    const v=String(el.value||'').trim();
+    if(v==='') return;
+    r[p.clave] = p.tipo==='si_no' ? (v==='true') : v;
+  });
+  return r;
+}
+
+async function enviarEncuesta(estado){
+  const resp = estado==='aplicada' ? leerEncuesta() : {};
+  if(estado==='aplicada' && !Object.keys(resp).length){
+    toast('No hay ninguna respuesta capturada.','bad'); return; }
+  const {data,error}=await sb.rpc('registrar_encuesta_salida',{
+    p_emp:S.encEmp, p_estado:estado, p_respuestas:resp, p_nota:$('#es-nota').value.trim()||null });
+  if(error){ toast(error.message,'bad'); return; }
+  const malo=/^Esta persona|^El estado|necesita|hay que escribir/.test(String(data||''));
+  toast(data||'', malo?'bad':'ok');
+  if(!malo){ cerrar('ov-encsal'); await vistaSalidas(); }
+}
+
+/* ---------------- DOCUMENTOS ---------------- */
+
+async function abrirDocSalida(empId){
+  S.dsEmp=empId;
+  const b=S.bajasPend.find(x=>x.empleado_id===empId)
+        || S.salHist.find(x=>x.empleado_id===empId) || {};
+  $('#ds-tit').textContent='Documento de salida · '+(b.nombre_completo||'');
+  $('#ds-texto').textContent='';
+  $('#ds-aviso').innerHTML='';
+  $('#ov-docsal').classList.add('on');
+
+  const {data,error}=await sb.from('v_documentos_de_salida').select('*').eq('empleado_id',empId).order('orden');
+  if(error||!(data||[]).length){
+    $('#ds-sel').innerHTML='<option>Sin documentos</option>';
+    $('#ds-texto').textContent=error?error.message:'No hay plantilla que aplique a este motivo de baja. Clasifica la baja primero.';
+    return;
+  }
+  S.dsDocs=data;
+  $('#ds-sel').innerHTML=data.map(d=>`<option value="${esc(d.clave)}">${esc(d.documento)}</option>`).join('');
+  $('#ds-sel').onchange=()=>armarDocSalida();
+  armarDocSalida();
+}
+
+async function armarDocSalida(){
+  const clave=$('#ds-sel').value;
+  const d=(S.dsDocs||[]).find(x=>x.clave===clave);
+  $('#ds-aviso').innerHTML = d && !d.plantilla_revisada
+    ? `<div class="note" style="background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16;margin-top:10px">
+        <b>Esta plantilla todavía no la revisa un abogado</b>
+        Se imprime con el aviso al pie. Cuando un abogado laboral la apruebe, se marca como revisada en la base y el aviso desaparece.</div>`
+    : '';
+  $('#ds-texto').textContent='Armando…';
+  const {data,error}=await sb.rpc('armar_documento',{p_emp:S.dsEmp,p_plantilla:clave});
+  $('#ds-texto').textContent = error ? error.message : (data||'');
+}
+
+/* ---------------- ENGANCHES ---------------- */
+
+$('#es-save').onclick        = ()=>enviarEncuesta('aplicada');
+$('#es-nocontacto').onclick  = ()=>enviarEncuesta('no_contactado');
+$('#es-nego').onclick        = ()=>enviarEncuesta('se_nego');
+
+$('#ds-copy').onclick=()=>{
+  navigator.clipboard.writeText($('#ds-texto').textContent||'')
+    .then(()=>toast('Copiado.','ok'))
+    .catch(()=>toast('No se pudo copiar.','bad'));
+};
+
+$('#ds-print').onclick=()=>{
+  const t=$('#ds-texto').textContent||'';
+  const w=window.open('','_blank','width=820,height=900');
+  if(!w){ toast('El navegador bloqueó la ventana de impresión.','bad'); return; }
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Documento</title>'
+    +'<style>@page{margin:2.2cm}body{font-family:Georgia,"Times New Roman",serif;font-size:11.5pt;line-height:1.7;white-space:pre-wrap}</style>'
+    +'</head><body></body></html>');
+  w.document.body.textContent=t;
+  w.document.close();
+  w.focus();
+  setTimeout(()=>w.print(),250);
+};
 
 /* ============================================================
    ARRANQUE
