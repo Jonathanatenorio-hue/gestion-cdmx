@@ -7806,15 +7806,18 @@ function ubicacionActual(){
     if(!navigator.geolocation) return res(null);
     navigator.geolocation.getCurrentPosition(
       p=>res({lat:p.coords.latitude, lng:p.coords.longitude, prec:Math.round(p.coords.accuracy)}),
-      ()=>res(null),
+      // Negar el permiso es decisión de la persona; no tener señal, no.
+      err=>res(err && err.code===1 ? {denegada:true} : null),
       {enableHighAccuracy:true, timeout:8000, maximumAge:60000});
   });
 }
 
 function avisoUbicacion(){
   const e=$('#ch-estado'); if(!e) return;
-  e.innerHTML = S.chUbic ? '' :
-    '<span style="color:#7A1E16">Activa la ubicación del navegador. Sin ella tu checada queda marcada para revisión.</span>';
+  e.innerHTML = S.chUbic?.denegada
+    ? '<span style="color:#7A1E16"><b>Para marcar necesitas permitir la ubicación.</b> Actívala en el candado de la barra de direcciones y recarga.</span>'
+    : S.chUbic ? '' :
+    '<span style="color:var(--txt-2)">No se encontró tu ubicación todavía. Puedes marcar igual; tu checada queda para revisión.</span>';
 }
 
 async function prenderCamara(){
@@ -7851,6 +7854,15 @@ async function marcar(tipo){
   btn.disabled=true; const txt=btn.textContent; btn.textContent='Marcando…';
   res.innerHTML='';
 
+  const u = await ubicacionActual();
+  if(u?.denegada){
+    btn.disabled=false; btn.textContent=txt;
+    S.chUbic=u; avisoUbicacion();
+    res.innerHTML=`<div class="note" style="background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16">
+      <b>No quedó</b>Para marcar necesitas permitir la ubicación. Actívala en el candado de la barra de direcciones y recarga la página.</div>`;
+    return;
+  }
+
   let ruta=null;
   try{
     const blob=await tomarFoto();
@@ -7863,10 +7875,10 @@ async function marcar(tipo){
     }
   }catch(e){ ruta=null; }
 
-  const u = (await ubicacionActual()) || S.chUbic || null;
+  const ub = (u && !u.denegada) ? u : (S.chUbic && !S.chUbic.denegada ? S.chUbic : null);
   const {data,error}=await sb.rpc('registrar_checada',{
     p_tipo:tipo, p_foto_url:ruta, p_dispositivo:idDelTelefono(),
-    p_lat:u?u.lat:null, p_lng:u?u.lng:null, p_precision:u?u.prec:null });
+    p_lat:ub?ub.lat:null, p_lng:ub?ub.lng:null, p_precision:ub?ub.prec:null });
 
   btn.disabled=false; btn.textContent=txt;
 
