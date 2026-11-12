@@ -7938,8 +7938,12 @@ function botonesDelDia(h){
 async function misChecadas(){
   const c=$('#ch-mias'); if(!c) return;
   const desde=new Date(Date.now()-13*86400000).toISOString().slice(0,10);
+  // Siempre filtrado por la persona: a un jefe los permisos le dejan ver las
+  // de todos, y sin este filtro le salían horas ajenas y botones bloqueados.
+  const yo=S.perfil?.empleado_id;
+  if(!yo){ c.innerHTML=''; botonesDelDia({}); return; }
   const {data,error}=await sb.from('checadas_app')
-    .select('fecha,hora,tipo').gte('fecha',desde)
+    .select('fecha,hora,tipo').eq('empleado_id',yo).gte('fecha',desde)
     .order('fecha',{ascending:false}).order('hora',{ascending:false});
   if(error||!(data||[]).length){ c.innerHTML=''; botonesDelDia({}); return; }
 
