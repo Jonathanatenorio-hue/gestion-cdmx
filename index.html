@@ -1619,6 +1619,7 @@ async function leerDocumento(f, clave, empId, docId){
       .eq('empleado_id', empId).eq('documento_id', docId);
   }
 
+  const faltaNombre = hallado._falta_nombre; delete hallado._falta_nombre;
   const campos = Object.entries(hallado).filter(([k,v])=>v);
   if(!campos.length){
     const consejo = clave==='INE_FRENTE'
@@ -1649,6 +1650,8 @@ async function leerDocumento(f, clave, empId, docId){
         ${campos.map(([k,v])=>`<div style="font-size:13px">
           <span style="color:var(--txt-2)">${ETIQ[k]||k}:</span> <b class="mono">${esc(String(v))}</b></div>`).join('')}
       </div>
+      ${faltaNombre?`<div style="margin-top:9px;font-size:12.5px;color:#7A1E16">
+        No se pudo sacar el nombre del frente. Sube el <b>reverso</b>: los renglones de abajo lo dan exacto.</div>`:''}
       <button class="btn btn-sm btn-p" id="doc-aplicar" style="margin-top:11px">Usar estos datos</button>
       <button class="btn btn-sm" id="doc-descartar" style="margin-top:11px">Descartar</button>
     </div>`;
@@ -1659,34 +1662,67 @@ async function leerDocumento(f, clave, empId, docId){
 /* El CURP tiene una forma muy precisa, así que es lo más confiable de un INE.
    De él salen además la fecha de nacimiento y los 10 primeros del RFC. */
 function leerINE(t){
-  const T=(t||'').toUpperCase();
+  // El lector confunde la I con la barra y el 0 con la O en las etiquetas
+  const T=(t||'').toUpperCase().replace(/[|¡!]/g,'I');
   const r={};
-  const mCurp=T.match(/\b[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d\b/);
+  const CORTE=/DOMICILIO|CLAVE\s*DE\s*ELECT|CURP|FECHA\s*DE\s*NAC|SECCION|SECCIÓN|ESTADO|MUNICIPIO|LOCALIDAD|EMISION|EMISIÓN|VIGENCIA|AÑO\s*DE\s*REGISTRO|REGISTRO|MEXICO|INSTITUTO|CREDENCIAL/;
+
+  // El CURP tiene una forma inconfundible: es lo más seguro de toda la credencial
+  const mCurp=T.replace(/\s+/g,' ').match(/\b[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d\b/);
   if(mCurp){
     r.curp=mCurp[0];
     const a=r.curp.slice(4,6), m=r.curp.slice(6,8), d=r.curp.slice(8,10);
     const siglo = Number(a) > 30 ? '19' : '20';
     r.fecha_nacimiento=`${siglo}${a}-${m}-${d}`;
   }
-  const mCl=T.match(/CLAVE\s*DE\s*ELECTOR\s*[:\s]*([A-Z0-9]{18})/);
+
+  // La clave de elector son 18 caracteres; se busca sin espacios por si el
+  // lector los metió de más
+  const mCl=T.replace(/\s/g,'').match(/CLAVEDEELECTOR([A-Z0-9]{18})/);
   if(mCl) r.clave_elector=mCl[1];
 
   const lineas=T.split('\n').map(x=>x.trim()).filter(Boolean);
-  const iNom=lineas.findIndex(l=>/^NOMBRE/.test(l));
+  const soloLetras = l => l.replace(/[^A-ZÁÉÍÓÚÑ ]/g,'').replace(/\s+/g,' ').trim();
+
+  // ---- Nombre. En el INE viene en tres renglones: paterno, materno, nombres.
+  const iNom = lineas.findIndex(l=>/\bNOMBRE\b/.test(l));
   if(iNom>=0){
-    const partes=lineas.slice(iNom+1,iNom+4)
-      .filter(l=>/^[A-ZÁ-ÚÑ\s]{3,}$/.test(l) && !/DOMICILIO|CLAVE|CURP|SEXO|FECHA/.test(l));
-    if(partes.length) r.nombre=partes.join(' ').replace(/\s+/g,' ').trim();
+    const partes=[];
+    // A veces la etiqueta trae el primer apellido en el mismo renglón
+    const pegado = soloLetras(lineas[iNom].replace(/.*\bNOMBRE\b/,'').replace(/\bSEXO\b.*/,''));
+    if(pegado.length>=3) partes.push(pegado);
+    for(let i=iNom+1; i<lineas.length && partes.length<4; i++){
+      if(CORTE.test(lineas[i])) break;
+      const l=soloLetras(lineas[i]);
+      if(l.length>=3 && l.split(' ').every(w=>w.length>=2)) partes.push(l);
+      else if(l.length && partes.length) break;
+    }
+    if(partes.length>=2){
+      // La plantilla usa nombres primero, así que se invierte el orden del INE
+      const nombres   = partes[partes.length-1];
+      const apellidos = partes.slice(0,-1).join(' ');
+      r.nombre=(nombres+' '+apellidos).replace(/\s+/g,' ').trim();
+    }else if(partes.length===1){
+      r.nombre=partes[0];
+    }
   }
-  const iDom=lineas.findIndex(l=>/^DOMICILIO/.test(l));
+
+  // ---- Domicilio. Va hasta que aparece la clave de elector o el CURP.
+  const iDom = lineas.findIndex(l=>/\bDOMICILIO\b/.test(l));
   if(iDom>=0){
     const partes=[];
-    for(let i=iDom+1;i<lineas.length && partes.length<3;i++){
-      if(/CLAVE|CURP|ESTADO|MUNICIPIO|SECCION|LOCALIDAD|EMISION|VIGENCIA/.test(lineas[i])) break;
-      partes.push(lineas[i]);
+    const pegado = lineas[iDom].replace(/.*\bDOMICILIO\b/,'').trim();
+    if(pegado.length>=4) partes.push(pegado);
+    for(let i=iDom+1; i<lineas.length && partes.length<4; i++){
+      if(/CLAVE\s*DE\s*ELECT|CURP|FECHA\s*DE\s*NAC|SECCION|SECCIÓN|AÑO\s*DE\s*REG|VIGENCIA/.test(lineas[i])) break;
+      const l=lineas[i].replace(/[^A-ZÁÉÍÓÚÑ0-9,.\- ]/g,'').replace(/\s+/g,' ').trim();
+      if(l.length>=4) partes.push(l);
     }
     if(partes.length) r.domicilio=partes.join(' ').replace(/\s+/g,' ').trim();
   }
+
+  // Si no se pudo sacar el nombre del frente, el reverso lo da exacto
+  if(!r.nombre) r._falta_nombre = true;
   return r;
 }
 
