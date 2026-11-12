@@ -7812,10 +7812,27 @@ function ubicacionActual(){
   });
 }
 
+// Cómo se da permiso de ubicación depende del teléfono
+function comoActivarUbicacion(){
+  const ua=navigator.userAgent||'';
+  if(/iPhone|iPad|iPod/.test(ua)){
+    return `<b>En iPhone:</b><br>
+      1. Abre <b>Ajustes → Privacidad y seguridad → Localización</b> y revisa que esté encendida.<br>
+      2. Ahí mismo entra a <b>Sitios web de Safari</b> (o a <b>Chrome</b> si usas Chrome) y elige <b>Mientras se usa</b>.<br>
+      3. Regresa aquí, toca <b>aA</b> en la barra de direcciones → <b>Configuración del sitio web</b> → <b>Ubicación: Permitir</b>.<br>
+      4. Recarga la página.`;
+  }
+  return `<b>En Android:</b><br>
+    1. Revisa que la <b>Ubicación</b> del teléfono esté encendida (desliza la barra de arriba).<br>
+    2. Toca el ícono a la izquierda de la dirección de la página → <b>Permisos</b> → <b>Ubicación: Permitir</b>.<br>
+    3. Recarga la página.`;
+}
+
 function avisoUbicacion(){
   const e=$('#ch-estado'); if(!e) return;
   e.innerHTML = S.chUbic?.denegada
-    ? '<span style="color:#7A1E16"><b>Para marcar necesitas permitir la ubicación.</b> Actívala en el candado de la barra de direcciones y recarga.</span>'
+    ? `<div class="note" style="text-align:left;background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16">
+        <b>Para marcar necesitas permitir la ubicación</b>${comoActivarUbicacion()}</div>`
     : S.chUbic ? '' :
     '<span style="color:var(--txt-2)">No se encontró tu ubicación todavía. Puedes marcar igual; tu checada queda para revisión.</span>';
 }
@@ -7859,7 +7876,7 @@ async function marcar(tipo){
     btn.disabled=false; btn.textContent=txt;
     S.chUbic=u; avisoUbicacion();
     res.innerHTML=`<div class="note" style="background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16">
-      <b>No quedó</b>Para marcar necesitas permitir la ubicación. Actívala en el candado de la barra de direcciones y recarga la página.</div>`;
+      <b>No quedó: falta permitir la ubicación</b><div style="text-align:left;margin-top:6px">${comoActivarUbicacion()}</div></div>`;
     return;
   }
 
