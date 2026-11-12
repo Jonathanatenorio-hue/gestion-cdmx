@@ -672,6 +672,29 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
   </div>
 </div>
 
+<div class="ov" id="ov-pedir">
+  <div class="md" style="max-width:520px">
+    <div class="md-h"><b id="pc-tit">Pedir cambio</b><button data-close="ov-pedir">&times;</button></div>
+    <div class="md-b">
+      <div id="pc-aviso"></div>
+      <label id="pc-label" style="margin-top:12px">Dato nuevo</label>
+      <input type="text" id="pc-val">
+      <div id="pc-eviwrap" style="display:none;margin-top:14px">
+        <label>Comprobante</label>
+        <input type="file" id="pc-file" accept="image/*,application/pdf">
+        <div style="font-size:11.5px;color:var(--txt-2);margin-top:5px">
+          Carátula del banco o estado de cuenta donde se vea la CLABE y tu nombre.</div>
+      </div>
+      <label style="margin-top:14px">Por qué lo cambias</label>
+      <textarea id="pc-nota" rows="2" placeholder="Opcional, pero ayuda a que lo resuelvan rápido"></textarea>
+    </div>
+    <div class="md-f">
+      <button class="btn" data-close="ov-pedir">Cancelar</button>
+      <button class="btn btn-p" id="pc-save">Enviar solicitud</button>
+    </div>
+  </div>
+</div>
+
 <div class="ov" id="ov-finiq">
   <div class="md" style="max-width:800px">
     <div class="md-h"><b id="fq-tit">Cálculo final</b><button data-close="ov-finiq">&times;</button></div>
@@ -873,24 +896,28 @@ const S = {
 };
 
 const MODULOS = [
-  {id:'guia',       n:'00', t:'Cómo se usa',          lista:true},
-  {id:'checar',     n:'13', t:'Checar',               lista:true},
+  {id:'guia',       n:'00', t:'Cómo se usa',          lista:true, ver:'jefes'},
+  {id:'checar',     n:'13', t:'Checar',               lista:true, ver:'todos'},
+  {id:'mificha',    n:'14', t:'Mi información',       lista:true, ver:'todos'},
+  {id:'miasist',    n:'15', t:'Mi asistencia',        lista:true, ver:'todos'},
+  {id:'mispagos',   n:'16', t:'Mis pagos',            lista:true, ver:'todos'},
+  {id:'solicitudes',n:'17', t:'Solicitudes de la gente', lista:true, ver:'rh'},
   {id:'usuarios',   n:'98', t:'Usuarios y accesos',    lista:true, soloDir:true},
   {id:'config',     n:'99', t:'Configuración',         lista:true, soloDir:true},
   {id:'plantilla',  n:'05', t:'Plantilla',            lista:true},
   {id:'asistencia', n:'01', t:'Asistencia',           lista:true},
   {id:'asistencia_old', n:'01b', t:'Asistencia (guía)', bloque:3, desc:'Carga los dos exportes del checador (AT&T y NEZA), cruza los marcajes contra las reglas de horario y califica cada día como asistencia, retardo, falta o descanso. Ajustes manuales quedan firmados con usuario y motivo.', pts:['Lector de los archivos del biométrico con control de duplicados','Reglas por puesto: ejecutivos 10:05 / 10:15, supervisión 10:00 / 10:10, facturación 8:00 / 8:10','Sin checada de salida se marca falta, con opción de justificar','Tablero por quincena y detalle por persona']},
-  {id:'nomina',     n:'02', t:'Nómina',               lista:true},
-  {id:'nomina_old', n:'02b', t:'Nómina (guía)',       bloque:4, desc:'Calcula la quincena a partir de la asistencia ya calificada, aplica percepciones y deducciones, y cierra el periodo para que no se pueda tocar después de pagado.', pts:['Periodos del 6 al 20 y del 21 al 5','Descuento automático por faltas y retardos','Conceptos manuales: préstamos, equipo, bonos','Cierre de periodo con bitácora de quién cerró']},
+  {id:'nomina',     n:'02', t:'Nómina',               lista:true, soloDir:true},
+  {id:'nomina_old', n:'02b', t:'Nómina (guía)',       bloque:4, desc:'Calcula la quincena a partir de la asistencia ya calificada, aplica percepciones y deducciones, y cierra el periodo para que no se pueda tocar después de pagado.', pts:['Periodos del 6 al 20 y del 21 al 5','Descuento automático por faltas y retardos','Conceptos manuales: préstamos, equipo, bonos','Cierre de periodo con bitácora de quién cerró'], soloDir:true},
   {id:'comisiones', n:'03', t:'Comisiones y bonos',   bloque:6, desc:'Toma las ventas que sí pagó AT&T y las convierte en comisión por agente según el esquema vigente. Se alimenta de la auditoría, no del reporte interno.', pts:['Esquemas con vigencia y rangos por volumen','Factores por plan','Autorización antes de pasar a nómina','Comparativo de lo calculado contra lo pagado']},
   {id:'ventas',     n:'04', t:'Ventas',                 lista:true},
   {id:'auditoria',  n:'04b', t:'Auditoría de ventas',  bloque:5, desc:'El corazón del control: cruza tu reporte interno contra Global y contra los dos archivos de pago de ExpertCell, el semanal del 50% y el mensual del remanente.', pts:['Cruce por folio y por teléfono, con asignación manual para lo que no empate','Detección de duplicados en el interno','Clasificación: pagada sin comisionar, comisionada sin pagar, solo interno, solo Global','Control del remanente mensual pendiente de cobro']},
   {id:'accesos',    n:'06', t:'Accesos a plataformas',bloque:10,desc:'Padrón de usuarios de AT&T, Bonsaif, Odoo, iVentas y el CRM de leads. Sin contraseñas: solo quién tiene qué y desde cuándo.', pts:['Alta y baja ligada al movimiento de personal','Alerta de accesos activos de gente que ya causó baja','Costo mensual por plataforma','Historial de solicitudes']},
-  {id:'gastos',     n:'07', t:'Gastos',               lista:true},
-  {id:'ingresos',   n:'08', t:'Cobros ExpertCell',    lista:true},
-  {id:'balance',    n:'09', t:'Balance financiero',   lista:true},
-  {id:'dispersion', n:'10', t:'Dispersión de pagos',  lista:true},
-  {id:'dispersion_old', n:'10b', t:'Dispersión (guía)', bloque:8, desc:'Arma el archivo que subes al banco, con el mismo layout que hoy ya te acepta, tomando montos de nómina y comisiones.', pts:['Layout idéntico: código, nombre, banco, CLABE, fecha, total','Validación de CLABE antes de exportar','Autorización previa a la dispersión','Historial de lo dispersado con estatus por registro']},
+  {id:'gastos',     n:'07', t:'Gastos',               lista:true, soloDir:true},
+  {id:'ingresos',   n:'08', t:'Cobros ExpertCell',    lista:true, soloDir:true},
+  {id:'balance',    n:'09', t:'Balance financiero',   lista:true, soloDir:true},
+  {id:'dispersion', n:'10', t:'Dispersión de pagos',  lista:true, soloDir:true},
+  {id:'dispersion_old', n:'10b', t:'Dispersión (guía)', bloque:8, desc:'Arma el archivo que subes al banco, con el mismo layout que hoy ya te acepta, tomando montos de nómina y comisiones.', pts:['Layout idéntico: código, nombre, banco, CLABE, fecha, total','Validación de CLABE antes de exportar','Autorización previa a la dispersión','Historial de lo dispersado con estatus por registro'], soloDir:true},
   {id:'salidas',    n:'12', t:'Salidas y finiquitos', lista:true, soloDir:true},
   {id:'tickets',    n:'11', t:'Buzón de tickets',     bloque:9, desc:'Pendientes entre el Call Center y la dirección, con folio, responsable y cierre obligatorio.', pts:['Folio automático y prioridad','Conversación por ticket','No se cierra sin resolución escrita','Tablero de abiertos por antigüedad']}
 ];
@@ -954,7 +981,7 @@ async function iniciar(){
   $('#u-rol').textContent=perfil.rol;
   pintarNav();
   pintarAyudas();
-  S.inicio='guia';
+  S.inicio = (perfil.rol==='agente') ? 'checar' : 'guia';
   sb.rpc('registrar_acceso').then(({error})=>{
     if(error) console.warn('No se pudo registrar el acceso:', error.message, error.details||'');
     else console.log('Acceso registrado.');
@@ -969,7 +996,7 @@ async function iniciar(){
    ============================================================ */
 let vistaActual='plantilla';
 function pintarNav(){
-  $('#nav').innerHTML=MODULOS.filter(m=>!m.soloDir||S.direccion).map(m=>
+  $('#nav').innerHTML=MODULOS.filter(puedeVerModulo).map(m=>
     `<a data-ir="${m.id}" class="${m.lista?'':'soon'}"><i>${m.n}</i><span>${esc(m.t)}</span></a>`).join('');
   $('#nav').querySelectorAll('a').forEach(a=>a.onclick=()=>irA(a.dataset.ir));
 }
@@ -982,8 +1009,11 @@ function irA(id){
   if(vistaActual==='checar' && id!=='checar'){ apagarCamara(); clearInterval(S.chReloj); }
   vistaActual=id;
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
-  const m=MODULOS.find(x=>x.id===id);
-  const R={guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar};
+  let m=MODULOS.find(x=>x.id===id);
+  if(!m || !puedeVerModulo(m)){ m=MODULOS.find(x=>x.id==='checar'); id='checar'; vistaActual=id; }
+  const R={guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar,
+             mificha:vistaMiFicha, miasist:vistaMiAsistencia, mispagos:vistaMisPagos,
+             solicitudes:vistaSolicitudesDatos};
   if(m.lista && R[id]) R[id](); else vistaSoon(m);
   window.scrollTo(0,0);
 }
@@ -8021,6 +8051,372 @@ async function probarIP(){
       <td class="mono" style="font-size:12px;word-break:break-all">${esc(d.valor)}</td></tr>`).join('')}
     </tbody></table></div>`;
 }
+
+
+/* ============================================================
+   LO QUE VE UN AGENTE
+   Tres pantallas suyas, y la bandeja de quien resuelve.
+   Ninguna consulta una tabla directo: todo pasa por funciones
+   que filtran por quien está en sesión.
+   ============================================================ */
+
+const esAgente = () => (S.perfil?.rol === 'agente');
+
+function puedeVerModulo(m){
+  if(m.soloDir)       return S.direccion;
+  if(m.ver==='todos') return true;
+  if(m.ver==='rh')    return S.direccion || S.rh;
+  return !esAgente();
+}
+
+const NOMBRE_CAMPO = {
+  telefono:'Teléfono', correo:'Correo', domicilio:'Domicilio',
+  clabe:'Cuenta bancaria', banco:'Banco', contacto_emergencia:'Contacto de emergencia'
+};
+
+/* ---------------- MI INFORMACIÓN ---------------- */
+
+async function vistaMiFicha(){
+  $('#main').innerHTML='<div class="empty">Cargando…</div>';
+  const [f,s]=await Promise.all([ sb.rpc('mi_ficha'), sb.rpc('mis_solicitudes') ]);
+  if(f.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(f.error.message)}</div>`; return; }
+  const d=f.data||{};
+  if(!d.ok){ $('#main').innerHTML=`<div class="empty"><b>Sin ficha</b>${esc(d.mensaje||'')}</div>`; return; }
+  S.miFicha=d;
+  const sol=s.error?[]:(s.data||[]);
+
+  const dato=(et,v,campo)=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line)">
+      <div style="min-width:0">
+        <div style="font-size:11.5px;color:var(--txt-2);text-transform:uppercase;letter-spacing:.05em">${et}</div>
+        <div style="font-size:14px;margin-top:2px;word-break:break-word">${v?esc(v):'<span style="color:var(--txt-2)">sin capturar</span>'}</div>
+      </div>
+      ${campo?`<button class="btn btn-sm" data-pedir="${campo}" style="flex-shrink:0">Pedir cambio</button>`:''}
+    </div>`;
+
+  const anios=Math.floor(Number(d.antiguedad_dias||0)/365);
+  const meses=Math.floor((Number(d.antiguedad_dias||0)%365)/30);
+
+  $('#main').innerHTML=`
+  <div class="head">
+    <div><h1>Mi información</h1><p>Tus datos como están registrados hoy</p></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:20px">
+    <div class="tw" style="padding:22px">
+      <h3 style="margin:0 0 4px;font-size:17px">${esc(d.nombre||'')}</h3>
+      <div style="color:var(--txt-2);font-size:13.5px;margin-bottom:18px">
+        ${esc(d.puesto||'sin puesto')}${d.centro?' · '+esc(d.centro):''}</div>
+      ${dato('Ingresé el', fecha(d.fecha_ingreso) + (anios||meses?` · ${anios?anios+' año'+(anios===1?'':'s'):''}${anios&&meses?' y ':''}${meses?meses+' mes'+(meses===1?'':'es'):''}`:''), null)}
+      ${dato('Mi jefe directo', d.supervisor, null)}
+      ${dato('Esquema de pago', d.esquema_pago==='sueldo_semanal'?'Sueldo semanal':d.esquema_pago, null)}
+      ${dato('Sueldo semanal', d.sueldo_semanal?money(d.sueldo_semanal):null, null)}
+    </div>
+
+    <div class="tw" style="padding:22px">
+      <h3 style="margin:0 0 18px;font-size:14px">Datos de contacto</h3>
+      ${dato('Teléfono', d.telefono, 'telefono')}
+      ${dato('Correo', d.correo, 'correo')}
+      ${dato('Domicilio', d.domicilio, 'domicilio')}
+      ${dato('Contacto de emergencia', null, 'contacto_emergencia')}
+    </div>
+
+    <div class="tw" style="padding:22px">
+      <h3 style="margin:0 0 6px;font-size:14px">Dónde recibo mi pago</h3>
+      <div style="font-size:12px;color:var(--txt-2);margin-bottom:14px">
+        Cambiar la cuenta necesita comprobante y lo autoriza dirección.</div>
+      ${dato('Banco', d.banco, 'banco')}
+      ${dato('Cuenta', d.clabe_final, 'clabe')}
+      ${d.clabe_final && !d.cuenta_verificada?`<div class="note" style="margin-top:12px;font-size:12.5px">
+        <b>Tu cuenta está sin verificar</b>Avisa a dirección para que la confirme antes del siguiente pago.</div>`:''}
+    </div>
+
+    <div class="tw" style="padding:22px">
+      <h3 style="margin:0 0 14px;font-size:14px">Mis solicitudes</h3>
+      ${!sol.length?'<div style="color:var(--txt-2);font-size:13.5px">Todavía no has pedido ningún cambio.</div>':
+        sol.map(x=>`<div style="padding:9px 0;border-bottom:1px solid var(--line)">
+          <div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
+            <div style="font-size:13.5px"><b>${esc(NOMBRE_CAMPO[x.campo]||x.campo)}</b> → ${esc(x.valor_pedido)}</div>
+            <span class="p ${x.estado==='aplicada'?'p-ok':x.estado==='rechazada'?'p-bad':'p-warn'}">${esc(x.estado)}</span>
+          </div>
+          <div style="font-size:11.5px;color:var(--txt-2);margin-top:3px">
+            ${fecha(String(x.pedida_en).slice(0,10))}${x.nota_respuesta?' · '+esc(x.nota_respuesta):''}</div>
+        </div>`).join('')}
+    </div>
+  </div>
+
+  <div class="note" style="margin-top:20px">
+    <b>Por qué no puedes editar tus datos aquí</b>
+    Si cualquiera pudiera cambiar su propia cuenta bancaria, bastaría con que alguien entrara a tu sesión un minuto para desviar tu pago. Por eso se pide el cambio y alguien lo aplica, y queda registrado quién lo hizo y cuándo.</div>`;
+
+  document.querySelectorAll('[data-pedir]').forEach(b=>b.onclick=()=>abrirPedirCambio(b.dataset.pedir));
+}
+
+function abrirPedirCambio(campo){
+  S.pcCampo=campo;
+  const esBanco = (campo==='clabe');
+  $('#pc-tit').textContent='Pedir cambio · '+(NOMBRE_CAMPO[campo]||campo);
+  $('#pc-val').value='';
+  $('#pc-nota').value='';
+  $('#pc-file').value='';
+  $('#pc-val').type = campo==='correo' ? 'email' : 'text';
+  $('#pc-val').placeholder = esBanco ? '18 dígitos, sin espacios'
+    : campo==='telefono' ? '10 dígitos'
+    : campo==='correo' ? 'tucorreo@ejemplo.com'
+    : campo==='contacto_emergencia' ? 'Nombre, parentesco y teléfono'
+    : 'El dato nuevo';
+  $('#pc-label').textContent = 'Nuevo '+(NOMBRE_CAMPO[campo]||campo).toLowerCase();
+  $('#pc-eviwrap').style.display = esBanco ? 'block' : 'none';
+  $('#pc-aviso').innerHTML = esBanco
+    ? `<div class="note" style="background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16">
+        <b>Esto lo revisa dirección, no recursos humanos</b>
+        Hace falta la carátula o el estado de cuenta donde se vea la CLABE a tu nombre. Sin eso la solicitud no se registra.</div>`
+    : '';
+  $('#ov-pedir').classList.add('on');
+}
+
+async function enviarPedirCambio(){
+  const campo=S.pcCampo, val=$('#pc-val').value.trim();
+  if(!val){ toast('Falta escribir el dato nuevo.','bad'); return; }
+
+  const btn=$('#pc-save'); btn.disabled=true; btn.textContent='Enviando…';
+  let evi=null;
+  try{
+    const f=$('#pc-file').files?.[0];
+    if(f){
+      const ext=(f.name.split('.').pop()||'jpg').toLowerCase();
+      evi=`${S.miFicha?.empleado_id||'x'}/${campo}_${Date.now()}.${ext}`;
+      const {error}=await sb.storage.from('solicitudes').upload(evi,f);
+      if(error){ evi=null; toast('No se pudo subir el comprobante: '+error.message,'bad'); }
+    }
+  }catch(e){ evi=null; }
+
+  const {data,error}=await sb.rpc('solicitar_cambio_datos',
+    {p_campo:campo, p_valor:val, p_nota:$('#pc-nota').value.trim()||null, p_evidencia:evi});
+  btn.disabled=false; btn.textContent='Enviar solicitud';
+
+  if(error){ toast(error.message,'bad'); return; }
+  if(!data?.ok){ toast(data?.mensaje||'No se pudo.','bad'); return; }
+  toast(data.mensaje,'ok'); cerrar('ov-pedir'); vistaMiFicha();
+}
+
+/* ---------------- MI ASISTENCIA ---------------- */
+
+async function vistaMiAsistencia(){
+  const hoy=new Date();
+  const ini=new Date(hoy.getFullYear(),hoy.getMonth(),1);
+  S.maDesde = S.maDesde || ini.toISOString().slice(0,10);
+  S.maHasta = S.maHasta || hoy.toISOString().slice(0,10);
+
+  $('#main').innerHTML=`
+  <div class="head">
+    <div><h1>Mi asistencia</h1><p>Informativa. Si algo está mal, avísale a tu jefe directo.</p></div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:18px">
+    <div><label style="margin-bottom:4px">Desde</label><input type="date" id="ma-d" value="${S.maDesde}" style="width:auto"></div>
+    <div><label style="margin-bottom:4px">Hasta</label><input type="date" id="ma-h" value="${S.maHasta}" style="width:auto"></div>
+    <button class="btn btn-p" id="ma-ver">Ver</button>
+    <button class="btn btn-sm" data-rango="mes">Este mes</button>
+    <button class="btn btn-sm" data-rango="mespasado">Mes pasado</button>
+    <button class="btn btn-sm" data-rango="90">Últimos 90 días</button>
+  </div>
+  <div id="ma-cuerpo"><div class="empty">Cargando…</div></div>`;
+
+  $('#ma-ver').onclick=()=>{ S.maDesde=$('#ma-d').value; S.maHasta=$('#ma-h').value; cargarMiAsistencia(); };
+  document.querySelectorAll('[data-rango]').forEach(b=>b.onclick=()=>{
+    const h=new Date(), r=b.dataset.rango;
+    let d;
+    if(r==='mes'){ d=new Date(h.getFullYear(),h.getMonth(),1); S.maHasta=h.toISOString().slice(0,10); }
+    else if(r==='mespasado'){
+      d=new Date(h.getFullYear(),h.getMonth()-1,1);
+      S.maHasta=new Date(h.getFullYear(),h.getMonth(),0).toISOString().slice(0,10);
+    } else { d=new Date(Date.now()-90*86400000); S.maHasta=h.toISOString().slice(0,10); }
+    S.maDesde=d.toISOString().slice(0,10);
+    $('#ma-d').value=S.maDesde; $('#ma-h').value=S.maHasta;
+    cargarMiAsistencia();
+  });
+  cargarMiAsistencia();
+}
+
+async function cargarMiAsistencia(){
+  const c=$('#ma-cuerpo'); c.innerHTML='<div class="empty">Cargando…</div>';
+  const [d,r]=await Promise.all([
+    sb.rpc('mi_asistencia',{p_desde:S.maDesde,p_hasta:S.maHasta}),
+    sb.rpc('mi_asistencia_resumen',{p_desde:S.maDesde,p_hasta:S.maHasta})
+  ]);
+  if(d.error){ c.innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(d.error.message)}</div>`; return; }
+  const l=d.data||[], k=r.error?{}:(r.data||{});
+  if(!l.length){ c.innerHTML='<div class="empty"><b>Sin registros</b>No hay asistencia capturada en esas fechas.</div>'; return; }
+
+  const pill=e=>({A:'p-ok',R:'p-warn',F:'p-bad',D:'p-gray'}[e]||'p-teal');
+
+  c.innerHTML=`
+  <div class="kpis">
+    <div class="kpi t"><span>Asistencias</span><b>${k.asistencias||0}</b><small>días completos</small></div>
+    <div class="kpi ${k.retardos?'w':''}"><span>Retardos</span><b>${k.retardos||0}</b><small>llegadas tarde</small></div>
+    <div class="kpi ${k.faltas?'w':''}"><span>Faltas</span><b>${k.faltas||0}</b><small>días sin asistir</small></div>
+    <div class="kpi"><span>Puntualidad</span><b>${k.puntualidad!=null?k.puntualidad+'%':'—'}</b><small>de tus días laborables</small></div>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Día</th><th></th><th>Entrada</th><th>Salida</th><th>Quedó como</th><th>Nota</th></tr></thead>
+    <tbody>${l.map(x=>`<tr>
+      <td class="mono" style="font-size:12.5px">${fecha(x.fecha)}</td>
+      <td style="color:var(--txt-2);font-size:12.5px">${esc(x.dia||'')}</td>
+      <td class="mono">${x.entrada?String(x.entrada).slice(0,5):'—'}</td>
+      <td class="mono">${x.salida?String(x.salida).slice(0,5):'—'}</td>
+      <td><span class="p ${pill(x.estatus)}">${esc(x.se_lee||'')}</span></td>
+      <td style="font-size:12px;color:var(--txt-2)">${esc(x.nota||'')}</td>
+    </tr>`).join('')}</tbody></table></div>`;
+}
+
+/* ---------------- MIS PAGOS ---------------- */
+
+async function vistaMisPagos(){
+  $('#main').innerHTML='<div class="empty">Cargando…</div>';
+  const [p,m,r]=await Promise.all([
+    sb.rpc('mis_pagos'), sb.rpc('mis_pagos_por_mes'), sb.rpc('mis_pagos_resumen')
+  ]);
+  if(p.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(p.error.message)}</div>`; return; }
+  const l=p.data||[], mes=(m.error?[]:(m.data||[])), k=r.error?{}:(r.data||{});
+
+  if(!l.length){
+    $('#main').innerHTML=`<div class="head"><div><h1>Mis pagos</h1></div></div>
+      <div class="empty"><b>Todavía no hay pagos registrados</b>En cuanto se calcule tu primera nómina aparece aquí.</div>`;
+    return;
+  }
+
+  const tope=Math.max(...mes.map(x=>Number(x.total||0)),1);
+  const nomMes=s=>{
+    const [a,b]=String(s).split('-');
+    return ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][Number(b)-1]+' '+a.slice(2);
+  };
+
+  $('#main').innerHTML=`
+  <div class="head">
+    <div><h1>Mis pagos</h1><p>Lo que has generado y cómo se compone cada periodo</p></div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi t"><span>Último pago</span><b>${money(l[0].total)}</b><small>${esc(l[0].periodo||'')}</small></div>
+    <div class="kpi"><span>Promedio</span><b>${money(k.promedio_semana||0)}</b><small>por periodo</small></div>
+    <div class="kpi b"><span>Tu mejor periodo</span><b>${money(k.mejor_semana||0)}</b><small>el más alto hasta hoy</small></div>
+    <div class="kpi"><span>Últimos 30 días</span><b>${money(k.ultimos_30_dias||0)}</b><small>sumando todo</small></div>
+    <div class="kpi"><span>Este año</span><b>${money(k.este_ano||0)}</b><small>${k.periodos||0} periodos</small></div>
+  </div>
+
+  ${mes.length>1?`
+  <div class="tw" style="padding:22px;margin-bottom:20px">
+    <h3 style="margin:0 0 18px;font-size:14px">Cuánto generas por mes</h3>
+    <div style="display:flex;align-items:flex-end;gap:8px;height:150px">
+      ${mes.slice().reverse().map(x=>{
+        const h=Math.max(4,(Number(x.total||0)/tope)*120);
+        const c=Number(x.comisiones||0), s=Number(x.sueldo||0), t=s+c;
+        const hc=t?Math.round(h*c/t):0;
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0" title="${esc(nomMes(x.mes))}: ${money(x.total)}">
+          <div style="font-size:10.5px;color:var(--txt-2);white-space:nowrap">${money(x.total).replace('$','').split('.')[0]}</div>
+          <div style="width:100%;max-width:46px;display:flex;flex-direction:column;justify-content:flex-end;height:${h}px">
+            ${hc>2?`<div style="height:${hc}px;background:var(--teal);opacity:.55;border-radius:3px 3px 0 0"></div>`:''}
+            <div style="flex:1;background:var(--teal);border-radius:${hc>2?'0 0 3px 3px':'3px'}"></div>
+          </div>
+          <div style="font-size:10.5px;color:var(--txt-2);white-space:nowrap">${nomMes(x.mes)}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="display:flex;gap:16px;margin-top:14px;font-size:11.5px;color:var(--txt-2)">
+      <span style="display:flex;align-items:center;gap:5px"><i style="width:10px;height:10px;background:var(--teal);border-radius:2px;display:inline-block"></i>Sueldo</span>
+      <span style="display:flex;align-items:center;gap:5px"><i style="width:10px;height:10px;background:var(--teal);opacity:.55;border-radius:2px;display:inline-block"></i>Comisiones</span>
+    </div>
+  </div>`:''}
+
+  <div class="tw"><table>
+    <thead><tr>
+      <th>Periodo</th><th>Del</th><th>Al</th><th>Días</th><th>Faltas</th><th>Ret.</th>
+      <th class="num">Percepciones</th><th class="num">Deducciones</th><th class="num">Sueldo</th>
+      <th class="num">Comisiones</th><th class="num">Total</th>
+    </tr></thead>
+    <tbody>${l.map(x=>`<tr>
+      <td><b>${esc(x.periodo||'')}</b></td>
+      <td class="mono" style="font-size:12px">${fecha(x.desde)}</td>
+      <td class="mono" style="font-size:12px">${fecha(x.hasta)}</td>
+      <td>${Number(x.dias_pagados||0)}</td>
+      <td>${Number(x.faltas||0)?`<span class="p p-bad">${Number(x.faltas)}</span>`:'—'}</td>
+      <td>${Number(x.retardos||0)?`<span class="p p-warn">${Number(x.retardos)}</span>`:'—'}</td>
+      <td class="num">${money(x.percepciones)}</td>
+      <td class="num">${Number(x.deducciones||0)?'−'+money(x.deducciones):'—'}</td>
+      <td class="num">${money(x.sueldo_neto)}</td>
+      <td class="num">${Number(x.comisiones||0)?money(x.comisiones):'—'}</td>
+      <td class="num"><b>${money(x.total)}</b></td>
+    </tr>`).join('')}</tbody></table></div>
+
+  <div class="note" style="margin-top:18px">
+    <b>Si un número no cuadra</b>
+    Compara el total contra lo que te llegó al banco. Si difiere, habla con tu jefe directo o con dirección: el sistema guarda el detalle de cómo se calculó cada periodo y se puede revisar renglón por renglón.</div>`;
+}
+
+/* ---------------- BANDEJA DE SOLICITUDES ---------------- */
+
+async function vistaSolicitudesDatos(){
+  if(!(S.direccion||S.rh)){ $('#main').innerHTML='<div class="empty"><b>Sin permiso</b></div>'; return; }
+  $('#main').innerHTML='<div class="empty">Cargando…</div>';
+  const {data,error}=await sb.from('v_solicitudes_datos').select('*');
+  if(error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(error.message)}</div>`; return; }
+  const l=data||[], pend=l.filter(x=>x.estado==='pendiente');
+
+  $('#main').innerHTML=`
+  <div class="head">
+    <div><h1>Solicitudes de la gente</h1><p>Cambios que pidió el personal sobre sus propios datos</p></div>
+  </div>
+  <div class="kpis">
+    <div class="kpi ${pend.length?'w':''}"><span>Pendientes</span><b>${pend.length}</b><small>esperando respuesta</small></div>
+    <div class="kpi ${pend.filter(x=>x.solo_direccion).length?'b':''}"><span>De cuenta bancaria</span><b>${pend.filter(x=>x.solo_direccion).length}</b><small>solo las autoriza dirección</small></div>
+    <div class="kpi"><span>Resueltas</span><b>${l.length-pend.length}</b><small>histórico</small></div>
+  </div>
+  ${!l.length?'<div class="empty"><b>No hay solicitudes</b>Cuando alguien pida un cambio aparece aquí.</div>':`
+  <div class="tw"><table>
+    <thead><tr><th>Quién</th><th>Qué pide</th><th>Hoy</th><th>Pide</th><th>Días</th><th>Estado</th><th></th></tr></thead>
+    <tbody>${l.map(x=>`<tr${x.solo_direccion&&x.estado==='pendiente'?' style="background:var(--warn-l,#FDF6E8)"':''}>
+      <td><b>${esc(x.nombre_completo)}</b><div style="font-size:11.5px;color:var(--txt-2)">${esc(x.puesto||'')}</div></td>
+      <td>${esc(NOMBRE_CAMPO[x.campo]||x.campo)}${x.solo_direccion?'<div style="font-size:11px;color:#7A1E16">solo dirección</div>':''}</td>
+      <td style="font-size:12.5px;color:var(--txt-2)">${esc(x.valor_actual||'—')}</td>
+      <td style="font-size:13px"><b>${esc(x.valor_pedido)}</b>${x.nota?`<div style="font-size:11.5px;color:var(--txt-2)">${esc(x.nota)}</div>`:''}</td>
+      <td>${x.estado==='pendiente'?`<span class="p ${x.dias_esperando>3?'p-bad':'p-gray'}">${x.dias_esperando}</span>`:'—'}</td>
+      <td><span class="p ${x.estado==='aplicada'?'p-ok':x.estado==='rechazada'?'p-bad':'p-warn'}">${esc(x.estado)}</span>
+          ${x.resuelta_por?`<div style="font-size:11px;color:var(--txt-2)">${esc(x.resuelta_por)}</div>`:''}</td>
+      <td class="num" style="white-space:nowrap">
+        ${x.evidencia_url?`<button class="btn btn-sm" data-evi="${esc(x.evidencia_url)}">Comprobante</button>`:''}
+        ${x.estado==='pendiente'?`<button class="btn btn-sm btn-p" data-apl="${x.id}">Aplicar</button>
+                                  <button class="btn btn-sm btn-d" data-rec="${x.id}">Rechazar</button>`:''}
+      </td></tr>`).join('')}</tbody></table></div>`}
+
+  <div class="note" style="margin-top:18px">
+    <b>Los renglones marcados son cambios de cuenta bancaria</b>
+    Es el fraude más común que hay en una nómina: se pide cambiar la CLABE y el pago se va a otro lado. Abre el comprobante y revisa que el nombre del titular sea el de la persona antes de aplicar. Al aplicarse, la cuenta queda marcada como no verificada a propósito.</div>`;
+
+  document.querySelectorAll('[data-apl]').forEach(b=>b.onclick=()=>resolverSolicitudDatos(Number(b.dataset.apl),true));
+  document.querySelectorAll('[data-rec]').forEach(b=>b.onclick=()=>resolverSolicitudDatos(Number(b.dataset.rec),false));
+  document.querySelectorAll('[data-evi]').forEach(b=>b.onclick=async()=>{
+    const {data,error}=await sb.storage.from('solicitudes').createSignedUrl(b.dataset.evi,300);
+    if(error||!data?.signedUrl){ toast('No se pudo abrir el comprobante.','bad'); return; }
+    window.open(data.signedUrl,'_blank');
+  });
+}
+
+async function resolverSolicitudDatos(id, aplicar){
+  let nota=null;
+  if(!aplicar){
+    nota=prompt('Por qué se rechaza?\n\nLa persona va a ver esta nota.');
+    if(!nota||!nota.trim()) return;
+  }else{
+    if(!confirm('Aplicar este cambio?\n\nSe escribe en la ficha de la persona y queda registrado que tú lo hiciste.')) return;
+  }
+  const {data,error}=await sb.rpc('resolver_solicitud_datos',{p_id:id,p_aplicar:aplicar,p_nota:nota});
+  if(error){ toast(error.message,'bad'); return; }
+  const malo=/^No existe|^No tienes|^Un cambio|ya estaba|hay que decir/.test(String(data||''));
+  toast(data||'', malo?'bad':'ok');
+  if(!malo) vistaSolicitudesDatos();
+}
+
+$('#pc-save').onclick = enviarPedirCambio;
 
 /* ============================================================
    ARRANQUE
