@@ -1464,7 +1464,7 @@ async function subirDocumento(empId, docId, clave, nombreDoc, f, silencioso){
    mejora el reconocimiento. */
 function prepararImagen(img, recorte){
   let sx=0, sy=0, sw=img.width, sh=img.height;
-  if(recorte==='abajo'){ sy=Math.round(img.height*0.55); sh=img.height-sy; }
+  if(recorte==='abajo'){ sy=Math.round(img.height*0.45); sh=img.height-sy; }
 
   const escala = Math.min(3.5, Math.max(1, 2200/sw));
   const cv=document.createElement('canvas');
@@ -1548,9 +1548,12 @@ async function leerCredencial(f, avisar){
     });
     tNormal += (a.data.text||'')+'\n';
   }
+  // La zona mecánica está en la parte baja del reverso, así que se lee solo
+  // esa franja: con menos imagen alrededor, el reconocimiento es más limpio.
   for(let i=0;i<src.canvas.length;i++){
     if(avisar) avisar(`Buscando la zona mecánica… <span id="doc-p">0%</span>`);
-    const b = await Tesseract.recognize(src.canvas[i],'eng',{
+    const franja = prepararImagen(src.canvas[i], 'abajo');
+    const b = await Tesseract.recognize(franja,'eng',{
       tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<',
       tessedit_pageseg_mode:'6',
       logger:m=>{ if(m.status==='recognizing text'){ const p=$('#doc-p'); if(p) p.textContent=Math.round(m.progress*100)+'%'; } }
@@ -1559,7 +1562,8 @@ async function leerCredencial(f, avisar){
   }
 
   const frente = leerINE(tNormal);
-  const mrz    = limpiar(datosDeMrz(tMrz));
+  // Si la franja no dio nada, a veces la lectura normal sí alcanzó a verla
+  const mrz    = limpiar(Object.assign({}, datosDeMrz(tNormal), datosDeMrz(tMrz)));
   // El nombre de la zona mecánica manda: ahí no hay adornos que confundan.
   const datos  = Object.assign({}, frente, mrz);
   // La fecha del CURP es exacta, así que se prefiere sobre la de la zona mecánica.
@@ -1725,19 +1729,53 @@ async function leerDocumento(f, clave, empId, docId){
 
 /* El CURP tiene una forma muy precisa, así que es lo más confiable de un INE.
    De él salen además la fecha de nacimiento y los 10 primeros del RFC. */
+/* El lector confunde unos cuantos caracteres de forma predecible. Como en el
+   CURP se sabe qué posición lleva letra y cuál número, se puede corregir. */
+const A_LETRA = {'0':'O','1':'I','5':'S','8':'B','6':'G','2':'Z'};
+const A_NUM   = {'O':'0','Q':'0','D':'0','I':'1','L':'1','S':'5','B':'8','G':'6','Z':'2'};
+const aLetra  = c => A_LETRA[c] || c;
+const aNumero = c => A_NUM[c]   || c;
+
+function buscarCurp(T){
+  const plano = (T||'').replace(/[^A-Z0-9]/g,'');
+  // 18 caracteres con la forma del CURP, aceptando confusiones
+  const re = /[A-Z0-9]{4}[A-Z0-9]{6}[HM][A-Z0-9]{5}[A-Z0-9]{2}/g;
+  let m;
+  while((m = re.exec(plano)) !== null){
+    const c = m[0];
+    const armado =
+        c.slice(0,4).split('').map(aLetra).join('')
+      + c.slice(4,10).split('').map(aNumero).join('')
+      + c[10]
+      + c.slice(11,16).split('').map(aLetra).join('')
+      + c[16] + aNumero(c[17]);
+    if(/^[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$/.test(armado)){
+      const mm=Number(armado.slice(6,8)), dd=Number(armado.slice(8,10));
+      if(mm>=1 && mm<=12 && dd>=1 && dd<=31) return armado;
+    }
+    re.lastIndex = m.index + 1;
+  }
+  return null;
+}
+
 function leerINE(t){
   // El lector confunde la I con la barra y el 0 con la O en las etiquetas
   const T=(t||'').toUpperCase().replace(/[|¡!]/g,'I');
   const r={};
   const CORTE=/DOMICILIO|CLAVE\s*DE\s*ELECT|CURP|FECHA\s*DE\s*NAC|SECCION|SECCIÓN|ESTADO|MUNICIPIO|LOCALIDAD|EMISION|EMISIÓN|VIGENCIA|AÑO\s*DE\s*REGISTRO|REGISTRO|MEXICO|INSTITUTO|CREDENCIAL/;
 
-  // El CURP tiene una forma inconfundible: es lo más seguro de toda la credencial
-  const mCurp=T.replace(/\s+/g,' ').match(/\b[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d\b/);
-  if(mCurp){
-    r.curp=mCurp[0];
-    const a=r.curp.slice(4,6), m=r.curp.slice(6,8), d=r.curp.slice(8,10);
-    const siglo = Number(a) > 30 ? '19' : '20';
-    r.fecha_nacimiento=`${siglo}${a}-${m}-${d}`;
+  // El CURP tiene una forma inconfundible, pero el lector confunde la O con el
+  // cero y la I con el uno. Se busca con tolerancia y luego se corrige cada
+  // posición según le toque letra o número.
+  const curp = buscarCurp(T);
+  if(curp){
+    r.curp=curp;
+    const a=curp.slice(4,6), m=curp.slice(6,8), d=curp.slice(8,10);
+    const mm=Number(m), dd=Number(d);
+    if(mm>=1&&mm<=12&&dd>=1&&dd<=31){
+      const siglo = Number(a) > 30 ? '19' : '20';
+      r.fecha_nacimiento=`${siglo}${a}-${m}-${d}`;
+    }
   }
 
   // La clave de elector son 18 caracteres; se busca sin espacios por si el
@@ -1761,14 +1799,16 @@ function leerINE(t){
       if(l.length>=3 && l.split(' ').every(w=>w.length>=2)) partes.push(l);
       else if(l.length && partes.length) break;
     }
-    if(partes.length>=2){
+    // Se tiran los pedazos de una o dos letras: son ruido del fondo, no nombres
+    const limpias = partes.map(p=>p.split(' ').filter(w=>w.length>=3).join(' ').trim())
+                          .filter(p=>p.length>=3);
+    if(limpias.length>=2){
       // La plantilla usa nombres primero, así que se invierte el orden del INE
-      const nombres   = partes[partes.length-1];
-      const apellidos = partes.slice(0,-1).join(' ');
+      const nombres   = limpias[limpias.length-1];
+      const apellidos = limpias.slice(0,-1).join(' ');
       r.nombre=(nombres+' '+apellidos).replace(/\s+/g,' ').trim();
-    }else if(partes.length===1){
-      r.nombre=partes[0];
     }
+    // Con un solo pedazo no se sabe si es nombre o apellido: no se propone.
   }
 
   // ---- Domicilio. Va hasta que aparece la clave de elector o el CURP.
