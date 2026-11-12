@@ -1299,7 +1299,7 @@ function alCambiarPuesto(){
    y quien tenga el permiso de recursos humanos.
    ============================================================ */
 
-const DOC_LEIBLE = { INE_FRENTE:'INE', CUENTA:'CLABE', DOMICILIO:'domicilio' };
+const DOC_LEIBLE = { INE_FRENTE:'INE', INE_REVERSO:'INE reverso', CUENTA:'CLABE', DOMICILIO:'domicilio' };
 
 async function pintarDocumentos(empId){
   const c = $('#e-docs'); if(!c) return;
@@ -1326,8 +1326,9 @@ async function pintarDocumentos(empId){
   c.innerHTML = `
     ${!empId
       ? `<div class="note" style="background:var(--teal-l);border-color:#C5E0DE"><b>Empieza por aquí</b>
-         Sube el INE y la carátula del banco, en foto o en PDF: de ahí salen el nombre, el CURP,
-         la fecha de nacimiento, el domicilio y la CLABE, y no tienes que capturarlos.
+         Sube el INE por sus dos lados y la carátula del banco, en foto o en PDF: de ahí salen el nombre,
+         el CURP, la fecha de nacimiento, el domicilio y la CLABE, y no tienes que capturarlos.
+         El <b>reverso</b> es el que mejor se lee, porque trae abajo los renglones hechos para máquina.
          Los archivos se guardan cuando guardes el registro.</div>`
       : (faltan
         ? `<div class="note"><b>Faltan ${faltan} documento${faltan===1?'':'s'}</b>Sin ellos el expediente queda incompleto.</div>`
@@ -1457,6 +1458,83 @@ async function subirDocumento(empId, docId, clave, nombreDoc, f, silencioso){
   if(!silencioso){ toast(nombreDoc+' guardado.','ok'); await pintarDocumentos(empId); }
 }
 
+/* Una foto de celular casi nunca sirve tal cual: la credencial sale chica
+   dentro del encuadre y el texto queda con pocos pixeles. Antes de leerla se
+   agranda, se pasa a grises y se le sube el contraste, que es lo que más
+   mejora el reconocimiento. */
+function prepararImagen(img, recorte){
+  let sx=0, sy=0, sw=img.width, sh=img.height;
+  if(recorte==='abajo'){ sy=Math.round(img.height*0.55); sh=img.height-sy; }
+
+  const escala = Math.min(3.5, Math.max(1, 2200/sw));
+  const cv=document.createElement('canvas');
+  cv.width=Math.round(sw*escala); cv.height=Math.round(sh*escala);
+  const cx=cv.getContext('2d');
+  cx.imageSmoothingEnabled=true; cx.imageSmoothingQuality='high';
+  cx.drawImage(img, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
+
+  const d=cx.getImageData(0,0,cv.width,cv.height), p=d.data;
+  for(let i=0;i<p.length;i+=4){
+    let g=0.299*p[i]+0.587*p[i+1]+0.114*p[i+2];
+    g=(g-128)*1.7+134;
+    p[i]=p[i+1]=p[i+2]= g<0?0:g>255?255:g;
+  }
+  cx.putImageData(d,0,0);
+  return cv;
+}
+
+function cargarImagen(f){
+  return new Promise((ok,mal)=>{
+    const img=new Image(), url=URL.createObjectURL(f);
+    img.onload=()=>{ URL.revokeObjectURL(url); ok(img); };
+    img.onerror=()=>{ URL.revokeObjectURL(url); mal(new Error('No se pudo abrir la imagen')); };
+    img.src=url;
+  });
+}
+
+/* El reverso del INE trae abajo la zona de lectura mecánica: tres renglones
+   de letras separadas por "<", hechas para que las lea una máquina. De ahí
+   salen el nombre y la fecha de nacimiento con mucha más certeza que del
+   frente, que es una foto llena de adornos y hologramas. */
+async function leerReverso(f, avisar){
+  const img = await cargarImagen(f);
+  const cv = prepararImagen(img, 'abajo');
+  if(avisar) avisar('Leyendo la zona mecánica del reverso… <span id="doc-p">0%</span>');
+  const {data} = await Tesseract.recognize(cv,'eng',{
+    tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<',
+    tessedit_pageseg_mode:'6',
+    logger:m=>{ if(m.status==='recognizing text'){ const p=$('#doc-p'); if(p) p.textContent=Math.round(m.progress*100)+'%'; } }
+  });
+  return data.text||'';
+}
+
+function datosDeMrz(t){
+  const r={};
+  const lineas=(t||'').toUpperCase().split('\n')
+    .map(x=>x.replace(/[^A-Z0-9<]/g,'')).filter(x=>x.length>14);
+
+  // El renglón de los nombres: apellidos, luego "<<", luego los nombres
+  const lNom = lineas.find(l=>/^[A-Z]+<+[A-Z<]+$/.test(l) && l.includes('<<'));
+  if(lNom){
+    const [ape,nom]=lNom.split('<<');
+    const apellidos=(ape||'').split('<').filter(Boolean).join(' ');
+    const nombres  =(nom||'').split('<').filter(Boolean).join(' ');
+    if(apellidos && nombres) r.nombre=(nombres+' '+apellidos).replace(/\s+/g,' ').trim();
+  }
+
+  // El renglón de datos: aaammdd de nacimiento, dígito, sexo, vigencia
+  const lDat = lineas.find(l=>/^\d{7}[HM]\d{7}/.test(l));
+  if(lDat){
+    const a=lDat.slice(0,2), m=lDat.slice(2,4), d=lDat.slice(4,6);
+    const mm=Number(m), dd=Number(d);
+    if(mm>=1&&mm<=12&&dd>=1&&dd<=31){
+      const siglo = Number(a) > 30 ? '19' : '20';
+      r.fecha_nacimiento=`${siglo}${a}-${m}-${d}`;
+    }
+  }
+  return r;
+}
+
 /* Un PDF puede traer el texto de verdad adentro, y entonces se lee exacto sin
    adivinar nada; o puede ser un escaneo, que es una foto metida en un PDF y hay
    que pasarla por el lector igual que una imagen. Esto decide cuál es. */
@@ -1464,8 +1542,12 @@ async function textoDeArchivo(f, avisar){
   const esPdf = f.type.includes('pdf') || /\.pdf$/i.test(f.name||'');
 
   if(!esPdf){
+    if(avisar) avisar('Preparando la imagen…');
+    let fuente=f;
+    try{ fuente = prepararImagen(await cargarImagen(f)); }catch(e){ /* se lee tal cual */ }
     if(avisar) avisar('Leyendo la imagen… <span id="doc-p">0%</span>');
-    const {data}=await Tesseract.recognize(f,'spa',{
+    const {data}=await Tesseract.recognize(fuente,'spa',{
+      tessedit_pageseg_mode:'6',
       logger:m=>{ if(m.status==='recognizing text'){ const p=$('#doc-p'); if(p) p.textContent=Math.round(m.progress*100)+'%'; } }
     });
     return {texto:data.text||'', modo:'imagen'};
@@ -1510,17 +1592,23 @@ async function leerDocumento(f, clave, empId, docId){
 
   let texto='', modo='';
   try{
-    const r = await textoDeArchivo(f, avisar);
-    texto = r.texto; modo = r.modo;
+    if(clave==='INE_REVERSO' && !/pdf/i.test(f.type)){
+      texto = await leerReverso(f, avisar);
+      modo  = 'zona mecánica';
+    }else{
+      const r = await textoDeArchivo(f, avisar);
+      texto = r.texto; modo = r.modo;
+    }
   }catch(err){
     caja.innerHTML='<div class="note"><b>No se pudo leer</b>'+esc(err.message||'El archivo no se entendió.')
       +' El archivo queda guardado igual; captura los datos a mano.</div>';
     return;
   }
 
-  const hallado = clave==='INE_FRENTE' ? leerINE(texto)
-                : clave==='CUENTA'     ? leerCaratula(texto)
-                : clave==='DOMICILIO'  ? leerComprobante(texto)
+  const hallado = clave==='INE_FRENTE'  ? leerINE(texto)
+                : clave==='INE_REVERSO' ? datosDeMrz(texto)
+                : clave==='CUENTA'      ? leerCaratula(texto)
+                : clave==='DOMICILIO'   ? leerComprobante(texto)
                 : {};
 
   // Se guarda lo leído para poder rastrear de dónde salió un dato. En un alta
@@ -1533,8 +1621,15 @@ async function leerDocumento(f, clave, empId, docId){
 
   const campos = Object.entries(hallado).filter(([k,v])=>v);
   if(!campos.length){
+    const consejo = clave==='INE_FRENTE'
+      ? 'Prueba con el <b>reverso</b>: ahí abajo vienen tres renglones de letras separadas por &lt; que se leen mucho mejor que el frente, y de ahí salen el nombre y la fecha de nacimiento.'
+      : clave==='INE_REVERSO'
+      ? 'Toma la foto del reverso de frente y de cerca, que los tres renglones de abajo se vean completos y derechos.'
+      : clave==='CUENTA'
+      ? 'Si tienes el PDF que manda el banco, ese se lee exacto. Una captura de pantalla también sirve si se ve completa la CLABE.'
+      : 'Acerca más la foto al texto y tómala derecha, sin sombras encima.';
     caja.innerHTML='<div class="note"><b>No se reconoció nada</b>'
-      +'La foto puede estar borrosa o de lado. El archivo quedó guardado; captura los datos a mano.</div>';
+      +'El archivo quedó guardado igual. '+consejo+'</div>';
     return;
   }
 
@@ -1547,6 +1642,8 @@ async function leerDocumento(f, clave, empId, docId){
       <b>Esto es lo que se reconoció</b>
       ${modo==='pdf con texto'
         ? 'El PDF traía el texto adentro, así que esto se leyó exacto. Aun así dale una vista.'
+        : modo==='zona mecánica'
+        ? 'Salió de los renglones de abajo del reverso, que están hechos para leerse por máquina. Es lo más confiable del INE.'
         : 'Revísalo contra el documento antes de usarlo: el lector se equivoca con fotos borrosas o inclinadas.'}
       <div style="margin-top:9px;display:flex;flex-direction:column;gap:5px">
         ${campos.map(([k,v])=>`<div style="font-size:13px">
