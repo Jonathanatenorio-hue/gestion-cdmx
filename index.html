@@ -874,6 +874,7 @@ const S = {
 
 const MODULOS = [
   {id:'guia',       n:'00', t:'Cómo se usa',          lista:true},
+  {id:'checar',     n:'13', t:'Checar',               lista:true},
   {id:'usuarios',   n:'98', t:'Usuarios y accesos',    lista:true, soloDir:true},
   {id:'config',     n:'99', t:'Configuración',         lista:true, soloDir:true},
   {id:'plantilla',  n:'05', t:'Plantilla',            lista:true},
@@ -978,10 +979,11 @@ function irA(id){
     if(!confirm(`Tienes ${n} celda${n===1?'':'s'} de asistencia sin guardar. Si sales se pierden. Continuar?`)) return;
     S.pendientes={};
   }
+  if(vistaActual==='checar' && id!=='checar'){ apagarCamara(); clearInterval(S.chReloj); }
   vistaActual=id;
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
   const m=MODULOS.find(x=>x.id===id);
-  const R={guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas};
+  const R={guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar};
   if(m.lista && R[id]) R[id](); else vistaSoon(m);
   window.scrollTo(0,0);
 }
@@ -7688,6 +7690,337 @@ $('#ds-print').onclick=()=>{
   w.focus();
   setTimeout(()=>w.print(),250);
 };
+
+
+/* ============================================================
+   MÓDULO 13 · CHECAR
+   La checada cae en checadas_raw, igual que la del biométrico,
+   y el motor de siempre la califica. Aquí solo se marca y se
+   vigila que nadie haga trampa.
+   ============================================================ */
+
+function idDelTelefono(){
+  try{
+    let d=localStorage.getItem('disp_id');
+    if(!d){
+      d = (crypto.randomUUID ? crypto.randomUUID()
+           : String(Date.now())+Math.random().toString(36).slice(2));
+      localStorage.setItem('disp_id', d);
+    }
+    return d;
+  }catch(e){ return null; }
+}
+
+async function vistaChecar(){
+  $('#main').innerHTML='<div class="empty">Cargando…</div>';
+  S.chTab = S.chTab || 'marcar';
+  const puedeVer = S.direccion || ['coordinador','supervisor'].includes(S.perfil?.rol);
+
+  $('#main').innerHTML=`
+  <div class="head">
+    <div><h1>Checar</h1><p>Marca tu entrada y tu salida desde aquí</p></div>
+  </div>
+  ${puedeVer?`<div class="tabs" style="margin-bottom:16px">
+    <button class="tab ${S.chTab==='marcar'?'on':''}" data-ch="marcar">Marcar</button>
+    <button class="tab ${S.chTab==='hoy'?'on':''}" data-ch="hoy">Quién llegó hoy</button>
+    <button class="tab ${S.chTab==='control'?'on':''}" data-ch="control">Control</button>
+  </div>`:''}
+  <div id="ch-cuerpo"></div>`;
+
+  document.querySelectorAll('[data-ch]').forEach(b=>b.onclick=()=>{ S.chTab=b.dataset.ch; vistaChecar(); });
+
+  if(S.chTab==='hoy' && puedeVer) return pintarChecadasHoy();
+  if(S.chTab==='control' && puedeVer) return pintarControlChecador();
+  pintarMarcar();
+}
+
+async function pintarMarcar(){
+  const hoy=new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  $('#ch-cuerpo').innerHTML=`
+  <div class="tw" style="padding:24px;max-width:460px;margin:0 auto;text-align:center">
+    <div style="font-size:12.5px;color:var(--txt-2);text-transform:capitalize">${esc(hoy)}</div>
+    <div id="ch-reloj" class="mono" style="font-size:46px;font-weight:600;letter-spacing:-1px;margin:6px 0 4px">--:--</div>
+    <div id="ch-estado" style="font-size:13px;color:var(--txt-2);min-height:20px;margin-bottom:20px"></div>
+
+    <video id="ch-video" autoplay playsinline muted
+      style="width:100%;max-width:260px;aspect-ratio:3/4;object-fit:cover;border-radius:var(--r);background:#111;display:none;margin:0 auto 16px"></video>
+    <canvas id="ch-canvas" style="display:none"></canvas>
+    <div id="ch-camaviso" style="font-size:12.5px;color:var(--txt-2);margin-bottom:16px"></div>
+
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-p" id="ch-ent" style="flex:1;padding:16px;font-size:15px">Marcar entrada</button>
+      <button class="btn" id="ch-sal" style="flex:1;padding:16px;font-size:15px">Marcar salida</button>
+    </div>
+    <div id="ch-result" style="margin-top:18px"></div>
+  </div>
+
+  <div id="ch-mias" style="max-width:460px;margin:20px auto 0"></div>`;
+
+  const tic=()=>{ const r=$('#ch-reloj'); if(r) r.textContent=new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}); };
+  tic(); clearInterval(S.chReloj); S.chReloj=setInterval(tic,20000);
+
+  $('#ch-ent').onclick=()=>marcar('entrada');
+  $('#ch-sal').onclick=()=>marcar('salida');
+
+  await prenderCamara();
+  await misChecadas();
+}
+
+async function prenderCamara(){
+  const av=$('#ch-camaviso');
+  if(!navigator.mediaDevices?.getUserMedia){
+    av.textContent='Este navegador no deja usar la cámara. Prueba con Chrome o Safari.'; return; }
+  try{
+    S.chStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640}},audio:false});
+    const v=$('#ch-video'); v.srcObject=S.chStream; v.style.display='block';
+    av.textContent='La foto se guarda con tu checada. Es para comprobar quién marcó.';
+  }catch(e){
+    av.innerHTML='<b style="color:var(--bad)">No se pudo abrir la cámara.</b><br>Dale permiso desde el candado de la barra de direcciones y recarga.';
+  }
+}
+
+function apagarCamara(){
+  try{ (S.chStream?.getTracks()||[]).forEach(t=>t.stop()); }catch(e){}
+  S.chStream=null;
+}
+
+function tomarFoto(){
+  const v=$('#ch-video');
+  if(!S.chStream || !v || !v.videoWidth) return null;
+  const c=$('#ch-canvas');
+  const an=360, al=Math.round(an*v.videoHeight/v.videoWidth);
+  c.width=an; c.height=al;
+  c.getContext('2d').drawImage(v,0,0,an,al);
+  return new Promise(r=>c.toBlob(r,'image/jpeg',0.72));
+}
+
+async function marcar(tipo){
+  const btn = tipo==='entrada' ? $('#ch-ent') : $('#ch-sal');
+  const res = $('#ch-result');
+  btn.disabled=true; const txt=btn.textContent; btn.textContent='Marcando…';
+  res.innerHTML='';
+
+  let ruta=null;
+  try{
+    const blob=await tomarFoto();
+    if(blob){
+      const emp=S.perfil?.empleado_id||'sin';
+      const f=new Date().toISOString().slice(0,10);
+      ruta=`${emp}/${f}_${tipo}_${Date.now()}.jpg`;
+      const {error}=await sb.storage.from('checadas').upload(ruta,blob,{contentType:'image/jpeg'});
+      if(error){ ruta=null; }
+    }
+  }catch(e){ ruta=null; }
+
+  const {data,error}=await sb.rpc('registrar_checada',{
+    p_tipo:tipo, p_foto_url:ruta, p_dispositivo:idDelTelefono() });
+
+  btn.disabled=false; btn.textContent=txt;
+
+  if(error){ res.innerHTML=`<div class="note" style="background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16"><b>No se pudo marcar</b>${esc(error.message)}</div>`; return; }
+
+  if(!data?.ok){
+    res.innerHTML=`<div class="note" style="background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16"><b>No quedó</b>${esc(data?.mensaje||'Intenta de nuevo.')}</div>`;
+    return;
+  }
+
+  const cal=String(data.calificacion||'');
+  const col = cal==='Retardo' ? 'var(--warn-l,#FDF6E8)' : cal==='Falta' ? 'var(--bad-l)' : 'var(--ok-l,#E8F3EE)';
+  res.innerHTML=`<div class="note" style="background:${col}">
+    <b>${esc(data.mensaje)}</b>
+    Tu día quedó como <b>${esc(cal)}</b>.</div>`;
+  toast(data.mensaje,'ok');
+  await misChecadas();
+}
+
+async function misChecadas(){
+  const c=$('#ch-mias'); if(!c) return;
+  const desde=new Date(Date.now()-13*86400000).toISOString().slice(0,10);
+  const {data,error}=await sb.from('checadas_app')
+    .select('fecha,hora,tipo').gte('fecha',desde)
+    .order('fecha',{ascending:false}).order('hora',{ascending:false});
+  if(error||!(data||[]).length){ c.innerHTML=''; return; }
+
+  const dias={};
+  data.forEach(x=>{ (dias[x.fecha]=dias[x.fecha]||{})[x.tipo]=x.hora; });
+
+  c.innerHTML=`<div class="tw"><table>
+    <thead><tr><th>Día</th><th>Entrada</th><th>Salida</th></tr></thead>
+    <tbody>${Object.keys(dias).sort().reverse().map(f=>`<tr>
+      <td>${fecha(f)}</td>
+      <td class="mono">${(dias[f].entrada||'—').slice(0,5)}</td>
+      <td class="mono">${(dias[f].salida||'—').slice(0,5)}</td>
+    </tr>`).join('')}</tbody></table></div>
+    <div style="font-size:11.5px;color:var(--txt-2);margin-top:8px">Tus últimas dos semanas.</div>`;
+}
+
+/* ---------------- QUIÉN LLEGÓ HOY ---------------- */
+
+async function pintarChecadasHoy(){
+  $('#ch-cuerpo').innerHTML='<div class="empty">Cargando…</div>';
+  const {data,error}=await sb.from('v_checadas_hoy').select('*');
+  if(error){ $('#ch-cuerpo').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(error.message)}</div>`; return; }
+  const l=data||[];
+  const llegaron=l.filter(x=>x.entrada).length;
+  const fuera=l.filter(x=>x.alguna_fuera_de_red).length;
+
+  $('#ch-cuerpo').innerHTML=`
+  <div class="kpis">
+    <div class="kpi t"><span>Marcaron</span><b>${llegaron}</b><small>de ${l.length} activos</small></div>
+    <div class="kpi ${l.length-llegaron?'w':''}"><span>Sin marcar</span><b>${l.length-llegaron}</b><small>todavía no llegan</small></div>
+    <div class="kpi ${fuera?'w':''}"><span>Fuera de red</span><b>${fuera}</b><small>marcaron desde otro lado</small></div>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Nombre</th><th>Puesto</th><th>Entrada</th><th>Salida</th><th>Quedó</th><th>Avisos</th><th></th></tr></thead>
+    <tbody>${l.map(x=>`<tr>
+      <td><b>${esc(x.nombre_completo)}</b></td>
+      <td style="color:var(--txt-2);font-size:12.5px">${esc(x.puesto||'—')}</td>
+      <td class="mono">${x.entrada?String(x.entrada).slice(0,5):'<span style="color:var(--txt-2)">—</span>'}</td>
+      <td class="mono">${x.salida?String(x.salida).slice(0,5):'<span style="color:var(--txt-2)">—</span>'}</td>
+      <td>${x.quedo_como?`<span class="p ${x.quedo_como==='A'?'p-ok':x.quedo_como==='R'?'p-warn':x.quedo_como==='F'?'p-bad':'p-gray'}">${esc(x.quedo_como)}</span>`:'—'}</td>
+      <td style="font-size:12px;color:#7A1E16">${esc(x.avisos||'')}</td>
+      <td class="num">${x.foto_entrada?`<button class="btn btn-sm" data-foto="${esc(x.foto_entrada)}">Foto</button>`:''}</td>
+    </tr>`).join('')}</tbody></table></div>`;
+
+  document.querySelectorAll('[data-foto]').forEach(b=>b.onclick=()=>verFotoChecada(b.dataset.foto));
+}
+
+async function verFotoChecada(ruta){
+  const {data,error}=await sb.storage.from('checadas').createSignedUrl(ruta,300);
+  if(error||!data?.signedUrl){ toast('No se pudo abrir la foto.','bad'); return; }
+  window.open(data.signedUrl,'_blank');
+}
+
+/* ---------------- CONTROL ---------------- */
+
+async function pintarControlChecador(){
+  if(!S.direccion){ $('#ch-cuerpo').innerHTML='<div class="empty"><b>Solo dirección</b></div>'; return; }
+  $('#ch-cuerpo').innerHTML='<div class="empty">Cargando…</div>';
+
+  const [ips,an,pa,re]=await Promise.all([
+    sb.from('v_ips_vistas').select('*'),
+    sb.from('v_anomalias_checador').select('*').limit(60),
+    sb.from('parametros').select('*').eq('grupo','Checador').order('orden'),
+    sb.from('redes_autorizadas').select('*').order('red')
+  ]);
+  const modo=(pa.data||[]).find(p=>p.clave==='checador_modo')?.valor||'aprendizaje';
+  const redes=re.error?[]:(re.data||[]);
+
+  $('#ch-cuerpo').innerHTML=`
+  ${modo==='aprendizaje'?`<div class="note">
+    <b>El checador está en modo aprendizaje</b>
+    Acepta cualquier checada y solo anota desde dónde llegó. Es a propósito: así descubrimos cuál es la red de la oficina sin dejar a nadie sin poder marcar.
+    Cuando una dirección se repita en casi toda la gente casi todos los días, esa es. La autorizas abajo y entonces sí pasas a activo.</div>`
+  :`<div class="note" style="background:var(--ok-l,#E8F3EE)">
+    <b>El checador está activo</b>
+    Solo se aceptan checadas desde las ${redes.length} red(es) autorizadas. Fuera de ahí, nadie puede marcar.</div>`}
+
+  <h3 style="margin:22px 0 10px;font-size:14px">Desde dónde están marcando</h3>
+  ${!(ips.data||[]).length?'<div class="empty">Todavía nadie ha marcado.</div>':`
+  <div class="tw"><table>
+    <thead><tr><th>Dirección</th><th>Checadas</th><th>Personas</th><th>Desde</th><th>Hasta</th><th>Quiénes</th><th></th></tr></thead>
+    <tbody>${ips.data.map(x=>`<tr>
+      <td class="mono">${esc(x.ip)}</td>
+      <td>${x.checadas}</td>
+      <td><b>${x.personas}</b></td>
+      <td style="font-size:12.5px">${fecha(x.desde)}</td>
+      <td style="font-size:12.5px">${fecha(x.hasta)}</td>
+      <td style="font-size:11.5px;color:var(--txt-2);max-width:280px">${esc(x.quienes||'')}</td>
+      <td class="num">${x.ya_autorizada?'<span class="p p-ok">autorizada</span>'
+        :`<button class="btn btn-sm" data-aut="${esc(x.ip)}">Autorizar</button>`}</td>
+    </tr>`).join('')}</tbody></table></div>
+  <div style="font-size:12px;color:var(--txt-2);margin-top:8px">
+    La de la oficina es la que usan más personas, más días. Una dirección con una sola persona casi siempre es su celular con datos.</div>`}
+
+  ${redes.length?`<h3 style="margin:22px 0 10px;font-size:14px">Redes autorizadas</h3>
+  <div class="tw"><table><thead><tr><th>Red</th><th>Nombre</th><th>Activa</th><th></th></tr></thead>
+  <tbody>${redes.map(r=>`<tr><td class="mono">${esc(r.red)}</td><td>${esc(r.nombre)}</td>
+    <td>${r.activa?'<span class="p p-ok">sí</span>':'<span class="p p-gray">no</span>'}</td>
+    <td class="num"><button class="btn btn-sm" data-quitar="${r.id}">Quitar</button></td></tr>`).join('')}
+  </tbody></table></div>`:''}
+
+  <div style="margin:20px 0;display:flex;gap:10px;flex-wrap:wrap">
+    ${modo==='aprendizaje'
+      ? `<button class="btn btn-p" id="ch-activar" ${redes.length?'':'disabled title="Primero autoriza la red de la oficina"'}>Pasar a modo activo</button>`
+      : `<button class="btn" id="ch-aprender">Regresar a aprendizaje</button>`}
+    <button class="btn" id="ch-diag">Probar qué IP ve el servidor</button>
+  </div>
+  <div id="ch-diagout"></div>
+
+  <h3 style="margin:22px 0 10px;font-size:14px">Lo que no cuadró</h3>
+  ${!(an.data||[]).length?'<div class="empty">Nada marcado hasta ahora.</div>':`
+  <div class="tw"><table>
+    <thead><tr><th>Día</th><th>Hora</th><th>Quién</th><th>Tipo</th><th>Dirección</th><th>Qué pasó</th><th></th></tr></thead>
+    <tbody>${an.data.map(x=>`<tr>
+      <td style="font-size:12.5px">${fecha(x.fecha)}</td>
+      <td class="mono">${String(x.hora||'').slice(0,5)}</td>
+      <td><b>${esc(x.nombre_completo)}</b></td>
+      <td style="font-size:12.5px">${esc(x.tipo)}</td>
+      <td class="mono" style="font-size:12px">${esc(x.ip||'—')}</td>
+      <td style="font-size:12px;color:#7A1E16">${esc(x.que_no_cuadro||'sin foto')}</td>
+      <td class="num">${x.foto_url?`<button class="btn btn-sm" data-foto="${esc(x.foto_url)}">Foto</button>`:''}</td>
+    </tr>`).join('')}</tbody></table></div>`}
+
+  <div class="note" style="margin-top:18px">
+    <b>Lo que de verdad detecta la trampa no está en esta pantalla</b>
+    Alguien puede fingir dónde está; no puede fingir haber marcado ochenta números. El cruce contra la actividad de Bonsaif es la prueba dura: si alguien marcó a las diez y su primera llamada fue a las once y media, la checada no vale. Eso todavía se hace a mano.</div>`;
+
+  document.querySelectorAll('[data-foto]').forEach(b=>b.onclick=()=>verFotoChecada(b.dataset.foto));
+  document.querySelectorAll('[data-aut]').forEach(b=>b.onclick=()=>autorizarRed(b.dataset.aut));
+  document.querySelectorAll('[data-quitar]').forEach(b=>b.onclick=()=>quitarRed(Number(b.dataset.quitar)));
+  const ba=$('#ch-activar');  if(ba) ba.onclick=()=>cambiarModoChecador('activo');
+  const bp=$('#ch-aprender'); if(bp) bp.onclick=()=>cambiarModoChecador('aprendizaje');
+  $('#ch-diag').onclick=probarIP;
+}
+
+async function autorizarRed(ip){
+  const base=String(ip).includes(':') ? ip+'/128' : ip.split('.').slice(0,3).join('.')+'.0/24';
+  const red=prompt('Qué rango se autoriza?\n\nSe propone el bloque completo para que aguante si el proveedor cambia el último número.',base);
+  if(!red) return;
+  const nombre=prompt('Cómo se llama esta red?','Oficina CDMX');
+  if(!nombre) return;
+  const {error}=await sb.from('redes_autorizadas').insert({red,nombre});
+  if(error){ toast(error.message,'bad'); return; }
+  toast('Red autorizada.','ok');
+  vistaChecar();
+}
+
+async function quitarRed(id){
+  if(!confirm('Quitar esta red?\n\nSi el checador está activo, nadie va a poder marcar desde ahí.')) return;
+  const {error}=await sb.from('redes_autorizadas').delete().eq('id',id);
+  if(error){ toast(error.message,'bad'); return; }
+  toast('Red quitada.','ok'); vistaChecar();
+}
+
+async function cambiarModoChecador(modo){
+  if(modo==='activo' && !confirm('Pasar a modo activo?\n\nA partir de ahora solo se aceptan checadas desde las redes autorizadas. Si la red está mal, nadie va a poder marcar mañana.\n\nPruébalo tú primero desde el WiFi de la oficina.')) return;
+  const {error}=await sb.from('parametros').update({valor:modo}).eq('clave','checador_modo');
+  if(error){ toast(error.message,'bad'); return; }
+  toast(modo==='activo'?'Checador activo.':'De vuelta en aprendizaje.','ok');
+  vistaChecar();
+}
+
+async function probarIP(){
+  const out=$('#ch-diagout');
+  out.innerHTML='<div class="empty">Preguntando…</div>';
+  const {data,error}=await sb.rpc('diagnostico_red');
+  if(error){ out.innerHTML=`<div class="empty">${esc(error.message)}</div>`; return; }
+  if(!(data||[]).length){
+    out.innerHTML=`<div class="note" style="background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16">
+      <b>No llega ningún encabezado de red</b>
+      Sin eso el candado de red no sirve y no hay que pasar a modo activo. Dímelo y lo resolvemos por otro camino.</div>`;
+    return;
+  }
+  const cf=data.find(d=>d.encabezado==='cf-connecting-ip');
+  out.innerHTML=`<div class="tw" style="padding:16px;margin-top:10px">
+    ${cf?`<div class="note" style="background:var(--ok-l,#E8F3EE);margin-bottom:12px">
+      <b>El servidor te ve desde ${esc(cf.valor)}</b>
+      Ese dato lo pone Cloudflare y el teléfono no lo puede falsificar. El candado de red sí sirve.</div>`:''}
+    <table style="width:100%"><tbody>
+    ${data.map(d=>`<tr><td style="padding:4px 10px 4px 0;font-size:12px;color:var(--txt-2);white-space:nowrap">${esc(d.encabezado)}</td>
+      <td class="mono" style="font-size:12px;word-break:break-all">${esc(d.valor)}</td></tr>`).join('')}
+    </tbody></table></div>`;
+}
 
 /* ============================================================
    ARRANQUE
