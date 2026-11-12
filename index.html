@@ -7920,16 +7920,32 @@ async function marcar(tipo){
   await misChecadas();
 }
 
+// Fecha de hoy en la Ciudad de México, no en la del teléfono
+function hoyMexico(){
+  return new Date().toLocaleDateString('en-CA',{timeZone:'America/Mexico_City'});
+}
+
+// Una entrada y una salida por día: los botones lo dicen antes de intentar
+function botonesDelDia(h){
+  const be=$('#ch-ent'), bs=$('#ch-sal'); if(!be||!bs) return;
+  const hh=t=>String(t||'').slice(0,5);
+  if(h.entrada){ be.disabled=true; be.textContent='Entrada '+hh(h.entrada); be.classList.remove('btn-p'); }
+  if(h.salida){ bs.disabled=true; bs.textContent='Salida '+hh(h.salida); }
+  else if(h.entrada){ bs.disabled=false; bs.classList.add('btn-p'); }
+  else { bs.disabled=true; bs.title='Primero marca tu entrada'; }
+}
+
 async function misChecadas(){
   const c=$('#ch-mias'); if(!c) return;
   const desde=new Date(Date.now()-13*86400000).toISOString().slice(0,10);
   const {data,error}=await sb.from('checadas_app')
     .select('fecha,hora,tipo').gte('fecha',desde)
     .order('fecha',{ascending:false}).order('hora',{ascending:false});
-  if(error||!(data||[]).length){ c.innerHTML=''; return; }
+  if(error||!(data||[]).length){ c.innerHTML=''; botonesDelDia({}); return; }
 
   const dias={};
   data.forEach(x=>{ (dias[x.fecha]=dias[x.fecha]||{})[x.tipo]=x.hora; });
+  botonesDelDia(dias[hoyMexico()]||{});
 
   c.innerHTML=`<div class="tw"><table>
     <thead><tr><th>Día</th><th>Entrada</th><th>Salida</th></tr></thead>
