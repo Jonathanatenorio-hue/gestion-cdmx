@@ -7771,6 +7771,7 @@ async function pintarMarcar(){
     <div style="font-size:12.5px;color:var(--txt-2);text-transform:capitalize">${esc(hoy)}</div>
     <div id="ch-reloj" class="mono" style="font-size:46px;font-weight:600;letter-spacing:-1px;margin:6px 0 4px">--:--</div>
     <div id="ch-estado" style="font-size:13px;color:var(--txt-2);min-height:20px;margin-bottom:20px"></div>
+    <div id="ch-conting"></div>
 
     <video id="ch-video" autoplay playsinline muted
       style="width:100%;max-width:260px;aspect-ratio:3/4;object-fit:cover;border-radius:var(--r);background:#111;display:none;margin:0 auto 16px"></video>
@@ -7793,7 +7794,27 @@ async function pintarMarcar(){
   $('#ch-sal').onclick=()=>marcar('salida');
 
   await prenderCamara();
+  ubicacionActual().then(u=>{ S.chUbic=u; avisoUbicacion(); });
+  const {data:cont}=await sb.rpc('contingencia_vigente');
+  if(cont) $('#ch-conting').innerHTML=`<div class="note" style="text-align:left;margin-bottom:16px">
+    <b>Hoy se puede marcar con datos móviles</b>${esc(cont)}. Tu ubicación se guarda con la checada.</div>`;
   await misChecadas();
+}
+
+function ubicacionActual(){
+  return new Promise(res=>{
+    if(!navigator.geolocation) return res(null);
+    navigator.geolocation.getCurrentPosition(
+      p=>res({lat:p.coords.latitude, lng:p.coords.longitude, prec:Math.round(p.coords.accuracy)}),
+      ()=>res(null),
+      {enableHighAccuracy:true, timeout:8000, maximumAge:60000});
+  });
+}
+
+function avisoUbicacion(){
+  const e=$('#ch-estado'); if(!e) return;
+  e.innerHTML = S.chUbic ? '' :
+    '<span style="color:#7A1E16">Activa la ubicación del navegador. Sin ella tu checada queda marcada para revisión.</span>';
 }
 
 async function prenderCamara(){
@@ -7842,8 +7863,10 @@ async function marcar(tipo){
     }
   }catch(e){ ruta=null; }
 
+  const u = (await ubicacionActual()) || S.chUbic || null;
   const {data,error}=await sb.rpc('registrar_checada',{
-    p_tipo:tipo, p_foto_url:ruta, p_dispositivo:idDelTelefono() });
+    p_tipo:tipo, p_foto_url:ruta, p_dispositivo:idDelTelefono(),
+    p_lat:u?u.lat:null, p_lng:u?u.lng:null, p_precision:u?u.prec:null });
 
   btn.disabled=false; btn.textContent=txt;
 
@@ -7899,7 +7922,13 @@ async function pintarChecadasHoy(){
   const llegaron=l.filter(x=>x.entrada).length;
   const fuera=l.filter(x=>x.alguna_fuera_de_red).length;
 
+  const {data:cont}=await sb.rpc('contingencia_vigente');
   $('#ch-cuerpo').innerHTML=`
+  ${cont
+    ? `<div class="note" style="background:var(--bad-l);border-color:#E7C9C6;color:#7A1E16;display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap">
+        <div><b>Contingencia activa</b>Hoy se acepta marcar con datos móviles: ${esc(cont)}</div>
+        <button class="btn btn-sm" id="ch-contoff">Ya regresó el internet</button></div>`
+    : `<div style="margin-bottom:14px"><button class="btn btn-sm" id="ch-conton">Se cayó el internet de la oficina</button></div>`}
   <div class="kpis">
     <div class="kpi t"><span>Marcaron</span><b>${llegaron}</b><small>de ${l.length} activos</small></div>
     <div class="kpi ${l.length-llegaron?'w':''}"><span>Sin marcar</span><b>${l.length-llegaron}</b><small>todavía no llegan</small></div>
@@ -7918,6 +7947,19 @@ async function pintarChecadasHoy(){
     </tr>`).join('')}</tbody></table></div>`;
 
   document.querySelectorAll('[data-foto]').forEach(b=>b.onclick=()=>verFotoChecada(b.dataset.foto));
+  const on=$('#ch-conton'), off=$('#ch-contoff');
+  if(on) on.onclick=async()=>{
+    const m=prompt('Qué pasó?\n\nSe acepta marcar con datos solo por hoy. Esto queda registrado con tu nombre y se revisa en la nómina.');
+    if(!m||!m.trim()) return;
+    const {data,error}=await sb.rpc('activar_contingencia',{p_motivo:m.trim()});
+    if(error){ toast(error.message,'bad'); return; }
+    toast(data, /^Contingencia activa/.test(data)?'ok':'bad'); pintarChecadasHoy();
+  };
+  if(off) off.onclick=async()=>{
+    const {data,error}=await sb.rpc('cerrar_contingencia');
+    if(error){ toast(error.message,'bad'); return; }
+    toast(data,'ok'); pintarChecadasHoy();
+  };
 }
 
 async function verFotoChecada(ruta){
@@ -7983,6 +8025,7 @@ async function pintarControlChecador(){
     <button class="btn" id="ch-limpiar">Limpiar fotos sin dueño</button>
   </div>
   <div id="ch-diagout"></div>
+  <div id="ch-oficina"></div>
 
   <h3 style="margin:22px 0 10px;font-size:14px">Lo que no cuadró</h3>
   ${!(an.data||[]).length?'<div class="empty">Nada marcado hasta ahora.</div>':`
@@ -8009,6 +8052,7 @@ async function pintarControlChecador(){
   const bp=$('#ch-aprender'); if(bp) bp.onclick=()=>cambiarModoChecador('aprendizaje');
   $('#ch-diag').onclick=probarIP;
   $('#ch-borrarhoy').onclick=borrarMiChecadaHoy;
+  pintarUbicacionOficina();
   $('#ch-limpiar').onclick=limpiarFotosHuerfanas;
 }
 
@@ -8453,6 +8497,66 @@ async function limpiarFotosHuerfanas(){
   const {error:e2}=await sb.storage.from('checadas').remove(l);
   if(e2){ toast(e2.message,'bad'); return; }
   toast(l.length+' foto(s) borradas.','ok');
+}
+
+
+async function pintarUbicacionOficina(){
+  const c=$('#ch-oficina'); if(!c) return;
+  const hoy=new Date().toISOString().slice(0,10);
+  const [pa,ch,co]=await Promise.all([
+    sb.from('parametros').select('clave,valor').in('clave',['oficina_lat','oficina_lng','oficina_radio_m']),
+    sb.from('checadas_app').select('id,fecha,hora,lat,lng,precision_m,distancia_m,empleado_id')
+      .not('lat','is',null).gte('fecha',new Date(Date.now()-7*86400000).toISOString().slice(0,10))
+      .order('fecha',{ascending:false}).order('hora',{ascending:false}).limit(30),
+    sb.from('v_contingencias').select('*').limit(15)
+  ]);
+  const v=k=>Number(((pa.data||[]).find(x=>x.clave===k)||{}).valor||0);
+  const fija = v('oficina_lat')!==0;
+  const nombres={};
+  const ids=[...new Set((ch.data||[]).map(x=>x.empleado_id))];
+  if(ids.length){
+    const {data}=await sb.from('empleados').select('id,nombre_completo').in('id',ids);
+    (data||[]).forEach(e=>nombres[e.id]=e.nombre_completo);
+  }
+  c.innerHTML=`
+  <h3 style="margin:26px 0 8px;font-size:14px">Ubicación de la oficina</h3>
+  <div style="font-size:12.5px;color:var(--txt-2);margin-bottom:12px">
+    ${fija?`Fijada en ${v('oficina_lat').toFixed(5)}, ${v('oficina_lng').toFixed(5)} · cuenta como oficina hasta ${v('oficina_radio_m')} m.
+      <a href="https://maps.google.com/?q=${v('oficina_lat')},${v('oficina_lng')}" target="_blank">Ver en el mapa</a>`
+         :'Todavía no está fijada. Elige abajo una checada que sepas que se hizo dentro de la oficina, con buena precisión.'}
+  </div>
+  ${!(ch.data||[]).length?'<div class="empty">Todavía no hay checadas con ubicación.</div>':`
+  <div class="tw"><table>
+    <thead><tr><th>Día</th><th>Hora</th><th>Quién</th><th>Precisión</th><th>A la oficina</th><th></th></tr></thead>
+    <tbody>${ch.data.map(x=>`<tr>
+      <td style="font-size:12.5px">${fecha(x.fecha)}</td>
+      <td class="mono">${String(x.hora||'').slice(0,5)}</td>
+      <td>${esc(nombres[x.empleado_id]||'')}</td>
+      <td style="font-size:12.5px">${x.precision_m!=null?Math.round(x.precision_m)+' m':'—'}</td>
+      <td style="font-size:12.5px">${x.distancia_m!=null?(x.distancia_m>=1000?(x.distancia_m/1000).toFixed(1)+' km':Math.round(x.distancia_m)+' m'):'—'}</td>
+      <td class="num" style="white-space:nowrap">
+        <a class="btn btn-sm" href="https://maps.google.com/?q=${x.lat},${x.lng}" target="_blank">Mapa</a>
+        <button class="btn btn-sm" data-fijar="${x.id}">Esta es la oficina</button></td>
+    </tr>`).join('')}</tbody></table></div>`}
+
+  <h3 style="margin:26px 0 8px;font-size:14px">Días de contingencia</h3>
+  ${!(co.data||[]).length?'<div class="empty">Ninguno hasta ahora.</div>':`
+  <div class="tw"><table>
+    <thead><tr><th>Día</th><th>Motivo</th><th>La activó</th><th>Checadas</th><th>Lejos de la oficina</th></tr></thead>
+    <tbody>${co.data.map(x=>`<tr>
+      <td style="font-size:12.5px">${fecha(x.fecha)}</td>
+      <td style="font-size:12.5px">${esc(x.motivo)}</td>
+      <td style="font-size:12.5px">${esc(x.activada_por||'—')}</td>
+      <td>${x.checadas_en_contingencia}</td>
+      <td>${x.lejos_de_la_oficina?`<span class="p p-bad">${x.lejos_de_la_oficina}</span>`:'0'}</td>
+    </tr>`).join('')}</tbody></table></div>`}`;
+
+  c.querySelectorAll('[data-fijar]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Fijar esta ubicación como la oficina?\n\nAbre antes el mapa y confirma que el punto cae en el edificio.')) return;
+    const {data,error}=await sb.rpc('fijar_oficina_desde_checada',{p_checada:Number(b.dataset.fijar)});
+    if(error){ toast(error.message,'bad'); return; }
+    toast(data, /^Oficina fijada/.test(data)?'ok':'bad'); pintarUbicacionOficina();
+  });
 }
 
 /* ============================================================
