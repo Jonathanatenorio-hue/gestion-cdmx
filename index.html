@@ -7974,6 +7974,8 @@ async function pintarControlChecador(){
       ? `<button class="btn btn-p" id="ch-activar" ${redes.length?'':'disabled title="Primero autoriza la red de la oficina"'}>Pasar a modo activo</button>`
       : `<button class="btn" id="ch-aprender">Regresar a aprendizaje</button>`}
     <button class="btn" id="ch-diag">Probar qué IP ve el servidor</button>
+    <button class="btn btn-d" id="ch-borrarhoy">Borrar mi checada de hoy</button>
+    <button class="btn" id="ch-limpiar">Limpiar fotos sin dueño</button>
   </div>
   <div id="ch-diagout"></div>
 
@@ -8001,6 +8003,8 @@ async function pintarControlChecador(){
   const ba=$('#ch-activar');  if(ba) ba.onclick=()=>cambiarModoChecador('activo');
   const bp=$('#ch-aprender'); if(bp) bp.onclick=()=>cambiarModoChecador('aprendizaje');
   $('#ch-diag').onclick=probarIP;
+  $('#ch-borrarhoy').onclick=borrarMiChecadaHoy;
+  $('#ch-limpiar').onclick=limpiarFotosHuerfanas;
 }
 
 async function autorizarRed(ip){
@@ -8417,6 +8421,34 @@ async function resolverSolicitudDatos(id, aplicar){
 }
 
 $('#pc-save').onclick = enviarPedirCambio;
+
+
+/* Las fotos solo se borran por la API de almacenamiento: Supabase no deja
+   hacerlo desde SQL. La base borra lo suyo y devuelve qué fotos quitar. */
+async function borrarMiChecadaHoy(){
+  if(!confirm('Borrar tu checada de hoy para volver a probar?\n\nSe borran las marcas, las fotos y el día calificado.')) return;
+  const {data,error}=await sb.rpc('borrar_checadas_del_dia',{p_empleado:null,p_fecha:null});
+  if(error){ toast(error.message,'bad'); return; }
+  if(!data?.ok){ toast(data?.mensaje||'No se pudo.','bad'); return; }
+  const fotos=data.fotos_por_borrar||[];
+  if(fotos.length){
+    const {error:e2}=await sb.storage.from('checadas').remove(fotos);
+    if(e2) toast('Se borró la checada, pero no las fotos: '+e2.message,'bad');
+  }
+  toast(data.mensaje,'ok');
+  vistaChecar();
+}
+
+async function limpiarFotosHuerfanas(){
+  const {data,error}=await sb.from('v_fotos_huerfanas').select('archivo');
+  if(error){ toast(error.message,'bad'); return; }
+  const l=(data||[]).map(x=>x.archivo);
+  if(!l.length){ toast('No hay fotos sin dueño.','ok'); return; }
+  if(!confirm('Borrar '+l.length+' foto(s) que ya no pertenecen a ninguna checada?')) return;
+  const {error:e2}=await sb.storage.from('checadas').remove(l);
+  if(e2){ toast(e2.message,'bad'); return; }
+  toast(l.length+' foto(s) borradas.','ok');
+}
 
 /* ============================================================
    ARRANQUE
