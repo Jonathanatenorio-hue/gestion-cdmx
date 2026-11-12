@@ -1767,6 +1767,54 @@ function buscarCurp(T){
   return null;
 }
 
+/* El domicilio del INE llega pegado y con ruido: el lector une las
+   abreviaturas ("C LIMON" sale "CLIMON", "COL LAS" sale "COLLAS") y el mapa
+   de fondo de la credencial mete palabras que no existen. Esto lo separa y
+   lo recorta usando la estructura que siempre tiene: vialidad, colonia,
+   código postal, municipio y estado. */
+const ABREV = ['FRACC','DEPTO','BLVD','CALZ','PRIV','SECC','EDIF','COL','CDA','AND','MZ','LT','AV','C'];
+const INICIO_MUNI = /^(SAN|SANTA|SANTO|CIUDAD|VILLA|VILLAS|NUEVO|NUEVA|GENERAL|HEROICA|PUERTO|VALLE|LOS|LAS|EL|LA)$/;
+
+function separarAbreviaturas(t){
+  // De la más larga a la más corta, para que COL se resuelva antes que C
+  ABREV.forEach(a=>{
+    t = t.replace(new RegExp('\\b'+a+'(?=[A-ZÁÉÍÓÚÑ]{3,})','g'), a+' ');
+  });
+  return t.replace(/\s+/g,' ').trim();
+}
+
+function armarDomicilio(txt){
+  let t=(txt||'').toUpperCase().replace(/\s+/g,' ').trim();
+
+  // El código postal es el único número de cinco cifras: parte la dirección
+  const mCp = t.match(/\b(\d{5})\b/);
+  if(!mCp) return separarAbreviaturas(t);
+
+  const cp     = mCp[1];
+  // Las abreviaturas solo se separan antes del código postal, que es donde van
+  // la vialidad y la colonia. Después va el municipio, y ahí partir por "C"
+  // rompería nombres como CDMX.
+  const antes  = separarAbreviaturas(t.slice(0, mCp.index).trim());
+  let  despues = t.slice(mCp.index + 5).trim();
+
+  // Después del código postal ya no van números: lo que haya es ruido
+  despues = despues.split(' ').filter(w=>!/^\d+$/.test(w)).join(' ').trim();
+
+  // Municipio y estado: el estado va tras la última coma
+  let muni = despues, edo = '';
+  const mEdo = despues.match(/^(.*),\s*([A-ZÁÉÍÓÚÑ.]{2,12})\.?$/);
+  if(mEdo){ muni = mEdo[1].trim(); edo = mEdo[2].replace(/\.$/,''); }
+
+  // Un municipio de más de tres palabras casi siempre trae ruido al frente,
+  // salvo que empiece con San, Villa, Ciudad y similares
+  let pm = muni.split(' ').filter(Boolean);
+  while(pm.length>3 && !INICIO_MUNI.test(pm[0])) pm.shift();
+  muni = pm.join(' ');
+
+  return [antes, cp, muni ? (muni + (edo ? ', '+edo : '')) : edo]
+    .filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+}
+
 function leerINE(t){
   // El lector confunde la I con la barra y el 0 con la O en las etiquetas
   const T=(t||'').toUpperCase().replace(/[|¡!]/g,'I');
@@ -1840,8 +1888,9 @@ function leerINE(t){
         .split(/\s+/)
         .filter(w=>/\d/.test(w) || w.replace(/[^A-ZÁÉÍÓÚÑ]/g,'').length>=3 || /^(DE|LA|EL|Y|DEL)$/.test(w))
         .join(' ').replace(/\s+/g,' ').trim();
-      const utiles = dom.split(' ').filter(w=>w.length>=3).length;
-      if(utiles>=4) r.domicilio = dom;
+      const armado = armarDomicilio(dom);
+      const utiles = armado.split(' ').filter(w=>w.length>=3).length;
+      if(utiles>=4) r.domicilio = armado;
       else r._falta_domicilio = true;
     }
   }
