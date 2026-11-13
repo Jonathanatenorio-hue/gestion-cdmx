@@ -9100,30 +9100,126 @@ async function revisarAvisos(){
 
 async function vistaAvisos(){
   $('#main').innerHTML='<div class="empty">Cargando…</div>';
+  const puede = S.direccion || S.rh;
   const {data,error}=await sb.from('v_avisos_acuses').select('*');
-  if(error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(error.message)}</div>`; return; }
-  const grupos={};
-  (data||[]).forEach(x=>{ (grupos[x.aviso_id]=grupos[x.aviso_id]||{t:x.titulo,d:x.desde,g:[]}).g.push(x); });
-  const ids=Object.keys(grupos);
+  if(error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(error.message)}<br><span style="font-size:12.5px">Si dice que falta una columna, corre el SQL 129.</span></div>`; return; }
+  const grupos={}, orden=[];
+  (data||[]).forEach(x=>{
+    if(!grupos[x.aviso_id]){ grupos[x.aviso_id]={id:x.aviso_id,t:x.titulo,c:x.cuerpo,d:x.desde,h:x.hasta,a:x.dirigido_a,g:[]}; orden.push(x.aviso_id); }
+    grupos[x.aviso_id].g.push(x);
+  });
+  const f=d=>d?new Date(d+'T12:00:00').toLocaleDateString('es-MX',{day:'numeric',month:'short'}):'';
+  const hora=t=>new Date(t).toLocaleString('es-MX',{timeZone:'America/Mexico_City',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+
   $('#main').innerHTML=`
-  <div class="head"><div><h1>Avisos al personal</h1><p>Quién ya dio "Enterado" y quién no. Es la prueba de que se avisó.</p></div></div>
-  ${!ids.length?'<div class="empty"><b>No hay avisos activos</b></div>':ids.map(id=>{
-    const G=grupos[id], ya=G.g.filter(x=>x.enterado_en).length;
-    const puestos=[...new Set(G.g.map(x=>x.puesto).filter(Boolean))].join(', ');
-    return `<div class="tw" style="padding:18px;margin-bottom:16px">
-      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline">
-        <h3 style="margin:0;font-size:15px">${esc(G.t)}</h3>
-        <span class="p ${ya===G.g.length?'p-ok':'p-warn'}">${ya} de ${G.g.length} enterados</span></div>
-      <div style="font-size:12px;color:var(--txt-2);margin:4px 0 12px">${esc(puestos)}</div>
-      <table style="width:100%"><tbody>${G.g.map(x=>`<tr>
-        <td style="padding:6px 0;border-top:1px solid var(--line)">${esc(x.nombre_completo)}</td>
-        <td style="padding:6px 0;border-top:1px solid var(--line);text-align:right;font-size:12.5px">
-          ${x.enterado_en?`<span style="color:var(--ok)">✓ ${new Date(x.enterado_en).toLocaleString('es-MX',{timeZone:'America/Mexico_City',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span>`
-                         :'<span style="color:var(--bad)">sin leer</span>'}</td></tr>`).join('')}
+  <div class="head"><div><h1>Avisos al personal</h1><p>Le aparece a cada quien al entrar y no se le quita hasta que da "Enterado". Es la prueba de que se avisó.</p></div>
+    ${puede?'<button class="btn btn-p" id="av-nuevo">Nuevo aviso</button>':''}</div>
+  ${!orden.length?'<div class="empty"><b>No hay avisos activos</b>Publica uno con "Nuevo aviso".</div>':orden.map(id=>{
+    const G=grupos[id];
+    const con=G.g.filter(x=>x.tiene_usuario!==false), sinU=G.g.filter(x=>x.tiene_usuario===false);
+    const ya=con.filter(x=>x.enterado_en).length, pct=con.length?Math.round(100*ya/con.length):0;
+    return `<div class="tw" style="padding:18px 20px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start">
+        <div style="min-width:0;flex:1">
+          <h3 style="margin:0;font-size:15.5px">${esc(G.t)}</h3>
+          <div style="font-size:12px;color:var(--txt-2);margin-top:3px">${esc(G.a||'')} · desde ${f(G.d)}${G.h?' hasta '+f(G.h):''}</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="p ${ya===con.length?'p-ok':'p-warn'}">${ya} de ${con.length} enterados</span>
+          ${puede?`<button class="btn btn-sm" data-arch="${id}">Archivar</button>`:''}
+        </div>
+      </div>
+      <div style="height:6px;border-radius:6px;background:var(--line-2);margin:12px 0;overflow:hidden"><i style="display:block;height:100%;width:${pct}%;background:var(--ok);transition:width .6s"></i></div>
+      <details style="margin-bottom:6px"><summary style="cursor:pointer;font-size:12.5px;color:var(--txt-2)">Ver el mensaje</summary>
+        <div style="white-space:pre-line;font-size:13.5px;line-height:1.6;padding:10px 12px;margin-top:8px;background:var(--surface-2);border-radius:var(--r-sm)">${esc(G.c||'')}</div></details>
+      <table style="width:100%"><tbody>${con.map(x=>`<tr>
+        <td style="padding:6px 0;border-top:1px solid var(--line-2)">${esc(x.nombre_completo)} <span style="font-size:11.5px;color:var(--txt-3)">${esc(x.puesto||'')}</span></td>
+        <td style="padding:6px 0;border-top:1px solid var(--line-2);text-align:right;font-size:12.5px">
+          ${x.enterado_en?`<span style="color:var(--ok)">✓ ${hora(x.enterado_en)}</span>`:'<span style="color:var(--bad)">sin leer</span>'}</td></tr>`).join('')}
+      ${sinU.map(x=>`<tr>
+        <td style="padding:6px 0;border-top:1px solid var(--line-2);color:var(--txt-2)">${esc(x.nombre_completo)}</td>
+        <td style="padding:6px 0;border-top:1px solid var(--line-2);text-align:right;font-size:12.5px;color:var(--txt-3)">sin usuario · avísale en persona</td></tr>`).join('')}
       </tbody></table></div>`;
-  }).join('')}
-  <div class="note"><b>Quien no lo ha leído</b>
-    Le aparece en cuanto entre a la plataforma, y no se le quita hasta que dé "Enterado". Si alguien no entra antes del martes, avísale en persona.</div>`;
+  }).join('')}`;
+
+  const nb=$('#av-nuevo'); if(nb) nb.onclick=abrirNuevoAviso;
+  document.querySelectorAll('[data-arch]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('¿Archivar este aviso? Deja de salirle a quien no lo ha leído. Los acuses se conservan.')) return;
+    b.classList.add('cargando'); b.disabled=true;
+    const {data:r,error:e}=await sb.rpc('archivar_aviso',{p_aviso:Number(b.dataset.arch)});
+    if(e){ toast(e.message,'bad'); b.disabled=false; b.classList.remove('cargando'); return; }
+    toast(r,'ok'); vistaAvisos();
+  });
+}
+
+async function abrirNuevoAviso(){
+  let ov=$('#ov-navi');
+  if(!ov){
+    ov=document.createElement('div'); ov.className='ov'; ov.id='ov-navi';
+    document.body.appendChild(ov);
+  }
+  const hoy=hoyMexico();
+  const [{data:pu},{data:em}]=await Promise.all([
+    sb.from('puestos').select('id,nombre').eq('activo',true).order('nombre'),
+    sb.from('empleados').select('id,nombre_completo,puesto_id').eq('estatus','activo').eq('tipo_registro','empleado').order('nombre_completo')
+  ]);
+  ov.innerHTML=`<div class="md" style="max-width:620px">
+    <div class="md-h"><b>Nuevo aviso</b><button data-close="ov-navi">&times;</button></div>
+    <div class="md-b">
+      <label>Título</label>
+      <input id="na-tit" maxlength="90" placeholder="Ej. Pago de nómina el jueves 20">
+      <label style="margin-top:12px">Mensaje</label>
+      <textarea id="na-txt" rows="6" placeholder="Escríbelo como se lo dirías a la persona. Sale tal cual, con sus saltos de línea."></textarea>
+      <label style="margin-top:12px">¿A quién va?</label>
+      <select id="na-quien">
+        <option value="todos">Todo el personal</option>
+        ${(pu||[]).map(p=>`<option value="p${p.id}">Solo ${esc(p.nombre)}</option>`).join('')}
+        <option value="personas">Personas específicas…</option>
+      </select>
+      <div id="na-pers" style="display:none;margin-top:10px">
+        <input id="na-bus" placeholder="Buscar persona" style="width:100%;padding:8px 11px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card)">
+        <div id="na-lista" style="max-height:200px;overflow:auto;border:1px solid var(--line);border-radius:var(--r-sm);margin-top:6px;padding:4px 10px">
+          ${(em||[]).map(e=>`<label style="display:flex;gap:8px;align-items:center;padding:5px 0;margin:0;font-weight:400;font-size:13px;cursor:pointer" data-nom="${esc(e.nombre_completo.toLowerCase())}">
+            <input type="checkbox" value="${e.id}" style="width:auto;margin:0">${esc(e.nombre_completo)}</label>`).join('')}
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+        <div><label>Empieza a salir</label><input type="date" id="na-desde" value="${hoy}"></div>
+        <div><label>Deja de salir <span style="font-weight:400;color:var(--txt-3)">(opcional)</span></label><input type="date" id="na-hasta"></div>
+      </div>
+      <div id="na-alcance" style="font-size:12.5px;color:var(--txt-2);margin-top:12px"></div>
+    </div>
+    <div class="md-f"><button class="btn" data-close="ov-navi">Cancelar</button><button class="btn btn-p" id="na-ok">Publicar aviso</button></div>
+  </div>`;
+  ov.classList.add('on');
+
+  const alcance=()=>{
+    const q=$('#na-quien').value; let n;
+    if(q==='todos') n=(em||[]).length;
+    else if(q==='personas') n=ov.querySelectorAll('#na-lista input:checked').length;
+    else n=(em||[]).filter(e=>'p'+e.puesto_id===q).length;
+    $('#na-alcance').innerHTML=`Le va a aparecer a <b>${n}</b> persona${n===1?'':'s'} la próxima vez que entren.`;
+  };
+  $('#na-quien').onchange=()=>{ $('#na-pers').style.display=$('#na-quien').value==='personas'?'block':'none'; alcance(); };
+  $('#na-lista').onchange=alcance;
+  $('#na-bus').oninput=()=>{ const t=$('#na-bus').value.trim().toLowerCase();
+    ov.querySelectorAll('#na-lista label').forEach(l=>l.style.display=!t||l.dataset.nom.includes(t)?'flex':'none'); };
+  alcance();
+
+  $('#na-ok').onclick=async()=>{
+    const q=$('#na-quien').value;
+    const pers=[...ov.querySelectorAll('#na-lista input:checked')].map(i=>Number(i.value));
+    const args={p_titulo:$('#na-tit').value, p_cuerpo:$('#na-txt').value,
+      p_puesto: q.startsWith('p')?Number(q.slice(1)):null,
+      p_empleados: q==='personas'?pers:null,
+      p_desde:$('#na-desde').value||null, p_hasta:$('#na-hasta').value||null};
+    const b=$('#na-ok'); b.disabled=true; b.classList.add('cargando');
+    const {data:r,error:e}=await sb.rpc('crear_aviso',args);
+    b.disabled=false; b.classList.remove('cargando');
+    if(e){ toast(e.message,'bad'); return; }
+    if(!r.ok){ toast(r.msg,'bad'); return; }
+    toast(r.msg,'ok'); cerrar('ov-navi'); vistaAvisos();
+  };
 }
 
 /* ============================================================
@@ -9309,7 +9405,7 @@ async function vistaInicio(){
     dir?seguro(sb.from('v_alertas_faltas').select('*')):null,
     dir?seguro(sb.from('v_bajas_pendientes').select('empleado_id')):null,
     dir?seguro(sb.from('v_encuestas_pendientes').select('encuesta_id')):null,
-    (dir||S.rh)?seguro(sb.from('v_avisos_acuses').select('aviso_id,enterado_en')):null,
+    (dir||S.rh)?seguro(sb.from('v_avisos_acuses').select('aviso_id,enterado_en,tiene_usuario')):null,
     dir?seguro(sb.from('v_saldo_cuenta').select('*')):null,
     dir?seguro(sb.rpc('flujo_proyectado',{p_dias:15})):null,
     dir?seguro(sb.from('v_nomina_resumen').select('*').lte('fecha_inicio',hoy).order('fecha_inicio',{ascending:false}).limit(6)):null
@@ -9354,7 +9450,7 @@ async function vistaInicio(){
   // Lo que pide atención: solo lo que tiene algo
   const n=a=>Array.isArray(a)?a.length:0;
   const clabes=(sdat||[]).filter(x=>x.solo_direccion).length;
-  const avisosSin=(acu||[]).filter(x=>!x.enterado_en).length;
+  const avisosSin=(acu||[]).filter(x=>!x.enterado_en && x.tiene_usuario!==false).length;
   const pend=[
     cont?{n:'!',t:'Contingencia activa',s:String(cont),ir:'checar',c:'bad'}:null,
     clabes?{n:clabes,t:'Cambio de cuenta bancaria',s:'revisa el comprobante antes de aprobar',ir:'solicitudes',c:'bad'}:null,
