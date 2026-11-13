@@ -1,13 +1,13 @@
 {
-  "name": "Gestión CDMX",
-  "short_name": "Gestión",
+  "name": "Gestión Sub Yelitza Orsuna",
+  "short_name": "Sub Yelitza",
   "description": "Consola de operación",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#101720",
-  "theme_color": "#101720",
+  "background_color": "#0D0F13",
+  "theme_color": "#0D0F13",
   "lang": "es-MX",
   "icons": [
     {
