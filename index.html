@@ -8028,6 +8028,16 @@ async function vistaChecar(){
 }
 
 async function pintarMarcar(){
+  // A quien no le toca checar (base de datos, por ejemplo) no se le pone la cámara
+  try{
+    const {data:debe,error}=await sb.rpc('mi_debe_checar');
+    if(!error && debe===false){
+      $('#ch-cuerpo').innerHTML=`<div class="tw" style="padding:28px;max-width:460px;margin:0 auto;text-align:center">
+        <b style="display:block;font-size:16px;margin-bottom:6px">Tu puesto no checa asistencia</b>
+        <span style="color:var(--txt-2);font-size:13.5px">No tienes que marcar entrada ni salida. Si crees que es un error, avisa a dirección.</span></div>`;
+      return;
+    }
+  }catch(e){}
   const hoy=new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
   $('#ch-cuerpo').innerHTML=`
   <div class="tw" style="padding:24px;max-width:460px;margin:0 auto;text-align:center">
@@ -9406,7 +9416,7 @@ async function vistaInicio(){
     <button class="tile w3 mitad" data-ir="plantilla">
       <div class="tt"><span class="ico">${ico('plantilla')}</span>Personal activo</div>
       <div class="vv">${Array.isArray(emp)?emp.length:total}</div>
-      <div class="ss">${llegaron} marcaron hoy</div>
+      <div class="ss">${total} checan asistencia · ${llegaron} ya marcaron</div>
     </button>
 
     <button class="tile w3 mitad" data-ir="checar">
