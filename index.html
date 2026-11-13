@@ -3,6 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Gestión CDMX">
+<meta name="theme-color" content="#101720">
 <title>Gestión CDMX</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -194,6 +201,18 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
 .cel.fuera{background:repeating-linear-gradient(45deg,#F3F4F6,#F3F4F6 3px,#E9EBEE 3px,#E9EBEE 6px);cursor:not-allowed}
 .cel.fuera:hover{outline:none}
 .cel.futuro{background:#fff;cursor:default}
+.inis{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.ini{text-align:left;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:var(--r);padding:14px 16px;cursor:pointer;box-shadow:var(--sh);font:inherit;color:inherit}
+.ini:hover{border-color:var(--teal)}
+.ini span{display:block;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-2)}
+.ini b{display:block;font-size:26px;font-family:'IBM Plex Mono',monospace;margin:6px 0 4px;letter-spacing:-.5px}
+.ini b em{font-style:normal;font-size:15px;color:var(--txt-3)}
+.ini small{display:block;font-size:12px;color:var(--txt-2);line-height:1.35}
+.ini.aviso{border-left-color:var(--warn)}
+.ini.malo{border-left-color:var(--bad)}
+@media(max-width:760px){.inis{grid-template-columns:1fr 1fr;gap:8px}.ini{padding:12px}.ini b{font-size:21px}}
+.cel.curso{background:#fff;border:1px dashed var(--teal);color:var(--teal);font-size:9.5px;font-weight:600;letter-spacing:-.3px}
+.cel.curso.r{border-color:var(--warn);color:var(--warn)}
 .cel.futuro:hover{outline:none}
 .cel.espera{background:repeating-linear-gradient(90deg,#FDF6EC,#FDF6EC 4px,#F7E9D4 4px,#F7E9D4 8px);cursor:help}
 .cel.espera:hover{outline:1px solid var(--copper);outline-offset:-1px}
@@ -252,15 +271,35 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
 .sum span{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt-3);margin-bottom:4px}
 .sum b{font-size:19px;font-family:'IBM Plex Mono',monospace}
 
-@media(max-width:900px){
-  #app.on{grid-template-columns:1fr}
-  aside{position:static;height:auto}
-  nav{display:flex;overflow-x:auto;padding:8px}
-  nav a{border-left:none;border-bottom:2px solid transparent;padding:8px 12px;grid-template-columns:1fr;white-space:nowrap}
-  nav a.on{border-left:none;border-bottom-color:var(--teal)}
-  nav a i{display:none}
-  main{padding:16px}
+/* Barra superior y velo: solo existen en pantallas angostas */
+#topbar{display:none}
+#velo{display:none}
+
+/* Pantalla mediana (iPhone Duo abierto, tablet): menú fijo más angosto */
+@media(min-width:761px) and (max-width:1100px){
+  #app.on{grid-template-columns:200px 1fr}
+  nav a{padding:8px 14px;font-size:13px}
+  main{padding:18px 18px 60px}
   .grid{grid-template-columns:1fr}
+}
+
+/* Pantalla de celular (iPhone Duo cerrado y cualquier celular): menú en cajón */
+@media(max-width:760px){
+  #app.on{display:block}
+  #topbar{display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:50;
+    background:var(--ink);color:#fff;padding:10px 14px;min-height:50px}
+  #topbar button{background:transparent;border:1px solid var(--ink-3);color:#fff;border-radius:var(--r);
+    width:38px;height:34px;font-size:18px;line-height:1;cursor:pointer}
+  #topbar b{font-size:15px;font-weight:600;letter-spacing:-.2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  aside{position:fixed;top:0;left:0;bottom:0;width:min(84vw,300px);height:100%;z-index:58;
+    transform:translateX(-100%);transition:transform .2s ease;box-shadow:0 0 40px rgba(0,0,0,.35)}
+  #app.menu aside{transform:none}
+  #app.menu #velo{display:block;position:fixed;inset:0;background:rgba(16,23,32,.5);z-index:57}
+  main{padding:14px 14px calc(28px + env(safe-area-inset-bottom))}
+  .grid{grid-template-columns:1fr}
+  .head h1{font-size:21px}
+  .kpis{grid-template-columns:repeat(2,1fr);gap:8px}
+  .ov{padding:8px}
 }
 </style>
 </head>
@@ -284,6 +323,8 @@ td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numer
 
 <!-- ================= APP ================= -->
 <div id="app">
+  <div id="topbar"><button id="tb-menu" aria-label="Abrir menú">&#9776;</button><b id="tb-tit">Gestión CDMX</b></div>
+  <div id="velo"></div>
   <aside>
     <div class="abrand"><b>Gestión CDMX</b><span>Consola de operación</span></div>
     <nav id="nav"></nav>
@@ -896,6 +937,7 @@ const S = {
 };
 
 const MODULOS = [
+  {id:'inicio',     n:'··', t:'Inicio',               lista:true, ver:'jefes'},
   {id:'guia',       n:'00', t:'Cómo se usa',          lista:true, ver:'jefes'},
   {id:'checar',     n:'13', t:'Checar',               lista:true, ver:'todos'},
   {id:'mificha',    n:'14', t:'Mi información',       lista:true, ver:'todos'},
@@ -981,7 +1023,7 @@ async function iniciar(){
   $('#u-rol').textContent=perfil.rol;
   pintarNav();
   pintarAyudas();
-  S.inicio = (perfil.rol==='agente') ? 'checar' : 'guia';
+  S.inicio = (perfil.rol==='agente') ? 'checar' : 'inicio';
   sb.rpc('registrar_acceso').then(({error})=>{
     if(error) console.warn('No se pudo registrar el acceso:', error.message, error.details||'');
     else console.log('Acceso registrado.');
@@ -1013,7 +1055,9 @@ function irA(id){
   if(!m || !puedeVerModulo(m)){ m=MODULOS.find(x=>x.id==='checar'); id='checar'; vistaActual=id; }
   const R={guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar,
              mificha:vistaMiFicha, miasist:vistaMiAsistencia, mispagos:vistaMisPagos,
-             solicitudes:vistaSolicitudesDatos};
+             solicitudes:vistaSolicitudesDatos, inicio:vistaInicio};
+  $('#app').classList.remove('menu');
+  const tt=$('#tb-tit'); if(tt) tt.textContent=m.t;
   if(m.lista && R[id]) R[id](); else vistaSoon(m);
   window.scrollTo(0,0);
 }
@@ -5275,9 +5319,14 @@ async function cargarRejilla(){
     &&(!e.fecha_ingreso || e.fecha_ingreso<=f.hasta))
     .sort((a,b)=>a.nombre_completo.localeCompare(b.nombre_completo,'es'));
 
-  const hoyX=new Date().toISOString().slice(0,10);
+  const hoyX=hoyMexico();
   const esperando=new Set((S.sinArchivo||[]).map(x=>x.fecha));
-  const cuenta=t=>Object.values(mapa).filter(a=>a.estatus_final===t).length;
+  // Hoy, quien entró y no ha salido todavía no tiene calificación: va en curso
+  const vaEnCurso=a=>a && a.fecha===hoyX && ['A','R'].includes(a.estatus_final)
+    && a.origen!=='auditoria' && !a.ajustado
+    && (!a.hora_salida || a.hora_salida===a.hora_entrada);
+  const cuenta=t=>Object.values(mapa).filter(a=>a.estatus_final===t && !vaEnCurso(a)).length;
+  const nCurso=Object.values(mapa).filter(vaEnCurso).length;
   const manual=Object.values(mapa).filter(a=>a.origen==='auditoria').length;
   const sinDatos=Object.values(mapa).filter(a=>a.origen==='sin_datos').length;
 
@@ -5300,6 +5349,7 @@ async function cargarRejilla(){
     <div class="kpi w"><span>Retardos</span><b>${cuenta('R')}</b><small>dentro de tolerancia</small></div>
     <div class="kpi b"><span>Faltas</span><b>${cuenta('F')}</b><small>por revisar</small></div>
     <div class="kpi c"><span>Sin salida</span><b>${cuenta('SS')}</b><small>entraron sin marcar salida</small></div>
+    ${nCurso?`<div class="kpi"><span>En curso</span><b>${nCurso}</b><small>entraron hoy, falta su salida</small></div>`:''}
     <div class="kpi ${sinDatos?'w':''}"><span>Sin huella</span><b>${sinDatos}</b><small>el checador no los registró</small></div>
     <div class="kpi"><span>Calificados a mano</span><b>${manual}</b><small>por auditoría</small></div>
   </div>
@@ -5367,13 +5417,17 @@ async function cargarRejilla(){
           return `<td><div class="cel fuera" title="${fueraBaja?'Ya causó baja el '+e.fecha_baja:'Todavía no ingresaba'}"></div></td>`;
         }
         const a=mapa[e.id+'|'+x];
+        if(vaEnCurso(a)){
+          const tc=`Entró ${String(a.hora_entrada||'').slice(0,5)}${a.estatus_final==='R'?' con retardo':''} · el día se califica al marcar su salida`;
+          return `<td><div class="cel curso${a.estatus_final==='R'?' r':''}" data-e="${e.id}" data-f="${x}" title="${esc(tc)}">${String(a.hora_entrada||'').slice(0,5)}</div></td>`;
+        }
         const v=a?a.estatus_final:'_';
         const man=a&&a.origen==='auditoria'?' man':'';
         const t=a?`${EST_A[v]||v}${a.hora_entrada?' · entró '+a.hora_entrada.slice(0,5):''}${a.hora_salida?' · salió '+a.hora_salida.slice(0,5):''}${a.origen==='auditoria'?' · a mano':''}`:'sin dato';
         return `<td><div class="cel c-${v}${man}" data-e="${e.id}" data-f="${x}" title="${esc(t)}">${v==='_'?'':v}</div></td>`;
       }).join('');
       const dentro=x=>x<=hoyX&&(!e.fecha_ingreso||x>=e.fecha_ingreso)&&(!e.fecha_baja||x<=e.fecha_baja);
-      const c=t=>dias.filter(x=>dentro(x)&&mapa[e.id+'|'+x]?.estatus_final===t).length;
+      const c=t=>dias.filter(x=>dentro(x)&&mapa[e.id+'|'+x]?.estatus_final===t&&!vaEnCurso(mapa[e.id+'|'+x])).length;
       const marca = e.estatus==='baja'
         ? `<br><span class="p p-bad" style="font-size:10px">baja el ${fecha(e.fecha_baja)}</span>`
         : (e.fecha_ingreso && e.fecha_ingreso>f.desde
@@ -8751,6 +8805,71 @@ async function iniciarDetectorRostro(){
   };
   ciclo();
 }
+
+
+/* ============================================================
+   INICIO — lo que se revisa de pie, en una sola pantalla.
+   Cada tarjeta lleva a su módulo. En celular es el arranque.
+   ============================================================ */
+async function vistaInicio(){
+  $('#main').innerHTML='<div class="empty">Cargando…</div>';
+  const dir=S.direccion;
+  const seguro=q=>q.then(r=>r.error?null:r.data).catch(()=>null);
+  const hoy=hoyMexico();
+  const [sal,flu,chk,sdat,saj,baj,anom,cont,alf,enc]=await Promise.all([
+    dir?seguro(sb.from('v_saldo_cuenta').select('*')):null,
+    dir?seguro(sb.from('v_flujo_resumen').select('*').maybeSingle()):null,
+    seguro(sb.from('v_checadas_hoy').select('*')),
+    (dir||S.rh)?seguro(sb.from('v_solicitudes_datos').select('id,solo_direccion').eq('estado','pendiente')):null,
+    seguro(sb.from('v_solicitudes').select('id').eq('estatus','pendiente')),
+    dir?seguro(sb.from('v_bajas_pendientes').select('empleado_id')):null,
+    seguro(sb.from('v_anomalias_checador').select('id').eq('fecha',hoy)),
+    seguro(sb.rpc('contingencia_vigente')),
+    dir?seguro(sb.from('v_alertas_faltas').select('*')):null,
+    dir?seguro(sb.from('v_encuestas_pendientes').select('encuesta_id')):null
+  ]);
+
+  const c=(sal||[])[0]||null;
+  const lista=chk||[];
+  const llegaron=lista.filter(x=>x.entrada).length;
+  const sinSalida=lista.filter(x=>x.entrada && !x.salida).length;
+  const n=a=>Array.isArray(a)?a.length:0;
+  const clabes=(sdat||[]).filter(x=>x.solo_direccion).length;
+
+  const tarjeta=(o)=>`<button class="ini ${o.tono||''}" data-ir="${o.ir}">
+      <span>${o.t}</span><b>${o.v}</b><small>${o.s||''}</small></button>`;
+
+  const t=[];
+  if(c) t.push(tarjeta({ir:'balance',t:'Saldo en la cuenta',v:money(c.saldo_real),
+    s:flu&&flu.punto_mas_bajo!=null?`punto más bajo en 15 días: ${money(flu.punto_mas_bajo)}`:'lo que dice el banco',
+    tono:flu&&Number(flu.punto_mas_bajo)<0?'malo':''}));
+  t.push(tarjeta({ir:'checar',t:'Llegaron hoy',v:`${llegaron}<em> / ${lista.length}</em>`,
+    s:sinSalida?`${sinSalida} sin marcar salida todavía`:'quién llegó y a qué hora',
+    tono:lista.length&&llegaron<lista.length?'aviso':''}));
+  if(cont) t.push(tarjeta({ir:'checar',t:'Contingencia activa',v:'Sí',s:esc(cont),tono:'malo'}));
+  t.push(tarjeta({ir:'checar',t:'Checadas raras hoy',v:n(anom),s:'fuera de red, sin rostro, lejos',tono:n(anom)?'aviso':''}));
+  t.push(tarjeta({ir:'asistencia',t:'Ajustes por aprobar',v:n(saj),s:'correcciones de asistencia',tono:n(saj)?'aviso':''}));
+  if(sdat) t.push(tarjeta({ir:'solicitudes',t:'Solicitudes de datos',v:n(sdat),
+    s:clabes?`${clabes} de cuenta bancaria`:'cambios que pidió la gente',tono:clabes?'malo':(n(sdat)?'aviso':'')}));
+  if(alf) t.push(tarjeta({ir:'plantilla',t:'Alertas de faltas',v:n(alf),s:'4 o más faltas en 30 días',tono:n(alf)?'malo':''}));
+  if(baj) t.push(tarjeta({ir:'salidas',t:'Salidas sin cerrar',v:n(baj),s:'falta liquidar o firmar',tono:n(baj)?'aviso':''}));
+  if(enc) t.push(tarjeta({ir:'salidas',t:'Encuestas de salida',v:n(enc),s:'sin aplicar',tono:n(enc)?'aviso':''}));
+
+  const hora=new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',timeZone:'America/Mexico_City'});
+  $('#main').innerHTML=`
+  <div class="head"><div><h1>Inicio</h1><p>Lo que pide tu atención · actualizado a las ${hora}</p></div>
+    <button class="btn btn-sm" id="ini-rec">Actualizar</button></div>
+  <div class="inis">${t.join('')}</div>`;
+  $('#ini-rec').onclick=vistaInicio;
+  document.querySelectorAll('.ini[data-ir]').forEach(b=>b.onclick=()=>irA(b.dataset.ir));
+}
+
+/* Menú en cajón para celular */
+(function(){
+  const app=$('#app'), btn=$('#tb-menu'), velo=$('#velo');
+  if(btn) btn.onclick=()=>app.classList.toggle('menu');
+  if(velo) velo.onclick=()=>app.classList.remove('menu');
+})();
 
 /* ============================================================
    ARRANQUE
