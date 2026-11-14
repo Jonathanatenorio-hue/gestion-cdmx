@@ -5534,10 +5534,13 @@ async function cargarRejilla(){
   const vaEnCurso=a=>a && a.fecha===hoyX && ['A','R'].includes(a.estatus_final)
     && a.origen!=='auditoria' && !a.ajustado
     && (!a.hora_salida || a.hora_salida===a.hora_entrada);
-  const cuenta=t=>Object.values(mapa).filter(a=>a.estatus_final===t && !vaEnCurso(a)).length;
-  const nCurso=Object.values(mapa).filter(vaEnCurso).length;
-  const manual=Object.values(mapa).filter(a=>a.origen==='auditoria').length;
-  const sinDatos=Object.values(mapa).filter(a=>a.origen==='sin_datos').length;
+  // Los conteos de arriba son de la misma gente que sale en la cuadrícula
+  const idsGente=new Set(gente.map(e=>e.id));
+  const delaLista=Object.values(mapa).filter(a=>idsGente.has(a.empleado_id));
+  const cuenta=t=>delaLista.filter(a=>a.estatus_final===t && !vaEnCurso(a)).length;
+  const nCurso=delaLista.filter(vaEnCurso).length;
+  const manual=delaLista.filter(a=>a.origen==='auditoria').length;
+  const sinDatos=delaLista.filter(a=>a.origen==='sin_datos').length;
 
   $('#main').innerHTML=`
   <div class="head">
@@ -8343,7 +8346,8 @@ async function pintarCruceBonsaif(){
   cu.innerHTML=`
   <div class="note" style="margin-bottom:16px"><b>Para qué sirve</b>
     Compara a qué hora checó cada quien contra a qué hora se conectó de verdad a Bonsaif. No cambia ninguna asistencia:
-    te dice qué revisar. Los días de los que no has subido reporte no aparecen.</div>
+    te dice qué revisar. Cuenta desde el 13 de noviembre, cuando arrancó el checador del celular, y solo a quien trabaja en Bonsaif.
+    Los días de los que no has subido reporte no aparecen. <b style="display:inline">Minutos</b>: lo que pasó entre checar y conectarse (negativo = se conectó antes de checar).</div>
   <div class="bar" style="flex-wrap:wrap;gap:10px;margin-bottom:16px">
     <input type="date" id="bx-desde" value="${S.bxDesde}"> <input type="date" id="bx-hasta" value="${S.bxHasta}">
     <label style="display:flex;gap:6px;align-items:center;font-size:13px;margin:0"><input type="checkbox" id="bx-todo" ${S.bxTodo?'checked':''} style="width:auto;margin:0">Ver también lo que cuadra</label>
@@ -8361,7 +8365,7 @@ async function pintarCruceBonsaif(){
     ${ver.map(x=>`<tr><td>${fecha(x.fecha)}</td><td><b>${esc(x.nombre_completo)}</b></td>
       <td class="mono">${h(x.entrada)}</td><td class="mono">${h(x.primera_conexion)}</td>
       <td class="num mono">${x.minutos_para_conectarse??'—'}</td>
-      <td class="mono">${h(x.salida)}</td><td class="mono">${h(x.ultima_desconexion)}</td>
+      <td class="mono">${h(x.salida)}</td><td class="mono">${x.no_cerro_sesion&&!x.ultima_desconexion?'<span style="color:var(--txt-3);font-family:var(--fuente)">no cerró sesión</span>':h(x.ultima_desconexion)}${x.no_cerro_sesion&&x.ultima_desconexion?' <span title="Dejó una sesión abierta que Bonsaif cerró de madrugada" style="color:var(--warn)">·</span>':''}</td>
       <td><span class="p ${color(x.resultado)}">${esc(x.resultado)}</span></td></tr>`).join('')}
     </tbody></table></div>`}`;
   $('#bx-desde').onchange=e=>{ S.bxDesde=e.target.value; pintarCruceBonsaif(); };
@@ -8827,7 +8831,7 @@ async function vistaMisPagos(){
 
   <div class="tw"><table>
     <thead><tr>
-      <th>Periodo</th><th>Del</th><th>Al</th><th>Días</th><th>Faltas</th><th>Ret.</th>
+      <th>Periodo</th><th>Del</th><th>Al</th><th>Se pagó</th><th>Días</th><th>Faltas</th><th>Ret.</th>
       <th class="num">Percepciones</th><th class="num">Deducciones</th><th class="num">Sueldo</th>
       <th class="num">Comisiones</th><th class="num">Total</th>
     </tr></thead>
@@ -8835,6 +8839,7 @@ async function vistaMisPagos(){
       <td><b>${esc(x.periodo||'')}</b></td>
       <td class="mono" style="font-size:12px">${fecha(x.desde)}</td>
       <td class="mono" style="font-size:12px">${fecha(x.hasta)}</td>
+      <td class="mono" style="font-size:12px">${x.fecha_pago?`<b>${fecha(x.fecha_pago)}</b>`:'<span style="color:var(--txt-3)">pendiente</span>'}</td>
       <td>${Number(x.dias_pagados||0)}</td>
       <td>${Number(x.faltas||0)?`<span class="p p-bad">${Number(x.faltas)}</span>`:'—'}</td>
       <td>${Number(x.retardos||0)?`<span class="p p-warn">${Number(x.retardos)}</span>`:'—'}</td>
@@ -9333,7 +9338,7 @@ async function abrirNuevoAviso(){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v59';
+const VERSION_APP='v60';
 async function revisarVersion(){
   try{
     const url=location.href.split('#')[0].split('?')[0]+'?nc='+Date.now();
