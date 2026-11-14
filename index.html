@@ -8667,23 +8667,42 @@ async function vistaCaja(){
     if(error||!data?.signedUrl){ toast('No se pudo abrir la foto.','bad'); return; } window.open(data.signedUrl,'_blank'); });
 }
 
-function comoLeLlega(tipo, monto, c){
+async function comoLeLlega(tipo, monto, c){
   const esFondo=tipo==='fondo';
+  const {data:borr}=await sb.from('dispersiones').select('id,concepto,fecha_pago,total').eq('estatus','borrador').order('fecha_pago').order('id');
+  const B=borr||[];
+  // Sugerencia si no hay borradores: el próximo jueves (día de dispersión de nómina)
+  const jue=(()=>{ const d=new Date(hoyMexico()+'T12:00:00'); do{ d.setDate(d.getDate()+1); }while(d.getDay()!==4); return d.toISOString().slice(0,10); })();
   modalCaja('ov-llega', esFondo?'Entregar fondo':'Reponer la caja',`
     ${esFondo?`<label>¿Cuánto le das?</label><input id="ll-mon" inputmode="decimal" placeholder="$" value="${Number(c.monto_fondo)}" style="${ESTILO_CAMPO}">`
       :`<div class="note" style="margin-bottom:6px"><b>${money(monto)}</b>Lo aprobado que gastó Perla.</div>`}
     <label style="margin-top:12px">¿Cómo le llega?</label>
     <label style="display:flex;gap:8px;align-items:flex-start;margin:6px 0;font-weight:400;cursor:pointer"><input type="radio" name="ll-via" value="disp" checked style="width:auto;margin:3px 0 0">
-      <span><b>En la dispersión del día</b><br><span style="font-size:12.5px;color:var(--txt-2)">Se agrega un renglón a su cuenta en la dispersión en borrador. La caja lo recibe cuando la marques como dispersada.</span></span></label>
+      <span><b>Por dispersión</b><br><span style="font-size:12.5px;color:var(--txt-2)">Se agrega un renglón a su cuenta. La caja lo recibe cuando la marques como dispersada.</span></span></label>
+    <div id="ll-donde" style="margin:4px 0 10px 26px">
+      <select id="ll-disp" style="${ESTILO_CAMPO}">
+        ${B.map(d=>`<option value="${d.id}">${esc(d.concepto)} · ${fecha(d.fecha_pago)} · lleva ${money(d.total)}</option>`).join('')}
+        <option value="nueva" ${B.length?'':'selected'}>Otra fecha…</option>
+      </select>
+      <input type="date" id="ll-fecha" value="${jue}" min="${hoyMexico()}" style="${ESTILO_CAMPO};margin-top:8px;display:${B.length?'none':'block'}">
+      <div style="font-size:11.5px;color:var(--txt-3);margin-top:4px">${B.length?'Elige una dispersión que todavía está en borrador, o una fecha: si ese día ya hay una se suma ahí; si no, se crea.':'No hay dispersiones en borrador. Se crea una en la fecha que elijas (sugerido: el próximo jueves).'}</div>
+    </div>
     <label style="display:flex;gap:8px;align-items:flex-start;margin:6px 0;font-weight:400;cursor:pointer"><input type="radio" name="ll-via" value="fuera" style="width:auto;margin:3px 0 0">
       <span><b>Ya se le dio por fuera</b><br><span style="font-size:12.5px;color:var(--txt-2)">Efectivo o una transferencia que no va en la dispersión. Se registra ahorita.</span></span></label>`,
     'Confirmar');
+  $('#ll-disp').onchange=()=>{ $('#ll-fecha').style.display=$('#ll-disp').value==='nueva'?'block':'none'; };
+  document.querySelectorAll('[name="ll-via"]').forEach(r=>r.onchange=()=>{ $('#ll-donde').style.display=document.querySelector('[name="ll-via"]:checked').value==='disp'?'block':'none'; });
   $('#ov-llega-ok').onclick=async()=>{
     const via=document.querySelector('[name="ll-via"]:checked').value;
     const m=esFondo?Number(String($('#ll-mon').value).replace(/[$,\s]/g,'')):monto;
     if(!(m>0)){ toast('Monto no válido.','bad'); return; }
     let r;
-    if(via==='disp') r=await sb.rpc('caja_a_dispersion',{p_tipo:tipo,p_monto:esFondo?m:null});
+    if(via==='disp'){
+      const sel=$('#ll-disp').value;
+      if(sel==='nueva' && !$('#ll-fecha').value){ toast('Elige la fecha.','bad'); return; }
+      r=await sb.rpc('caja_a_dispersion',{p_tipo:tipo,p_monto:esFondo?m:null,
+        p_dispersion:sel==='nueva'?null:Number(sel), p_fecha:sel==='nueva'?$('#ll-fecha').value:null});
+    }
     else if(esFondo) r=await sb.rpc('entregar_fondo_caja',{p_caja:c.caja_id,p_monto:m,p_nota:'Entrega de fondo (por fuera)'});
     else {
       const r1=await sb.rpc('pedir_reposicion_caja');
@@ -9833,7 +9852,7 @@ async function abrirNuevoAviso(){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v66';
+const VERSION_APP='v67';
 async function revisarVersion(){
   try{
     const url=location.href.split('#')[0].split('?')[0]+'?nc='+Date.now();
