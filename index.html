@@ -1166,6 +1166,7 @@ const MODULOS = [
   {id:'accesos',    n:'06', t:'Accesos a plataformas',bloque:10,desc:'Padrón de usuarios de AT&T, Bonsaif, Odoo, iVentas y el CRM de leads. Sin contraseñas: solo quién tiene qué y desde cuándo.', pts:['Alta y baja ligada al movimiento de personal','Alerta de accesos activos de gente que ya causó baja','Costo mensual por plataforma','Historial de solicitudes']},
   {id:'gastos',     n:'07', t:'Gastos',               lista:true, soloDir:true},
   {id:'caja',       n:'07b', t:'Caja chica y compras', lista:true, ver:'caja'},
+  {id:'registro',   n:'05b', t:'Registro de ventas',   lista:true, soloDir:true},
   {id:'fijos',      n:'07c', t:'Pagos fijos',          lista:true, soloDir:true},
   {id:'ingresos',   n:'08', t:'Cobros ExpertCell',    lista:true, soloDir:true},
   {id:'balance',    n:'09', t:'Balance financiero',   lista:true, soloDir:true},
@@ -1261,7 +1262,7 @@ function irA(id){
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
   let m=MODULOS.find(x=>x.id===id);
   if(!m || !puedeVerModulo(m)){ m=MODULOS.find(x=>x.id==='checar'); id='checar'; vistaActual=id; }
-  const R={fijos:vistaPagosFijos, caja:vistaCaja, guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar,
+  const R={registro:vistaRegistroVentas, fijos:vistaPagosFijos, caja:vistaCaja, guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar,
              mificha:vistaMiFicha, miasist:vistaMiAsistencia, mispagos:vistaMisPagos,
              solicitudes:vistaSolicitudesDatos, inicio:vistaInicio, avisos:vistaAvisos};
   $('#app').classList.remove('menu');
@@ -8914,6 +8915,150 @@ function abrirPagarFijo(x){
   };
 }
 
+/* ============================================================
+   REGISTRO DE VENTAS — reportes oficiales de Global
+   ============================================================ */
+async function vistaRegistroVentas(){
+  $('#main').innerHTML='<div class="empty">Cargando…</div>';
+  const mes=S.rvMes||hoyMexico().slice(0,7), tab=S.rvTab||'ventas';
+  const ini=mes+'-01', fin=new Date(Number(mes.slice(0,4)),Number(mes.slice(5,7)),0).toISOString().slice(0,10);
+  const [rm,lv,pe]=await Promise.all([
+    sb.from('v_ventas_mes').select('*'),
+    tab==='ventas'?sb.from('v_registro_ventas').select('*').gte('fecha_venta',ini).lte('fecha_venta',fin).order('fecha_venta',{ascending:false}).order('hora',{ascending:false}).limit(3000):{data:[]},
+    sb.from('v_pendientes_entrega').select('*')
+  ]);
+  const err=[rm,lv,pe].find(x=>x.error);
+  if(err){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(err.error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 143.</span></div>`; return; }
+  const M=rm.data||[], m=M.find(x=>x.mes===mes)||{}, L=lv.data||[], P=pe.data||[];
+  const nombreMes=new Date(mes+'-15T12:00:00').toLocaleDateString('es-MX',{month:'long',year:'numeric'});
+  const planes=[...new Set(L.map(x=>x.plan).filter(Boolean))].sort();
+
+  $('#main').innerHTML=`
+  <div class="head"><div><h1>Registro de ventas</h1><p>Los reportes oficiales de Global: cada venta con su plan, estatus, equipo, zona y costo de envío.</p></div>
+    <div class="acts"><button class="btn btn-p" id="rv-cargar">Cargar reportes</button>
+      <input type="file" id="rv-file" accept=".xlsx,.xls" multiple style="display:none"></div></div>
+  <div class="note"><b>Qué se carga</b>"Global ventas" y "Detalle programación", de cualquier rango de fechas y cuantas veces quieras: lo que ya existe se actualiza y lo nuevo se agrega.
+    Solo entra la cuenta de Yelitza. Back office y canceladas no hacen falta: vienen dentro de programación.</div>
+  <div class="bar" style="gap:10px;margin:14px 0">
+    <input type="month" id="rv-mes" value="${mes}" style="padding:7px 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card)">
+    <div class="tabs" style="margin:0">
+      <button class="tab ${tab==='ventas'?'on':''}" data-rvt="ventas">Ventas del mes</button>
+      <button class="tab ${tab==='pendientes'?'on':''}" data-rvt="pendientes">Pendientes de entrega · ${P.length}</button>
+      <button class="tab ${tab==='meses'?'on':''}" data-rvt="meses">Por mes</button>
+    </div></div>
+  <div class="kpis">
+    <div class="kpi t"><span>Terminadas</span><b>${m.terminadas||0}</b><small>${esc(nombreMes)}</small></div>
+    <div class="kpi ${m.canceladas?'b':''}"><span>Canceladas</span><b>${m.canceladas||0}</b><small>en el mes</small></div>
+    <div class="kpi ${m.folios_recapturados?'w':''}"><span>Folios recapturados</span><b>${m.folios_recapturados||0}</b><small>cancelado y vuelto a subir</small></div>
+    <div class="kpi"><span>Con equipo</span><b>${m.con_equipo||0}</b><small>se enviaron por DHL</small></div>
+    <div class="kpi ${Number(m.costo_dhl)?'w':''}"><span>Costo DHL</span><b>${money(m.costo_dhl||0)}</b><small>${Number(m.costo_dhl_cancelados)?money(m.costo_dhl_cancelados)+' en cancelados':'guías del mes'}</small></div>
+  </div>
+  <div id="rv-cuerpo"></div>`;
+
+  const c=$('#rv-cuerpo');
+  if(tab==='ventas'){
+    c.innerHTML=!L.length?`<div class="empty"><b>Sin ventas en ${esc(nombreMes)}</b>Carga los reportes de Global.</div>`:`
+    <div class="bar" style="gap:8px;margin-bottom:10px">
+      <input type="search" id="rv-q" placeholder="Buscar folio, teléfono, equipo, estado" style="flex:1;min-width:200px">
+      <select id="rv-plan" style="padding:7px 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card)"><option value="">Todos los planes</option>${planes.map(p=>`<option>${esc(p)}</option>`).join('')}</select>
+      <select id="rv-est" style="padding:7px 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card)"><option value="">Todos</option><option>Terminada</option><option>Cancelada</option><option value="recap">Recapturadas</option><option value="equipo">Con equipo</option></select>
+    </div>
+    <div class="tw"><table><thead><tr><th>Fecha</th><th>Folio</th><th>Teléfono</th><th>Plan</th><th class="num">Precio</th><th>Estatus</th><th>Equipo</th><th>Envío a</th><th class="num">Guía</th><th>Ejecutivo</th></tr></thead>
+    <tbody>${L.map(x=>`<tr data-rv="${esc([x.folio,x.telefono,x.equipo,x.estado_envio,x.municipio,x.subregion].join(' ').toLowerCase())}" data-plan="${esc(x.plan||'')}" data-est="${esc(x.estatus_att||'')}" data-recap="${x.recapturada?1:0}" data-eq="${x.equipo?1:0}">
+      <td style="font-size:12.5px;white-space:nowrap">${fecha(x.fecha_venta)} <span style="color:var(--txt-3)">${String(x.hora||'').slice(0,5)}</span></td>
+      <td class="mono">${esc(x.folio)}${x.recapturada?' <span class="p p-warn" title="Este folio aparece más de una vez">recapturado</span>':''}</td>
+      <td class="mono" style="font-size:12.5px">${esc(x.telefono||'')}</td>
+      <td style="font-size:12.5px">${esc((x.plan||'').replace(/^ATT /,''))}</td>
+      <td class="num">${x.precio?money(x.precio):'—'}</td>
+      <td><span class="p ${x.estatus_att==='Terminada'?'p-ok':'p-bad'}">${esc(x.estatus_att||'')}</span></td>
+      <td style="font-size:12px">${esc(x.equipo||'')}</td>
+      <td style="font-size:12px">${esc([x.municipio,x.estado_envio].filter(Boolean).join(', ')||x.subregion||'')}</td>
+      <td class="num" style="font-size:12.5px">${Number(x.total_guia)?money(x.total_guia):''}</td>
+      <td style="font-size:12px;color:${x.ejecutivo?'inherit':'var(--txt-3)'}">${esc(x.ejecutivo||'sin asignar')}</td></tr>`).join('')}</tbody></table></div>`;
+    const filtrar=()=>{ const q=($('#rv-q').value||'').trim().toLowerCase(), pl=$('#rv-plan').value, es=$('#rv-est').value;
+      document.querySelectorAll('[data-rv]').forEach(tr=>{ const ok=(!q||tr.dataset.rv.includes(q))&&(!pl||tr.dataset.plan===pl)&&
+        (!es||(es==='recap'?tr.dataset.recap==='1':es==='equipo'?tr.dataset.eq==='1':tr.dataset.est===es)); tr.style.display=ok?'':'none'; }); };
+    if($('#rv-q')){ $('#rv-q').oninput=filtrar; $('#rv-plan').onchange=filtrar; $('#rv-est').onchange=filtrar; }
+  } else if(tab==='pendientes'){
+    c.innerHTML=!P.length?'<div class="empty"><b>Nada pendiente de entregar</b>Todos los envíos ya son venta o están cancelados.</div>':`
+    <div class="tw"><table><thead><tr><th>Programación</th><th>Folio</th><th>Cliente</th><th>Equipo</th><th>Destino</th><th>Estatus</th><th class="num">Días esperando</th></tr></thead>
+    <tbody>${P.map(x=>`<tr><td class="mono">${esc(x.programacion)}</td><td class="mono">${esc(x.folio||'')}</td>
+      <td style="font-size:12.5px">${esc(x.cliente||'')}<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.telefono||'')}</div></td>
+      <td style="font-size:12px">${esc(x.equipo||'')}</td><td style="font-size:12px">${esc([x.municipio,x.estado].filter(Boolean).join(', '))}</td>
+      <td><span class="p p-warn">${esc(x.estatus||'')}</span>${x.status==='En Transito'?' <span style="font-size:11px;color:var(--txt-3)">en tránsito</span>':''}</td>
+      <td class="num"><b style="color:${x.dias_esperando>7?'var(--bad)':'inherit'}">${x.dias_esperando??'—'}</b></td></tr>`).join('')}</tbody></table></div>`;
+  } else {
+    c.innerHTML=!M.length?'<div class="empty">Todavía no hay ventas cargadas.</div>':`
+    <div class="tw"><table><thead><tr><th>Mes</th><th class="num">Terminadas</th><th class="num">Canceladas</th><th class="num">Recapturadas</th><th class="num">Con equipo</th><th class="num">Precio total</th><th class="num">Costo DHL</th></tr></thead>
+    <tbody>${M.map(x=>`<tr style="cursor:pointer" data-mes="${x.mes}"><td><b>${new Date(x.mes+'-15T12:00:00').toLocaleDateString('es-MX',{month:'long',year:'numeric'})}</b></td>
+      <td class="num">${x.terminadas}</td><td class="num">${x.canceladas}</td><td class="num">${x.folios_recapturados}</td><td class="num">${x.con_equipo}</td>
+      <td class="num">${money(x.precio_total||0)}</td><td class="num">${money(x.costo_dhl||0)}</td></tr>`).join('')}</tbody></table></div>`;
+    document.querySelectorAll('[data-mes]').forEach(tr=>tr.onclick=()=>{ S.rvMes=tr.dataset.mes; S.rvTab='ventas'; vistaRegistroVentas(); });
+  }
+  $('#rv-mes').onchange=e=>{ S.rvMes=e.target.value; vistaRegistroVentas(); };
+  document.querySelectorAll('[data-rvt]').forEach(b=>b.onclick=()=>{ S.rvTab=b.dataset.rvt; vistaRegistroVentas(); });
+  $('#rv-cargar').onclick=()=>$('#rv-file').click();
+  $('#rv-file').onchange=e=>cargarReportesGlobal([...e.target.files]);
+}
+
+async function cargarReportesGlobal(archivos){
+  if(!archivos.length) return;
+  const b=$('#rv-cargar'); b.disabled=true; b.classList.add('cargando');
+  const t=v=>{ if(v==null) return null; const s=String(v).replace(/[\r\n]+/g,' ').trim(); return s===''?null:s; };
+  const n=v=>{ if(v==null||v==='') return null; const x=Number(String(v).replace(/[$,\s]/g,'')); return isFinite(x)?x:null; };
+  const resumen=[];
+  try{
+    for(const f of archivos){
+      const wb=XLSX.read(new Uint8Array(await f.arrayBuffer()),{type:'array',raw:false});
+      const hoja=wb.SheetNames.includes('Detalle')?'Detalle':wb.SheetNames[0];
+      const aoa=XLSX.utils.sheet_to_json(wb.Sheets[hoja],{header:1,defval:null,raw:true});
+      const cab=(aoa[0]||[]).map(x=>String(x||'').trim());
+      const ix=nom=>cab.indexOf(nom);
+      let tipo=null;
+      if(ix('Programacion')>=0 && ix('Folio')>=0) tipo='envios';
+      else if(ix('Folio')>=0 && ix('Renta Sin Impuestos')>=0) tipo='ventas';
+      if(!tipo){ resumen.push(`${f.name}: no es "Global ventas" ni "Detalle programación"; no se cargó.`); continue; }
+      const filas=aoa.slice(1).filter(r=>r&&r.some(v=>v!=null));
+      let lote=[];
+      if(tipo==='ventas'){
+        lote=filas.filter(r=>/YELITZA/i.test(String(r[ix('Ejecutivo')]||''))).map(r=>({
+          folio:t(r[ix('Folio')]), fecha:t(r[ix('Fecha')]), hora:t(r[ix('Hora')]), telefono:t(r[ix('Telefono cliente')]),
+          ejecutivo:t(r[ix('Ejecutivo')]), cuenta:t(r[ix('SubKey')]), plan:t(r[ix('Plan')]), precio:n(r[ix('Precio')]),
+          renta:n(r[ix('Renta Sin Impuestos')]), subregion:t(r[ix('Subregion')]), estatus:t(r[ix('Estatus')]) })).filter(x=>x.folio&&x.fecha);
+      } else {
+        const acc=['Accesorio 1','Accesorio 2','Accesorio 3','Accesorio 4'];
+        lote=filas.filter(r=>/yelitza/i.test(String(r[ix('Usuario creacion')]||''))||/YELITZA/i.test(String(r[ix('Vendedor')]||''))).map(r=>({
+          programacion:t(r[ix('Programacion')]), folio:t(r[ix('Folio')]), estatus:t(r[ix('Estatus')]), status:t(r[ix('Status')]),
+          tienda_solicita:t(r[ix('Tienda solicita')]), vendedor:t(r[ix('Vendedor')]), usuario_creacion:t(r[ix('Usuario creacion')]),
+          cliente:t(r[ix('Cliente')]), tipo_entrega:t(r[ix('Entrega')]), tienda_entrega:t(r[ix('Tienda entrega')]),
+          direccion:t(r[ix('Direccion')]), colonia:t(r[ix('Colonia')]), estado:t(r[ix('Estado')]), municipio:t(r[ix('Municipio')]),
+          cp:t(r[ix('CP')]), telefono:t(r[ix('Telefono')]), fecha_contacto:t(r[ix('Fecha contacto')]), pago_inicial:n(r[ix('Pago inicial')]),
+          fecha_creacion:t(r[ix('Fecha creacion')]), fecha_cancelacion:t(r[ix('Fecha cancelacion')]), usuario_cancelacion:t(r[ix('Usuario cancleacion')]),
+          fecha_venta:t(r[ix('Fecha venta')]), comentario:t(r[ix('Comentario PDV')]), sim:t(r[ix('SIM')]), sim_serie:t(r[ix('SIM serie')]),
+          equipo:t(r[ix('Equipo')]), equipo_serie:t(r[ix('Equipo serie')]), plan:t(r[ix('Plan')]),
+          accesorios:acc.map(a=>t(r[ix(a)])).filter(Boolean).join(' · ')||null,
+          venta_codigo:t(r[ix('Venta')]), estatus_venta:t(r[ix('Estatus Venta')]),
+          back_office_en:t(r[ix('Back Office')]), solicitado_en:t(r[ix('Solicitado')]), entregado_en:t(r[ix('Entregado')]),
+          guia:t(r[ix('Guia')]), costo_guia:n(r[ix('Costo guia')]), cargo_transporte:n(r[ix('Cargo transporte')]),
+          proteccion_envio:n(r[ix('Potección envío')]), recargo_combustible:n(r[ix('Recargo combustible')]), vav_tax:n(r[ix('VAV/TAX')]),
+          entrega_area_remota:n(r[ix('Entrega área remota')]), descuento_aplicado:n(r[ix('Descuento aplicado')]), total_guia:n(r[ix('Total Guía')]),
+          rrss:t(r[ix('RRSS elegidas cliente')]), region:t(r[ix('Region')]) })).filter(x=>x.programacion);
+      }
+      let nuevas=0, act=0;
+      for(let i=0;i<lote.length;i+=400){
+        const {data,error}=await sb.rpc(tipo==='ventas'?'cargar_ventas_global':'cargar_envios_global',{p_filas:lote.slice(i,i+400),p_archivo:f.name});
+        if(error) throw new Error(`${f.name}: ${error.message}`);
+        nuevas+=data.nuevas; act+=data.actualizadas;
+      }
+      const fuera=filas.length-lote.length;
+      resumen.push(`${tipo==='ventas'?'Ventas':'Envíos'} (${f.name}): ${nuevas} nuevas, ${act} actualizadas${fuera?`, ${fuera} de otras cuentas no se cargaron`:''}.`);
+    }
+    toast('Listo. '+resumen.join(' '),'ok');
+  }catch(e){ toast(e.message,'bad'); resumen.length&&console.log(resumen); }
+  b.disabled=false; b.classList.remove('cargando');
+  vistaRegistroVentas();
+}
+
 async function pintarControlChecador(){
   if(!S.direccion){ $('#ch-cuerpo').innerHTML='<div class="empty"><b>Solo dirección</b></div>'; return; }
   $('#ch-cuerpo').innerHTML='<div class="empty">Cargando…</div>';
@@ -9906,7 +10051,7 @@ async function abrirNuevoAviso(){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v70';
+const VERSION_APP='v71';
 async function revisarVersion(){
   try{
     const url=location.href.split('#')[0].split('?')[0]+'?nc='+Date.now();
@@ -9962,6 +10107,7 @@ const ICONOS = {
   ok:'<path d="m5 12 5 5L20 7"/>',
   alerta:'<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
   caja:'<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M11 12v2h2v-2"/>',
+  registro:'<path d="M4 4h16v16H4z"/><path d="M4 9h16M9 9v11"/><path d="m12 15 2 2 4-4"/>',
   fijos:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M12 13v5M10 14.5h3a1 1 0 0 1 0 2h-2a1 1 0 0 0 0 2h3"/>',
   dinero:'<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'
 };
@@ -9972,7 +10118,7 @@ const GRUPOS = [
   ['General',     ['inicio','guia','avisos']],
   ['Mi espacio',  ['checar','mificha','miasist','mispagos']],
   ['Personal',    ['plantilla','asistencia','asistencia_old','solicitudes','salidas']],
-  ['Operación',   ['caja','ventas','auditoria','comisiones','accesos','tickets']],
+  ['Operación',   ['registro','caja','ventas','auditoria','comisiones','accesos','tickets']],
   ['Finanzas',    ['nomina','dispersion','fijos','gastos','ingresos','balance']],
   ['Sistema',     ['usuarios','config']]
 ];
