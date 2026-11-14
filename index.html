@@ -8539,6 +8539,7 @@ async function vistaCaja(){
   const ve=papel==='direccion'||papel==='custodio';
   const mes=S.cajaMes||hoyMexico().slice(0,7);
   const ini=mes+'-01', finD=new Date(Number(mes.slice(0,4)),Number(mes.slice(5,7)),0).toISOString().slice(0,10);
+  const camino=ve?((await sb.from('v_caja_en_camino').select('*')).data||[]):[];
   const [sa,mv,sc,rp]=await Promise.all([
     ve?sb.from('v_caja_saldo').select('*'):{data:[]},
     ve?sb.from('caja_movimientos').select('*').eq('tipo','gasto').gte('fecha',ini).lte('fecha',finD).order('fecha',{ascending:false}).order('id',{ascending:false}):{data:[]},
@@ -8589,14 +8590,18 @@ async function vistaCaja(){
       <div class="kpi ${Number(c.gastos_por_revisar)?'w':''}"><span>Por revisar</span><b>${c.gastos_por_revisar}</b><small>${money(c.por_revisar)}</small></div>
       <div class="kpi ${Number(c.rechazado)?'b':''}"><span>Rechazado</span><b>${money(c.rechazado)}</b><small>no se repone: faltante</small></div>
     </div>
+    ${camino.length?`<div class="tw" style="padding:12px 18px;margin-bottom:12px;border-left:3px solid var(--teal)">
+      ${camino.map(x=>`<div style="font-size:13px;padding:3px 0"><b>En camino: ${x.tipo==='fondo'?'fondo':'reposición'} de ${money(x.monto)}</b>
+        <span style="color:var(--txt-2)">· en la dispersión "${esc(x.dispersion)}" del ${fecha(x.fecha_pago)} (${esc(x.estatus_dispersion)}). La caja lo recibe cuando se marque como dispersada.</span></div>`).join('')}</div>`:''}
     <div class="tw" style="padding:14px 18px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-      ${pidio
-        ?`<div><b>Reposición pedida</b> <span style="color:var(--txt-2);font-size:13px">el ${fecha(String(pidio.solicitada_en).slice(0,10))} · se pagará lo aprobado: ${money(Number(c.por_reponer)-Number(c.por_revisar))}${Number(c.gastos_por_revisar)?` (faltan ${c.gastos_por_revisar} por revisar)`:''}</span></div>
-          ${papel==='direccion'?`<button class="btn btn-p" id="cj-pagar" data-rp="${pidio.id}" ${Number(c.gastos_por_revisar)?'disabled title="Revisa primero los gastos"':''}>Ya le deposité</button>`:''}`
-        :`<div style="color:var(--txt-2);font-size:13px">Sin reposición pendiente.</div>
-          ${papel==='custodio'?`<button class="btn ${bajo?'btn-p':''}" id="cj-repo" ${Number(c.por_reponer)>0?'':'disabled'}>Pedir reposición</button>`:''}
-          ${papel==='direccion'&&Number(c.por_reponer)>0?`<button class="btn btn-p" id="cj-reponer" ${Number(c.gastos_por_revisar)?'disabled title="Revisa primero los gastos"':''}>Ya le deposité ${money(Number(c.por_reponer)-Number(c.por_revisar))}</button>`:''}`}
-      ${papel==='direccion'?'<button class="btn btn-sm" id="cj-fondo">Entregar fondo</button>':''}
+      <div style="font-size:13px">${pidio?`<b>${papel==='custodio'?'Pediste reposición':'Perla pidió reposición'}</b> <span style="color:var(--txt-2)">el ${fecha(String(pidio.solicitada_en).slice(0,10))}</span>`
+        :Number(c.por_reponer)>0?`<b>Por reponer: ${money(Number(c.por_reponer)-Number(c.por_revisar))}</b> <span style="color:var(--txt-2)">aprobado${Number(c.gastos_por_revisar)?` · faltan ${c.gastos_por_revisar} gasto(s) por revisar`:''}</span>`
+        :'<span style="color:var(--txt-2)">Nada por reponer.</span>'}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${papel==='custodio'&&!pidio?`<button class="btn ${bajo?'btn-p':''}" id="cj-repo" ${Number(c.por_reponer)>0?'':'disabled'}>Pedir reposición</button>`:''}
+        ${papel==='direccion'&&Number(c.por_reponer)-Number(c.por_revisar)>0?`<button class="btn btn-p" id="cj-reponer" ${Number(c.gastos_por_revisar)?'disabled title="Revisa primero los gastos"':''}>Reponer ${money(Number(c.por_reponer)-Number(c.por_revisar))}</button>`:''}
+        ${papel==='direccion'?'<button class="btn" id="cj-fondo">Entregar fondo</button>':''}
+      </div>
     </div>`;
   }
 
@@ -8648,16 +8653,8 @@ async function vistaCaja(){
   $('#cj-pedir').onclick=abrirPedirCompra;
   const g=$('#cj-gasto'); if(g) g.onclick=()=>abrirGastoCaja(null,porComprar);
   const rpb=$('#cj-repo'); if(rpb) rpb.onclick=()=>{ if(confirm('¿Pedir la reposición de lo gastado?')) rpc('pedir_reposicion_caja',{}); };
-  const pg=$('#cj-pagar'); if(pg) pg.onclick=()=>{ if(confirm('¿Ya le depositaste? Se registra en Gastos como reposición de caja chica por lo aprobado.')) rpc('pagar_reposicion_caja',{p_reposicion:Number(pg.dataset.rp)}); };
-  const rn=$('#cj-reponer'); if(rn) rn.onclick=async()=>{
-    if(!confirm('¿Ya le depositaste a Perla lo aprobado? Se registra en Gastos como reposición de caja chica.')) return;
-    const r1=await rpc('pedir_reposicion_caja',{},false); if(r1===null) return;
-    const {data:rq}=await sb.from('caja_reposiciones').select('id').eq('estado','solicitada').order('id',{ascending:false}).limit(1);
-    if(!rq||!rq.length){ vistaCaja(); return; }
-    rpc('pagar_reposicion_caja',{p_reposicion:rq[0].id}); };
-  const fo=$('#cj-fondo'); if(fo) fo.onclick=()=>{ const m=prompt('¿Cuánto le entregas a Perla?\n\nÚsalo para el fondo inicial o si sube el fondo. Las reposiciones se registran solas con "Ya le deposité".'); if(!m) return;
-    const n=Number(String(m).replace(/[$,\s]/g,'')); if(!(n>0)){ toast('Monto no válido.','bad'); return; }
-    rpc('entregar_fondo_caja',{p_caja:c.caja_id,p_monto:n,p_nota:'Entrega de fondo'}); };
+  const rn=$('#cj-reponer'); if(rn) rn.onclick=()=>comoLeLlega('reposicion', Number(c.por_reponer)-Number(c.por_revisar), c);
+  const fo=$('#cj-fondo'); if(fo) fo.onclick=()=>comoLeLlega('fondo', null, c);
   const ms=$('#cj-mes'); if(ms) ms.onchange=()=>{ S.cajaMes=ms.value; vistaCaja(); };
   document.querySelectorAll('[data-apr]').forEach(b=>b.onclick=()=>rpc('resolver_compra',{p_id:Number(b.dataset.apr),p_aprobar:true,p_nota:null}));
   document.querySelectorAll('[data-rec]').forEach(b=>b.onclick=()=>{ const n=prompt('¿Por qué se rechaza?'); if(n) rpc('resolver_compra',{p_id:Number(b.dataset.rec),p_aprobar:false,p_nota:n}); });
@@ -8668,6 +8665,37 @@ async function vistaCaja(){
   document.querySelectorAll('[data-cfoto]').forEach(b=>b.onclick=async()=>{
     const {data,error}=await sb.storage.from('comprobantes').createSignedUrl(b.dataset.cfoto,300);
     if(error||!data?.signedUrl){ toast('No se pudo abrir la foto.','bad'); return; } window.open(data.signedUrl,'_blank'); });
+}
+
+function comoLeLlega(tipo, monto, c){
+  const esFondo=tipo==='fondo';
+  modalCaja('ov-llega', esFondo?'Entregar fondo':'Reponer la caja',`
+    ${esFondo?`<label>¿Cuánto le das?</label><input id="ll-mon" inputmode="decimal" placeholder="$" value="${Number(c.monto_fondo)}" style="${ESTILO_CAMPO}">`
+      :`<div class="note" style="margin-bottom:6px"><b>${money(monto)}</b>Lo aprobado que gastó Perla.</div>`}
+    <label style="margin-top:12px">¿Cómo le llega?</label>
+    <label style="display:flex;gap:8px;align-items:flex-start;margin:6px 0;font-weight:400;cursor:pointer"><input type="radio" name="ll-via" value="disp" checked style="width:auto;margin:3px 0 0">
+      <span><b>En la dispersión del día</b><br><span style="font-size:12.5px;color:var(--txt-2)">Se agrega un renglón a su cuenta en la dispersión en borrador. La caja lo recibe cuando la marques como dispersada.</span></span></label>
+    <label style="display:flex;gap:8px;align-items:flex-start;margin:6px 0;font-weight:400;cursor:pointer"><input type="radio" name="ll-via" value="fuera" style="width:auto;margin:3px 0 0">
+      <span><b>Ya se le dio por fuera</b><br><span style="font-size:12.5px;color:var(--txt-2)">Efectivo o una transferencia que no va en la dispersión. Se registra ahorita.</span></span></label>`,
+    'Confirmar');
+  $('#ov-llega-ok').onclick=async()=>{
+    const via=document.querySelector('[name="ll-via"]:checked').value;
+    const m=esFondo?Number(String($('#ll-mon').value).replace(/[$,\s]/g,'')):monto;
+    if(!(m>0)){ toast('Monto no válido.','bad'); return; }
+    let r;
+    if(via==='disp') r=await sb.rpc('caja_a_dispersion',{p_tipo:tipo,p_monto:esFondo?m:null});
+    else if(esFondo) r=await sb.rpc('entregar_fondo_caja',{p_caja:c.caja_id,p_monto:m,p_nota:'Entrega de fondo (por fuera)'});
+    else {
+      const r1=await sb.rpc('pedir_reposicion_caja');
+      if(r1.error){ toast(r1.error.message,'bad'); return; }
+      const {data:rq}=await sb.from('caja_reposiciones').select('id').eq('estado','solicitada').order('id',{ascending:false}).limit(1);
+      if(!rq||!rq.length){ toast(r1.data,'bad'); return; }
+      r=await sb.rpc('pagar_reposicion_caja',{p_reposicion:rq[0].id});
+    }
+    if(r.error){ toast(r.error.message,'bad'); return; }
+    const ok=/agregada a la dispersión|^Fondo entregado|^Reposición pagada/.test(r.data);
+    toast(r.data, ok?'ok':'bad'); if(ok){ cerrar('ov-llega'); vistaCaja(); }
+  };
 }
 
 function modalCaja(id,titulo,cuerpo,boton){
@@ -9805,7 +9833,7 @@ async function abrirNuevoAviso(){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v65';
+const VERSION_APP='v66';
 async function revisarVersion(){
   try{
     const url=location.href.split('#')[0].split('?')[0]+'?nc='+Date.now();
