@@ -6843,6 +6843,65 @@ $('#pw-save').onclick=async()=>{
 /* ============================================================
    MÓDULO 99 — CONFIGURACIÓN
    ============================================================ */
+/* ============================================================
+   DÍAS FESTIVOS Y DÍAS QUE DA LA EMPRESA
+   ============================================================ */
+const TIPO_FEST={oficial:['Festivo de ley','p-bad','No se trabaja · cierra el banco'],
+  empresa:['Lo da la empresa','p-ok','No se trabaja · el banco abre'],
+  bancario:['Solo bancario','p-gray','Se trabaja · solo cierra el banco']};
+async function pintarFestivos(){
+  const c=$('#cfg-festivos'); if(!c) return;
+  const hoy=hoyMexico(), anio=S.festAnio||Number(hoy.slice(0,4));
+  const {data,error}=await sb.from('dias_festivos').select('*')
+    .gte('fecha',anio+'-01-01').lte('fecha',anio+'-12-31').order('fecha');
+  if(error){ c.innerHTML=`<div class="empty"><b>No se pudo cargar el calendario</b>${esc(error.message)}</div>`; return; }
+  const L=data||[];
+  c.innerHTML=`
+  <div class="head" style="margin:22px 0 10px"><div><h1 style="font-size:17px">Días festivos y de descanso</h1>
+    <p>Los de ley y los que tú das salen como descanso en la asistencia. Los bancarios se trabajan: solo mueven pagos y dispersiones.</p></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-sm" id="fe-ant">‹ ${anio-1}</button><b>${anio}</b><button class="btn btn-sm" id="fe-sig">${anio+1} ›</button></div></div>
+  <div class="tw" style="padding:14px 16px;margin-bottom:12px">
+    <div style="display:grid;grid-template-columns:160px 1fr 200px auto;gap:10px;align-items:end">
+      <div><label>Fecha</label><input type="date" id="fe-f" style="width:100%;padding:8px 11px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card)"></div>
+      <div><label>Nombre</label><input id="fe-n" placeholder="Ej. Nochebuena" style="width:100%;padding:8px 11px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card)"></div>
+      <div><label>Tipo</label><select id="fe-t" style="width:100%;padding:8px 11px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card)">
+        <option value="empresa">Lo da la empresa (descanso)</option>
+        <option value="oficial">Festivo de ley (descanso)</option>
+        <option value="bancario">Solo bancario (se trabaja)</option></select></div>
+      <button class="btn btn-p" id="fe-g">Agregar</button>
+    </div></div>
+  ${!L.length?`<div class="empty">No hay días cargados para ${anio}.</div>`:`
+  <div class="tw"><table><thead><tr><th>Fecha</th><th>Día</th><th>Nombre</th><th>Tipo</th><th>Qué pasa ese día</th><th></th></tr></thead>
+  <tbody>${L.map(x=>{ const t=TIPO_FEST[x.tipo]||[x.tipo,'p-gray',''], pasado=x.fecha<hoy;
+    return `<tr style="${pasado?'opacity:.6':''}">
+      <td class="mono">${fecha(x.fecha)}</td>
+      <td style="text-transform:capitalize">${new Date(x.fecha+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long'})}</td>
+      <td><b>${esc(x.nombre)}</b></td>
+      <td><select data-fet="${x.fecha}" data-fen="${esc(x.nombre)}" style="padding:4px 8px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card)">
+        ${Object.entries(TIPO_FEST).map(([k,v])=>`<option value="${k}" ${k===x.tipo?'selected':''}>${v[0]}</option>`).join('')}</select></td>
+      <td style="font-size:12.5px;color:var(--txt-2)">${esc(t[2])}</td>
+      <td class="num"><button class="btn btn-sm" data-feq="${x.fecha}">Quitar</button></td></tr>`; }).join('')}
+  </tbody></table></div>`}`;
+  $('#fe-ant').onclick=()=>{ S.festAnio=anio-1; pintarFestivos(); };
+  $('#fe-sig').onclick=()=>{ S.festAnio=anio+1; pintarFestivos(); };
+  const guardar=async(f,n,t)=>{
+    const {data:r,error:e}=await sb.rpc('guardar_festivo',{p_fecha:f,p_nombre:n,p_tipo:t});
+    if(e){ toast(e.message,'bad'); return; }
+    toast(r, /guardado/.test(r)?'ok':'bad'); pintarFestivos();
+  };
+  $('#fe-g').onclick=()=>{ const f=$('#fe-f').value, n=$('#fe-n').value, t=$('#fe-t').value;
+    if(!f){ toast('Elige la fecha.','bad'); return; }
+    if(f<hoy && !confirm('Ese día ya pasó. Si es de descanso, quien no tenga corrección a mano queda como descanso ese día. ¿Seguir?')) return;
+    guardar(f,n,t); };
+  c.querySelectorAll('[data-fet]').forEach(sel=>sel.onchange=()=>guardar(sel.dataset.fet, sel.dataset.fen, sel.value));
+  c.querySelectorAll('[data-feq]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('¿Quitar este día del calendario?')) return;
+    const {data:r,error:e}=await sb.rpc('quitar_festivo',{p_fecha:b.dataset.feq});
+    if(e){ toast(e.message,'bad'); return; }
+    toast(r,'ok'); pintarFestivos(); });
+}
+
 async function vistaConfig(){
   if(!S.direccion){ $('#main').innerHTML='<div class="empty"><b>Solo dirección</b>Esta sección ajusta los valores con los que se calcula todo.</div>'; return; }
   $('#main').innerHTML='<div class="empty">Cargando parámetros…</div>';
@@ -6868,6 +6927,8 @@ async function vistaConfig(){
     <p>Los valores con los que el sistema calcula todo. Cada cambio queda registrado.</p></div></div>
 
   <div class="note"><b>Cuidado con lo que cambias aquí</b>Estos números afectan cálculos ya hechos y los que vienen. Cambiar el factor de comisión o el porcentaje de retención altera lo que el sistema espera cobrar. Si no estás seguro, no lo muevas.</div>
+
+  <div id="cfg-festivos"></div>
 
   ${grupos.map(g=>`
     <div class="head" style="margin:22px 0 10px"><div><h1 style="font-size:17px">${esc(g)}</h1></div></div>
@@ -7051,6 +7112,7 @@ async function vistaConfig(){
     </tr>`).join(''):'<tr><td colspan="4"><div class="empty"><b>Sin cambios</b>Nadie ha modificado ningún parámetro.</div></td></tr>'}
     </tbody></table></div>`;
 
+  pintarFestivos();
   document.querySelectorAll('[data-pg]').forEach(b=>b.onclick=()=>guardarParametro(b.dataset.pg,b));
 
   document.querySelectorAll('[data-rh-save]').forEach(b=>b.onclick=async()=>{
@@ -8021,7 +8083,7 @@ async function vistaChecar(){
   </div>
   ${puedeVer?`<div class="tabs" style="margin-bottom:16px">
     <button class="tab ${S.chTab==='marcar'?'on':''}" data-ch="marcar">Marcar</button>
-    <button class="tab ${S.chTab==='hoy'?'on':''}" data-ch="hoy">Quién llegó hoy</button>
+    <button class="tab ${S.chTab==='hoy'?'on':''}" data-ch="hoy">Quién llegó</button>
     <button class="tab ${S.chTab==='bonsaif'?'on':''}" data-ch="bonsaif">Cruce con Bonsaif</button>
     <button class="tab ${S.chTab==='control'?'on':''}" data-ch="control">Control</button>
   </div>`:''}
@@ -8272,29 +8334,79 @@ async function misChecadas(){
 
 /* ---------------- QUIÉN LLEGÓ HOY ---------------- */
 
+/* Barra de día: ‹ fecha › y "Hoy" */
+function barraDia(id, valor){
+  const hoy=hoyMexico();
+  return `<div class="bar" style="gap:8px;flex-wrap:wrap;margin-bottom:14px">
+    <button class="btn btn-sm" data-dia="${id}" data-mov="-1" title="Día anterior">‹</button>
+    <input type="date" id="${id}" value="${valor}" max="${hoy}">
+    <button class="btn btn-sm" data-dia="${id}" data-mov="1" title="Día siguiente" ${valor>=hoy?'disabled':''}>›</button>
+    ${valor!==hoy?`<button class="btn btn-sm" data-dia="${id}" data-mov="0">Hoy</button>`:''}
+    <input type="search" id="${id}-bus" placeholder="Buscar persona" style="flex:1;min-width:180px">
+  </div>`;
+}
+function moverDia(f,n){ const d=new Date(f+'T12:00:00'); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+function enlazarBarraDia(id, alCambiar){
+  const inp=$('#'+id); if(!inp) return;
+  inp.onchange=()=>alCambiar(inp.value||hoyMexico());
+  document.querySelectorAll(`[data-dia="${id}"]`).forEach(b=>b.onclick=()=>{
+    const m=Number(b.dataset.mov); alCambiar(m===0?hoyMexico():moverDia(inp.value,m)); });
+  const bus=$('#'+id+'-bus');
+  if(bus) bus.oninput=()=>{ const t=bus.value.trim().toLowerCase();
+    document.querySelectorAll(`[data-fila="${id}"]`).forEach(tr=>tr.style.display=!t||tr.dataset.nom.includes(t)?'':'none'); };
+}
+
 async function pintarChecadasHoy(){
+  const hoy=hoyMexico();
+  const dia=S.chDiaVer||hoy, esHoy=dia===hoy;
   $('#ch-cuerpo').innerHTML='<div class="empty">Cargando…</div>';
-  const {data,error}=await sb.from('v_checadas_hoy').select('*');
-  if(error){ $('#ch-cuerpo').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(error.message)}</div>`; return; }
-  const l=data||[];
+  let l=[];
+  if(esHoy){
+    const {data,error}=await sb.from('v_checadas_hoy').select('*');
+    if(error){ $('#ch-cuerpo').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(error.message)}</div>`; return; }
+    l=data||[];
+  }else{
+    // Un día pasado: quien fue calificado ese día, con sus checadas
+    const [ad,ca]=await Promise.all([
+      sb.from('asistencia_dia').select('empleado_id,estatus_final,hora_entrada,hora_salida').eq('fecha',dia),
+      sb.from('checadas_app').select('empleado_id,tipo,hora,foto_url,ip_autorizada,anomalias').eq('fecha',dia).order('hora')
+    ]);
+    if(ad.error||ca.error){ $('#ch-cuerpo').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc((ad.error||ca.error).message)}</div>`; return; }
+    const ids=[...new Set([...(ad.data||[]).map(x=>x.empleado_id),...(ca.data||[]).map(x=>x.empleado_id)])];
+    let emp=[];
+    if(ids.length){ const r=await sb.from('empleados').select('id,nombre_completo,puestos(nombre)').in('id',ids); emp=r.data||[]; }
+    const P={}; emp.forEach(e=>P[e.id]={empleado_id:e.id,nombre_completo:e.nombre_completo,puesto:e.puestos?.nombre||'',avisos:[]});
+    (ad.data||[]).forEach(a=>{ if(P[a.empleado_id]) P[a.empleado_id].quedo_como=a.estatus_final; });
+    (ca.data||[]).forEach(c=>{ const p=P[c.empleado_id]; if(!p) return;
+      if(c.tipo==='entrada' && !p.entrada){ p.entrada=c.hora; p.foto_entrada=c.foto_url; }
+      if(c.tipo==='salida') p.salida=c.hora;
+      if(c.ip_autorizada===false) p.alguna_fuera_de_red=true;
+      (c.anomalias||[]).forEach(x=>{ if(!p.avisos.includes(x)) p.avisos.push(x); }); });
+    l=Object.values(P).map(p=>({...p,avisos:p.avisos.join(' · ')}))
+      .sort((a,b)=>(a.entrada||'99').localeCompare(b.entrada||'99')||a.nombre_completo.localeCompare(b.nombre_completo,'es'));
+  }
   const llegaron=l.filter(x=>x.entrada).length;
   const fuera=l.filter(x=>x.alguna_fuera_de_red).length;
+  const cont=esHoy?(await sb.rpc('contingencia_vigente')).data:null;
+  const fechaLarga=new Date(dia+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
 
-  const {data:cont}=await sb.rpc('contingencia_vigente');
   $('#ch-cuerpo').innerHTML=`
-  ${cont
+  ${barraDia('qd',dia)}
+  ${esHoy?(cont
     ? `<div class="note" style="background:var(--bad-l);border-color:var(--bad-line);color:var(--bad-ink);display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap">
         <div><b>Contingencia activa</b>Hoy se acepta marcar con datos móviles: ${esc(cont)}</div>
         <button class="btn btn-sm" id="ch-contoff">Ya regresó el internet</button></div>`
-    : `<div style="margin-bottom:14px"><button class="btn btn-sm" id="ch-conton">Se cayó el internet de la oficina</button></div>`}
+    : `<div style="margin-bottom:14px"><button class="btn btn-sm" id="ch-conton">Se cayó el internet de la oficina</button></div>`)
+   :`<div style="font-size:13px;color:var(--txt-2);margin-bottom:12px">${fechaLarga.charAt(0).toUpperCase()+fechaLarga.slice(1)}</div>`}
   <div class="kpis">
-    <div class="kpi t"><span>Marcaron</span><b>${llegaron}</b><small>de ${l.length} activos</small></div>
-    <div class="kpi ${l.length-llegaron?'w':''}"><span>Sin marcar</span><b>${l.length-llegaron}</b><small>todavía no llegan</small></div>
+    <div class="kpi t"><span>Marcaron</span><b>${llegaron}</b><small>de ${l.length} ${esHoy?'que checan':'calificados'}</small></div>
+    <div class="kpi ${l.length-llegaron?'w':''}"><span>Sin marcar</span><b>${l.length-llegaron}</b><small>${esHoy?'todavía no llegan':'no marcaron ese día'}</small></div>
     <div class="kpi ${fuera?'w':''}"><span>Fuera de red</span><b>${fuera}</b><small>marcaron desde otro lado</small></div>
   </div>
+  ${!l.length?'<div class="empty"><b>Sin registros ese día</b>Puede ser descanso o un día anterior al checador del celular.</div>':`
   <div class="tw"><table>
     <thead><tr><th>Nombre</th><th>Puesto</th><th>Entrada</th><th>Salida</th><th>Quedó</th><th>Avisos</th><th></th></tr></thead>
-    <tbody>${l.map(x=>`<tr>
+    <tbody>${l.map(x=>`<tr data-fila="qd" data-nom="${esc(String(x.nombre_completo).toLowerCase())}">
       <td><b>${esc(x.nombre_completo)}</b></td>
       <td style="color:var(--txt-2);font-size:12.5px">${esc(x.puesto||'—')}</td>
       <td class="mono">${x.entrada?String(x.entrada).slice(0,5):'<span style="color:var(--txt-2)">—</span>'}</td>
@@ -8302,8 +8414,9 @@ async function pintarChecadasHoy(){
       <td>${x.quedo_como?`<span class="p ${x.quedo_como==='A'?'p-ok':x.quedo_como==='R'?'p-warn':x.quedo_como==='F'?'p-bad':'p-gray'}">${esc(x.quedo_como)}</span>`:'—'}</td>
       <td style="font-size:12px;color:var(--bad-ink)">${esc(x.avisos||'')}</td>
       <td class="num">${x.foto_entrada?`<button class="btn btn-sm" data-foto="${esc(x.foto_entrada)}">Foto</button>`:''}</td>
-    </tr>`).join('')}</tbody></table></div>`;
+    </tr>`).join('')}</tbody></table></div>`}`;
 
+  enlazarBarraDia('qd', d=>{ S.chDiaVer=d; pintarChecadasHoy(); });
   document.querySelectorAll('[data-foto]').forEach(b=>b.onclick=()=>verFotoChecada(b.dataset.foto));
   const on=$('#ch-conton'), off=$('#ch-contoff');
   if(on) on.onclick=async()=>{
@@ -8415,7 +8528,7 @@ async function pintarControlChecador(){
 
   const [ips,an,pa,re]=await Promise.all([
     sb.from('v_ips_vistas').select('*'),
-    sb.from('v_anomalias_checador').select('*').limit(60),
+    sb.from('v_anomalias_checador').select('*').gte('fecha',S.anDesde||(S.anDesde=moverDia(hoyMexico(),-7))).lte('fecha',S.anHasta||(S.anHasta=hoyMexico())).limit(500),
     sb.from('parametros').select('*').eq('grupo','Checador').order('orden'),
     sb.from('redes_autorizadas').select('*').order('red')
   ]);
@@ -8467,10 +8580,15 @@ async function pintarControlChecador(){
   <div id="ch-oficina"></div>
 
   <h3 style="margin:22px 0 10px;font-size:14px">Lo que no cuadró</h3>
-  ${!(an.data||[]).length?'<div class="empty">Nada marcado hasta ahora.</div>':`
+  <div class="bar" style="gap:8px;flex-wrap:wrap;margin-bottom:12px">
+    <span style="font-size:12.5px;color:var(--txt-2)">Del</span><input type="date" id="an-desde" value="${S.anDesde}">
+    <span style="font-size:12.5px;color:var(--txt-2)">al</span><input type="date" id="an-hasta" value="${S.anHasta}">
+    <input type="search" id="an-bus" placeholder="Buscar persona" style="flex:1;min-width:180px">
+  </div>
+  ${!(an.data||[]).length?'<div class="empty">Nada raro en esas fechas.</div>':`
   <div class="tw"><table>
     <thead><tr><th>Día</th><th>Hora</th><th>Quién</th><th>Tipo</th><th>Dirección</th><th>Qué pasó</th><th></th></tr></thead>
-    <tbody>${an.data.map(x=>`<tr>
+    <tbody>${an.data.map(x=>`<tr data-fila="an" data-nom="${esc(String(x.nombre_completo||'').toLowerCase())}">
       <td style="font-size:12.5px">${fecha(x.fecha)}</td>
       <td class="mono">${String(x.hora||'').slice(0,5)}</td>
       <td><b>${esc(x.nombre_completo)}</b></td>
@@ -8482,7 +8600,7 @@ async function pintarControlChecador(){
 
   <div class="note" style="margin-top:18px">
     <b>Lo que de verdad detecta la trampa no está en esta pantalla</b>
-    Alguien puede fingir dónde está; no puede fingir haber marcado ochenta números. El cruce contra la actividad de Bonsaif es la prueba dura: si alguien marcó a las diez y su primera llamada fue a las once y media, la checada no vale. Eso todavía se hace a mano.</div>`;
+    Alguien puede fingir dónde está; no puede fingir haber marcado ochenta números. El cruce contra la actividad de Bonsaif es la prueba dura: si alguien marcó a las diez y su primera llamada fue a las once y media, la checada no vale. Está en la pestaña Cruce con Bonsaif.</div>`;
 
   document.querySelectorAll('[data-foto]').forEach(b=>b.onclick=()=>verFotoChecada(b.dataset.foto));
   document.querySelectorAll('[data-aut]').forEach(b=>b.onclick=()=>autorizarRed(b.dataset.aut));
@@ -8490,6 +8608,10 @@ async function pintarControlChecador(){
   const ba=$('#ch-activar');  if(ba) ba.onclick=()=>cambiarModoChecador('activo');
   const bp=$('#ch-aprender'); if(bp) bp.onclick=()=>cambiarModoChecador('aprendizaje');
   $('#ch-diag').onclick=probarIP;
+  $('#an-desde').onchange=e=>{ S.anDesde=e.target.value; pintarControlChecador(); };
+  $('#an-hasta').onchange=e=>{ S.anHasta=e.target.value; pintarControlChecador(); };
+  $('#an-bus').oninput=e=>{ const t=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('[data-fila="an"]').forEach(tr=>tr.style.display=!t||tr.dataset.nom.includes(t)?'':'none'); };
   $('#ch-borrarhoy').onclick=borrarMiChecadaHoy;
   pintarUbicacionOficina();
   $('#ch-limpiar').onclick=limpiarFotosHuerfanas;
@@ -8952,12 +9074,12 @@ async function limpiarFotosHuerfanas(){
 
 async function pintarUbicacionOficina(){
   const c=$('#ch-oficina'); if(!c) return;
-  const hoy=new Date().toISOString().slice(0,10);
+  const dia=S.ubDia||hoyMexico();
   const [pa,ch,co]=await Promise.all([
     sb.from('parametros').select('clave,valor').in('clave',['oficina_lat','oficina_lng','oficina_radio_m']),
     sb.from('checadas_app').select('id,fecha,hora,lat,lng,precision_m,distancia_m,empleado_id')
-      .not('lat','is',null).gte('fecha',new Date(Date.now()-7*86400000).toISOString().slice(0,10))
-      .order('fecha',{ascending:false}).order('hora',{ascending:false}).limit(30),
+      .not('lat','is',null).eq('fecha',dia)
+      .order('hora',{ascending:true}).limit(200),
     sb.from('v_contingencias').select('*').limit(15)
   ]);
   const v=k=>Number(((pa.data||[]).find(x=>x.clave===k)||{}).valor||0);
@@ -8975,10 +9097,12 @@ async function pintarUbicacionOficina(){
       <a href="https://maps.google.com/?q=${v('oficina_lat')},${v('oficina_lng')}" target="_blank">Ver en el mapa</a>`
          :'Todavía no está fijada. Elige abajo una checada que sepas que se hizo dentro de la oficina, con buena precisión.'}
   </div>
-  ${!(ch.data||[]).length?'<div class="empty">Todavía no hay checadas con ubicación.</div>':`
+  ${fija && !S.ubAbierta?`<button class="btn btn-sm" id="ub-abrir">Ver ubicaciones por día / cambiar la oficina</button>`:`
+  ${barraDia('ub',dia)}
+  ${!(ch.data||[]).length?'<div class="empty">Nadie marcó con ubicación ese día.</div>':`
   <div class="tw"><table>
     <thead><tr><th>Día</th><th>Hora</th><th>Quién</th><th>Precisión</th><th>A la oficina</th><th></th></tr></thead>
-    <tbody>${ch.data.map(x=>`<tr>
+    <tbody>${ch.data.map(x=>`<tr data-fila="ub" data-nom="${esc(String(nombres[x.empleado_id]||'').toLowerCase())}">
       <td style="font-size:12.5px">${fecha(x.fecha)}</td>
       <td class="mono">${String(x.hora||'').slice(0,5)}</td>
       <td>${esc(nombres[x.empleado_id]||'')}</td>
@@ -8987,7 +9111,7 @@ async function pintarUbicacionOficina(){
       <td class="num" style="white-space:nowrap">
         <a class="btn btn-sm" href="https://maps.google.com/?q=${x.lat},${x.lng}" target="_blank">Mapa</a>
         <button class="btn btn-sm" data-fijar="${x.id}">Esta es la oficina</button></td>
-    </tr>`).join('')}</tbody></table></div>`}
+    </tr>`).join('')}</tbody></table></div>`}`}
 
   <h3 style="margin:26px 0 8px;font-size:14px">Días de contingencia</h3>
   ${!(co.data||[]).length?'<div class="empty">Ninguno hasta ahora.</div>':`
@@ -9001,6 +9125,9 @@ async function pintarUbicacionOficina(){
       <td>${x.lejos_de_la_oficina?`<span class="p p-bad">${x.lejos_de_la_oficina}</span>`:'0'}</td>
     </tr>`).join('')}</tbody></table></div>`}`;
 
+  const ua=$('#ub-abrir'); if(ua) ua.onclick=()=>{ S.ubAbierta=true; pintarUbicacionOficina(); };
+  enlazarBarraDia('ub', d=>{ S.ubDia=d; S.ubAbierta=true; pintarUbicacionOficina(); });
+  c.querySelectorAll('[data-foto]').forEach(b=>b.onclick=()=>verFotoChecada(b.dataset.foto));
   c.querySelectorAll('[data-fijar]').forEach(b=>b.onclick=async()=>{
     if(!confirm('Fijar esta ubicación como la oficina?\n\nAbre antes el mapa y confirma que el punto cae en el edificio.')) return;
     const {data,error}=await sb.rpc('fijar_oficina_desde_checada',{p_checada:Number(b.dataset.fijar)});
@@ -9338,7 +9465,7 @@ async function abrirNuevoAviso(){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v60';
+const VERSION_APP='v62';
 async function revisarVersion(){
   try{
     const url=location.href.split('#')[0].split('?')[0]+'?nc='+Date.now();
