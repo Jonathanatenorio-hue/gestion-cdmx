@@ -5543,7 +5543,6 @@ async function cargarRejilla(){
   <div class="head">
     <div><h1>Asistencia</h1><p>Del ${fecha(f.desde)} al ${fecha(f.hasta)} · ${gente.length} personas que llevan horario</p></div>
     <div class="acts">
-      <button class="btn" id="b-bio">Cargar checador</button>
       <button class="btn btn-p" id="b-calc" title="Solo agrega los días que faltan. No toca nada de lo que ya está.">Calificar días nuevos</button>
       <button class="btn" id="b-rastro">Ver cambios</button>
     </div>
@@ -5716,7 +5715,7 @@ async function cargarRejilla(){
   };
   $('#b-calc').onclick=()=>calcularPeriodo(true);
   if($('#b-rastro')) $('#b-rastro').onclick=abrirRastro;
-  $('#b-bio').onclick=()=>{ S.bioPrev=null; $('#bio-res').innerHTML='';
+  if($('#b-bio')) $('#b-bio').onclick=()=>{ S.bioPrev=null; $('#bio-res').innerHTML='';
     $('#bio-go').disabled=true; $('#bio-go').style.display=''; $('#bio-go').textContent='Cargar marcajes';
     if($('#bio-no')) $('#bio-no').style.display='none';
     $('#ov-bio').classList.add('on'); };
@@ -5986,7 +5985,11 @@ function leerBio(f){
       const aoa=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:null,raw:true});
       const cab=(aoa[0]||[]).map(x=>String(x||'').toUpperCase());
       const esBonsaif = cab.some(x=>x.includes('FECHA/HORA INICIO')) || cab.some(x=>x.includes('SESION TOTAL'));
-      if(esBonsaif) procesarBonsaif(aoa,f.name); else procesarBio(aoa,f.name);
+      if(esBonsaif){
+        $('#bio-res').innerHTML='<div class="note" style="background:var(--warn-l);border-color:var(--warn-line);color:var(--warn-ink)"><b>Este es el reporte de Bonsaif</b>Ahora se sube en Checar → Cruce con Bonsaif. Ahí se compara contra el checador sin cambiar la asistencia. Aquí no se carga.</div>';
+        $('#bio-go').disabled=true; return;
+      }
+      procesarBio(aoa,f.name);
     }catch(err){ toast('No pudimos leer el archivo: '+err.message,'bad'); }
   };
   r.readAsArrayBuffer(f);
@@ -8016,6 +8019,7 @@ async function vistaChecar(){
   ${puedeVer?`<div class="tabs" style="margin-bottom:16px">
     <button class="tab ${S.chTab==='marcar'?'on':''}" data-ch="marcar">Marcar</button>
     <button class="tab ${S.chTab==='hoy'?'on':''}" data-ch="hoy">Quién llegó hoy</button>
+    <button class="tab ${S.chTab==='bonsaif'?'on':''}" data-ch="bonsaif">Cruce con Bonsaif</button>
     <button class="tab ${S.chTab==='control'?'on':''}" data-ch="control">Control</button>
   </div>`:''}
   <div id="ch-cuerpo"></div>`;
@@ -8024,6 +8028,7 @@ async function vistaChecar(){
 
   if(S.chTab==='hoy' && puedeVer) return pintarChecadasHoy();
   if(S.chTab==='control' && puedeVer) return pintarControlChecador();
+  if(S.chTab==='bonsaif' && puedeVer) return pintarCruceBonsaif();
   pintarMarcar();
 }
 
@@ -8319,6 +8324,86 @@ async function verFotoChecada(ruta){
 }
 
 /* ---------------- CONTROL ---------------- */
+
+/* ============================================================
+   CRUCE CON BONSAIF — solo informa, no cambia la asistencia
+   ============================================================ */
+async function pintarCruceBonsaif(){
+  const cu=$('#ch-cuerpo'); cu.innerHTML='<div class="empty">Cargando…</div>';
+  const puedeSubir=S.direccion||S.rh;
+  const hoy=hoyMexico();
+  if(!S.bxDesde){ const d=new Date(hoy+'T12:00:00'); d.setDate(d.getDate()-7); S.bxDesde=d.toISOString().slice(0,10); S.bxHasta=hoy; }
+  const {data,error}=await sb.from('v_cruce_bonsaif').select('*').gte('fecha',S.bxDesde).lte('fecha',S.bxHasta).limit(3000);
+  if(error){ cu.innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(error.message)}<br><span style="font-size:12.5px">Si dice que falta la vista, corre el SQL 130.</span></div>`; return; }
+  const L=data||[], mal=L.filter(x=>x.resultado!=='Cuadra');
+  const ver=S.bxTodo?L:mal;
+  const color=r=>r==='Cuadra'?'p-ok':(r==='Checó pero no se conectó'||r==='Se conectó sin checar')?'p-bad':'p-warn';
+  const h=t=>t?String(t).slice(0,5):'—';
+  const dias=[...new Set(L.map(x=>x.fecha))].length;
+  cu.innerHTML=`
+  <div class="note" style="margin-bottom:16px"><b>Para qué sirve</b>
+    Compara a qué hora checó cada quien contra a qué hora se conectó de verdad a Bonsaif. No cambia ninguna asistencia:
+    te dice qué revisar. Los días de los que no has subido reporte no aparecen.</div>
+  <div class="bar" style="flex-wrap:wrap;gap:10px;margin-bottom:16px">
+    <input type="date" id="bx-desde" value="${S.bxDesde}"> <input type="date" id="bx-hasta" value="${S.bxHasta}">
+    <label style="display:flex;gap:6px;align-items:center;font-size:13px;margin:0"><input type="checkbox" id="bx-todo" ${S.bxTodo?'checked':''} style="width:auto;margin:0">Ver también lo que cuadra</label>
+    <span style="flex:1"></span>
+    ${puedeSubir?'<button class="btn btn-p" id="bx-subir">Subir reporte de Bonsaif</button><input type="file" id="bx-file" accept=".xlsx,.xls,.csv" style="display:none">':''}
+  </div>
+  <div class="kpis">
+    <div class="kpi t"><span>Días con reporte</span><b>${dias}</b><small>en el rango elegido</small></div>
+    <div class="kpi ${mal.length?'w':''}"><span>No cuadran</span><b>${mal.length}</b><small>de ${L.length} persona-día</small></div>
+    <div class="kpi ${L.filter(x=>x.resultado==='Checó pero no se conectó').length?'b':''}"><span>Checó y no se conectó</span><b>${L.filter(x=>x.resultado==='Checó pero no se conectó').length}</b><small>lo más grave</small></div>
+  </div>
+  ${!L.length?`<div class="empty"><b>Todavía no hay reportes en este rango</b>${puedeSubir?'Sube el reporte de actividad de Bonsaif (el que trae FECHA/HORA INICIO y FIN por agente).':'Dirección sube el reporte de Bonsaif.'}</div>`
+   :!ver.length?'<div class="empty"><b>Todo cuadra</b>Nadie checó sin trabajar ni trabajó sin checar en estos días.</div>'
+   :`<div class="tw"><table><thead><tr><th>Fecha</th><th>Nombre</th><th>Checó</th><th>Se conectó</th><th class="num">Minutos</th><th>Salió</th><th>Se desconectó</th><th>Resultado</th></tr></thead><tbody>
+    ${ver.map(x=>`<tr><td>${fecha(x.fecha)}</td><td><b>${esc(x.nombre_completo)}</b></td>
+      <td class="mono">${h(x.entrada)}</td><td class="mono">${h(x.primera_conexion)}</td>
+      <td class="num mono">${x.minutos_para_conectarse??'—'}</td>
+      <td class="mono">${h(x.salida)}</td><td class="mono">${h(x.ultima_desconexion)}</td>
+      <td><span class="p ${color(x.resultado)}">${esc(x.resultado)}</span></td></tr>`).join('')}
+    </tbody></table></div>`}`;
+  $('#bx-desde').onchange=e=>{ S.bxDesde=e.target.value; pintarCruceBonsaif(); };
+  $('#bx-hasta').onchange=e=>{ S.bxHasta=e.target.value; pintarCruceBonsaif(); };
+  $('#bx-todo').onchange=e=>{ S.bxTodo=e.target.checked; pintarCruceBonsaif(); };
+  if(puedeSubir){
+    $('#bx-subir').onclick=()=>$('#bx-file').click();
+    $('#bx-file').onchange=e=>{ if(e.target.files[0]) leerReporteBonsaif(e.target.files[0]); };
+  }
+}
+
+async function leerReporteBonsaif(f){
+  const b=$('#bx-subir'); b.disabled=true; b.classList.add('cargando');
+  try{
+    const buf=await f.arrayBuffer();
+    const wb=XLSX.read(new Uint8Array(buf),{type:'array',raw:true});
+    const aoa=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:null,raw:true});
+    const cab=(aoa[0]||[]).map(x=>String(x||'').toUpperCase().trim());
+    const col=n=>cab.findIndex(x=>x.includes(n));
+    const cAg=col('AGENTE'), cIni=col('FECHA/HORA INICIO'), cFin=col('FECHA/HORA FIN');
+    if(cAg<0||cIni<0) throw new Error('No es el reporte de actividad de Bonsaif: faltan las columnas AGENTE y FECHA/HORA INICIO.');
+    const {data:gente}=await sb.from('empleados').select('id,nombre_completo').eq('estatus','activo').eq('tipo_registro','empleado');
+    const norm=v=>{ const m=String(v||'').match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+      return m?`${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]||'00'}`:null; };
+    const filas=[], sinPersona={};
+    aoa.slice(1).filter(r=>r&&r[cAg]).forEach(r=>{
+      const p=proponerPersona(r[cAg],gente||[]), ini=norm(r[cIni]), fin=cFin>=0?norm(r[cFin]):null;
+      if(!p){ sinPersona[String(r[cAg])]=1; return; }
+      if(ini) filas.push({empleado_id:p.emp.id, fecha:ini.slice(0,10), inicio:ini, fin, nombre_raw:String(r[cAg]), archivo:f.name});
+    });
+    if(!filas.length) throw new Error('No se reconoció a nadie del reporte.');
+    let err=0;
+    for(let i=0;i<filas.length;i+=400){
+      const {error}=await sb.from('bonsaif_sesiones').upsert(filas.slice(i,i+400),{onConflict:'empleado_id,inicio'});
+      if(error){ err++; console.error(error); }
+    }
+    const nr=Object.keys(sinPersona).length;
+    toast(err?'Se cargó con errores. Revisa la consola.':`${filas.length} sesiones cargadas${nr?` · ${nr} nombres no reconocidos (gente de baja o que no checa)`:''}.`, err?'bad':'ok');
+    const fs=filas.map(x=>x.fecha).sort(); S.bxDesde=fs[0]; S.bxHasta=fs[fs.length-1];
+    pintarCruceBonsaif();
+  }catch(e){ toast(e.message,'bad'); b.disabled=false; b.classList.remove('cargando'); }
+}
 
 async function pintarControlChecador(){
   if(!S.direccion){ $('#ch-cuerpo').innerHTML='<div class="empty"><b>Solo dirección</b></div>'; return; }
@@ -9171,11 +9256,16 @@ async function abrirNuevoAviso(){
       <label style="margin-top:12px">Mensaje</label>
       <textarea id="na-txt" rows="6" placeholder="Escríbelo como se lo dirías a la persona. Sale tal cual, con sus saltos de línea."></textarea>
       <label style="margin-top:12px">¿A quién va?</label>
-      <select id="na-quien">
-        <option value="todos">Todo el personal</option>
-        ${(pu||[]).map(p=>`<option value="p${p.id}">Solo ${esc(p.nombre)}</option>`).join('')}
-        <option value="personas">Personas específicas…</option>
-      </select>
+      <div class="tabs" id="na-quien" style="margin:0;padding:0;background:none;border:none">
+        <button type="button" class="tab on" data-q="todos">Todo el personal</button>
+        <button type="button" class="tab" data-q="puestos">Por puesto</button>
+        <button type="button" class="tab" data-q="personas">Personas específicas</button>
+      </div>
+      <div id="na-pues" style="display:none;margin-top:10px;border:1px solid var(--line);border-radius:var(--r-sm);padding:6px 12px">
+        ${(pu||[]).map(p=>`<label style="display:flex;gap:8px;align-items:center;padding:5px 0;margin:0;font-weight:400;font-size:13px;cursor:pointer">
+          <input type="checkbox" value="${p.id}" style="width:auto;margin:0">${esc(p.nombre)}
+          <span style="margin-left:auto;font-size:11.5px;color:var(--txt-3)">${(em||[]).filter(e=>e.puesto_id===p.id).length} personas</span></label>`).join('')}
+      </div>
       <div id="na-pers" style="display:none;margin-top:10px">
         <input id="na-bus" placeholder="Buscar persona" style="width:100%;padding:8px 11px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card)">
         <div id="na-lista" style="max-height:200px;overflow:auto;border:1px solid var(--line);border-radius:var(--r-sm);margin-top:6px;padding:4px 10px">
@@ -9193,25 +9283,32 @@ async function abrirNuevoAviso(){
   </div>`;
   ov.classList.add('on');
 
+  let quien='todos';
   const alcance=()=>{
-    const q=$('#na-quien').value; let n;
-    if(q==='todos') n=(em||[]).length;
-    else if(q==='personas') n=ov.querySelectorAll('#na-lista input:checked').length;
-    else n=(em||[]).filter(e=>'p'+e.puesto_id===q).length;
+    let n;
+    if(quien==='todos') n=(em||[]).length;
+    else if(quien==='personas') n=ov.querySelectorAll('#na-lista input:checked').length;
+    else { const sel=[...ov.querySelectorAll('#na-pues input:checked')].map(i=>Number(i.value));
+           n=(em||[]).filter(e=>sel.includes(e.puesto_id)).length; }
     $('#na-alcance').innerHTML=`Le va a aparecer a <b>${n}</b> persona${n===1?'':'s'} la próxima vez que entren.`;
   };
-  $('#na-quien').onchange=()=>{ $('#na-pers').style.display=$('#na-quien').value==='personas'?'block':'none'; alcance(); };
-  $('#na-lista').onchange=alcance;
+  ov.querySelectorAll('#na-quien [data-q]').forEach(b=>b.onclick=()=>{
+    quien=b.dataset.q;
+    ov.querySelectorAll('#na-quien [data-q]').forEach(x=>x.classList.toggle('on',x===b));
+    $('#na-pers').style.display=quien==='personas'?'block':'none';
+    $('#na-pues').style.display=quien==='puestos'?'block':'none';
+    alcance(); });
+  $('#na-lista').onchange=alcance; $('#na-pues').onchange=alcance;
   $('#na-bus').oninput=()=>{ const t=$('#na-bus').value.trim().toLowerCase();
     ov.querySelectorAll('#na-lista label').forEach(l=>l.style.display=!t||l.dataset.nom.includes(t)?'flex':'none'); };
   alcance();
 
   $('#na-ok').onclick=async()=>{
-    const q=$('#na-quien').value;
     const pers=[...ov.querySelectorAll('#na-lista input:checked')].map(i=>Number(i.value));
+    const pues=[...ov.querySelectorAll('#na-pues input:checked')].map(i=>Number(i.value));
     const args={p_titulo:$('#na-tit').value, p_cuerpo:$('#na-txt').value,
-      p_puesto: q.startsWith('p')?Number(q.slice(1)):null,
-      p_empleados: q==='personas'?pers:null,
+      p_puestos: quien==='puestos'?pues:null,
+      p_empleados: quien==='personas'?pers:null,
       p_desde:$('#na-desde').value||null, p_hasta:$('#na-hasta').value||null};
     const b=$('#na-ok'); b.disabled=true; b.classList.add('cargando');
     const {data:r,error:e}=await sb.rpc('crear_aviso',args);
@@ -9233,6 +9330,25 @@ async function abrirNuevoAviso(){
   const {data:{session}}=await sb.auth.getSession();
   if(session) await iniciar();
 })();
+
+/* La página se actualiza sola: si en el servidor hay una versión nueva,
+   se recarga. Así nadie se queda checando con una copia vieja. */
+const VERSION_APP='v59';
+async function revisarVersion(){
+  try{
+    const url=location.href.split('#')[0].split('?')[0]+'?nc='+Date.now();
+    const r=await fetch(url,{cache:'no-store'}); if(!r.ok) return;
+    const t=await r.text(), m=t.match(/const VERSION_APP='([^']+)'/);
+    if(m && m[1]!==VERSION_APP){
+      let ya=null; try{ ya=sessionStorage.getItem('recargaPor'); }catch(e){}
+      if(ya===m[1]) return;
+      try{ sessionStorage.setItem('recargaPor',m[1]); }catch(e){}
+      location.replace(location.pathname+'?v='+encodeURIComponent(m[1])+location.hash);
+    }
+  }catch(e){}
+}
+revisarVersion();
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') revisarVersion(); });
 
 
 /* ============================================================
