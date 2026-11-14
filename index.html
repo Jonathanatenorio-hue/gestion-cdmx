@@ -1159,18 +1159,16 @@ const MODULOS = [
   {id:'config',     n:'99', t:'Configuración',         lista:true, soloDir:true},
   {id:'plantilla',  n:'05', t:'Plantilla',            lista:true},
   {id:'asistencia', n:'01', t:'Asistencia',           lista:true},
-  {id:'asistencia_old', n:'01b', t:'Asistencia (guía)', bloque:3, desc:'Carga los dos exportes del checador (AT&T y NEZA), cruza los marcajes contra las reglas de horario y califica cada día como asistencia, retardo, falta o descanso. Ajustes manuales quedan firmados con usuario y motivo.', pts:['Lector de los archivos del biométrico con control de duplicados','Reglas por puesto: ejecutivos 10:05 / 10:15, supervisión 10:00 / 10:10, facturación 8:00 / 8:10','Sin checada de salida se marca falta, con opción de justificar','Tablero por quincena y detalle por persona']},
   {id:'nomina',     n:'02', t:'Nómina',               lista:true, soloDir:true},
-  {id:'nomina_old', n:'02b', t:'Nómina (guía)',       bloque:4, desc:'Calcula la quincena a partir de la asistencia ya calificada, aplica percepciones y deducciones, y cierra el periodo para que no se pueda tocar después de pagado.', pts:['Periodos del 6 al 20 y del 21 al 5','Descuento automático por faltas y retardos','Conceptos manuales: préstamos, equipo, bonos','Cierre de periodo con bitácora de quién cerró'], soloDir:true},
   {id:'comisiones', n:'03', t:'Comisiones y bonos',   bloque:6, desc:'Toma las ventas que sí pagó AT&T y las convierte en comisión por agente según el esquema vigente. Se alimenta de la auditoría, no del reporte interno.', pts:['Esquemas con vigencia y rangos por volumen','Factores por plan','Autorización antes de pasar a nómina','Comparativo de lo calculado contra lo pagado']},
   {id:'ventas',     n:'04', t:'Ventas',                 lista:true},
   {id:'auditoria',  n:'04b', t:'Auditoría de ventas',  bloque:5, desc:'El corazón del control: cruza tu reporte interno contra Global y contra los dos archivos de pago de ExpertCell, el semanal del 50% y el mensual del remanente.', pts:['Cruce por folio y por teléfono, con asignación manual para lo que no empate','Detección de duplicados en el interno','Clasificación: pagada sin comisionar, comisionada sin pagar, solo interno, solo Global','Control del remanente mensual pendiente de cobro']},
   {id:'accesos',    n:'06', t:'Accesos a plataformas',bloque:10,desc:'Padrón de usuarios de AT&T, Bonsaif, Odoo, iVentas y el CRM de leads. Sin contraseñas: solo quién tiene qué y desde cuándo.', pts:['Alta y baja ligada al movimiento de personal','Alerta de accesos activos de gente que ya causó baja','Costo mensual por plataforma','Historial de solicitudes']},
   {id:'gastos',     n:'07', t:'Gastos',               lista:true, soloDir:true},
+  {id:'caja',       n:'07b', t:'Caja chica y compras', lista:true, ver:'caja'},
   {id:'ingresos',   n:'08', t:'Cobros ExpertCell',    lista:true, soloDir:true},
   {id:'balance',    n:'09', t:'Balance financiero',   lista:true, soloDir:true},
   {id:'dispersion', n:'10', t:'Dispersión de pagos',  lista:true, soloDir:true},
-  {id:'dispersion_old', n:'10b', t:'Dispersión (guía)', bloque:8, desc:'Arma el archivo que subes al banco, con el mismo layout que hoy ya te acepta, tomando montos de nómina y comisiones.', pts:['Layout idéntico: código, nombre, banco, CLABE, fecha, total','Validación de CLABE antes de exportar','Autorización previa a la dispersión','Historial de lo dispersado con estatus por registro'], soloDir:true},
   {id:'salidas',    n:'12', t:'Salidas y finiquitos', lista:true, soloDir:true},
   {id:'tickets',    n:'11', t:'Buzón de tickets',     bloque:9, desc:'Pendientes entre el Call Center y la dirección, con folio, responsable y cierre obligatorio.', pts:['Folio automático y prioridad','Conversación por ticket','No se cierra sin resolución escrita','Tablero de abiertos por antigüedad']}
 ];
@@ -1233,6 +1231,7 @@ async function iniciar(){
   $('#u-nom').textContent=perfil.nombre;
   $('#u-rol').textContent=perfil.rol;
   $('#u-ava').textContent=iniciales(perfil.nombre)||'·';
+  try{ const {data:pc}=await sb.rpc('mi_papel_caja'); S.cajaPapel=pc||null; }catch(e){ S.cajaPapel=null; }
   pintarNav();
   pintarAyudas();
   S.inicio = (perfil.rol==='agente') ? 'checar' : 'inicio';
@@ -1261,7 +1260,7 @@ function irA(id){
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
   let m=MODULOS.find(x=>x.id===id);
   if(!m || !puedeVerModulo(m)){ m=MODULOS.find(x=>x.id==='checar'); id='checar'; vistaActual=id; }
-  const R={guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar,
+  const R={caja:vistaCaja, guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar,
              mificha:vistaMiFicha, miasist:vistaMiAsistencia, mispagos:vistaMisPagos,
              solicitudes:vistaSolicitudesDatos, inicio:vistaInicio, avisos:vistaAvisos};
   $('#app').classList.remove('menu');
@@ -8522,6 +8521,217 @@ async function leerReporteBonsaif(f){
   }catch(e){ toast(e.message,'bad'); b.disabled=false; b.classList.remove('cargando'); }
 }
 
+/* ============================================================
+   CAJA CHICA Y COMPRAS
+   ============================================================ */
+const CAT_CAJA={transporte:'Transporte (Uber, taxi)',copias:'Copias e impresiones',basura:'Basura',agua:'Agua de garrafón',
+  despensa:'Despensa',papeleria:'Papelería',limpieza:'Limpieza',otro:'Otro'};
+const EST_COMPRA={pendiente:['Esperando dirección','p-warn'],aprobada:['Aprobada · por comprar','p-ok'],
+  rechazada:['Rechazada','p-bad'],comprada:['Comprada','p-gray'],cancelada:['Cancelada','p-gray']};
+const REV_GASTO={por_revisar:['Por revisar','p-warn'],aprobado:['Aprobado','p-ok'],rechazado:['Rechazado','p-bad']};
+
+async function vistaCaja(){
+  $('#main').innerHTML='<div class="empty">Cargando…</div>';
+  const papel=S.cajaPapel;
+  if(!papel){ $('#main').innerHTML='<div class="empty"><b>Sin acceso</b>La caja chica la ven dirección, quien la tiene a cargo y supervisión.</div>'; return; }
+  const ve=papel==='direccion'||papel==='custodio';
+  const mes=S.cajaMes||hoyMexico().slice(0,7);
+  const ini=mes+'-01', finD=new Date(Number(mes.slice(0,4)),Number(mes.slice(5,7)),0).toISOString().slice(0,10);
+  const [sa,mv,sc,rp]=await Promise.all([
+    ve?sb.from('v_caja_saldo').select('*'):{data:[]},
+    ve?sb.from('caja_movimientos').select('*').eq('tipo','gasto').gte('fecha',ini).lte('fecha',finD).order('fecha',{ascending:false}).order('id',{ascending:false}):{data:[]},
+    sb.from('solicitudes_compra').select('*').order('creada_en',{ascending:false}).limit(150),
+    ve?sb.from('caja_reposiciones').select('*').order('solicitada_en',{ascending:false}).limit(20):{data:[]}
+  ]);
+  const err=[sa,mv,sc,rp].find(x=>x.error);
+  if(err){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(err.error.message)}<br><span style="font-size:12.5px">Si dice que falta una tabla, corre el SQL 136.</span></div>`; return; }
+  const c=(sa.data||[])[0]||null, M=mv.data||[], SC=sc.data||[], RP=rp.data||[];
+  const pidio=RP.find(r=>r.estado==='solicitada');
+  const pendC=SC.filter(x=>x.estado==='pendiente'), porComprar=SC.filter(x=>x.estado==='aprobada');
+  const misSol=papel==='solicita'?SC:SC.filter(x=>x.solicita_usuario===S.perfil?.id);
+  const bajo=c && Number(c.saldo_en_mano)<=Number(c.minimo_reponer);
+  const titulo={direccion:'Caja chica y compras',custodio:'Mi caja chica',solicita:'Solicitudes de compra'}[papel];
+
+  const filaSol=(x,acc)=>{ const e=EST_COMPRA[x.estado]||[x.estado,'p-gray'];
+    return `<tr><td style="font-size:12.5px">${fecha(String(x.creada_en).slice(0,10))}</td>
+      <td><b>${esc(x.que)}</b>${x.cantidad?` <span style="color:var(--txt-2);font-size:12.5px">· ${esc(x.cantidad)}</span>`:''}
+        ${x.urgente?' <span class="p p-bad">urgente</span>':''}
+        ${x.nota_direccion?`<div style="font-size:12px;color:var(--txt-2)">Dirección: ${esc(x.nota_direccion)}</div>`:''}</td>
+      <td style="font-size:12.5px">${esc(x.solicita_nombre||'')}</td>
+      <td style="font-size:12.5px">${x.para_cuando?fecha(x.para_cuando):'—'}</td>
+      <td class="num">${x.monto_estimado?money(x.monto_estimado):'—'}</td>
+      <td><span class="p ${e[1]}">${e[0]}</span></td>
+      <td class="num" style="white-space:nowrap">${acc(x)}</td></tr>`; };
+  const tablaSol=(L,acc,vacio)=>!L.length?`<div class="empty" style="padding:22px">${vacio}</div>`:
+    `<div class="tw"><table><thead><tr><th>Pedida</th><th>Qué</th><th>Pidió</th><th>Para</th><th class="num">Estimado</th><th>Estado</th><th></th></tr></thead>
+     <tbody>${L.map(x=>filaSol(x,acc)).join('')}</tbody></table></div>`;
+
+  let html=`<div class="head"><div><h1>${titulo}</h1><p>${
+    papel==='solicita'?'Pide aquí lo que haga falta en la oficina. Dirección lo aprueba y Perla lo compra.'
+    :'Fondo fijo: cada gasto con foto, dirección lo revisa y repone exactamente lo aprobado.'}</p></div>
+    <div class="acts">
+      <button class="btn" id="cj-pedir">Pedir una compra</button>
+      ${papel==='custodio'||papel==='direccion'?'<button class="btn btn-p" id="cj-gasto">Registrar gasto</button>':''}
+    </div></div>`;
+
+  if(ve && !c){
+    html+=`<div class="empty"><b>No hay caja dada de alta</b>Corre el SQL 136: crea la caja de la oficina a cargo de Perla.</div>`;
+  }
+  if(ve && c){
+    html+=`
+    ${bajo&&papel==='custodio'&&!pidio?`<div class="note" style="background:var(--warn-l);border-color:var(--warn-line);color:var(--warn-ink)"><b>Te queda poco</b>Pide la reposición para que dirección te deposite lo gastado.</div>`:''}
+    <div class="kpis">
+      <div class="kpi ${bajo?'w':'t'}"><span>Saldo en mano</span><b>${money(c.saldo_en_mano)}</b><small>de un fondo de ${money(c.monto_fondo)}</small></div>
+      <div class="kpi"><span>Por reponer</span><b>${money(c.por_reponer)}</b><small>gastado y no rechazado</small></div>
+      <div class="kpi ${Number(c.gastos_por_revisar)?'w':''}"><span>Por revisar</span><b>${c.gastos_por_revisar}</b><small>${money(c.por_revisar)}</small></div>
+      <div class="kpi ${Number(c.rechazado)?'b':''}"><span>Rechazado</span><b>${money(c.rechazado)}</b><small>no se repone: faltante</small></div>
+    </div>
+    <div class="tw" style="padding:14px 18px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      ${pidio
+        ?`<div><b>Reposición pedida</b> <span style="color:var(--txt-2);font-size:13px">el ${fecha(String(pidio.solicitada_en).slice(0,10))} · se pagará lo aprobado: ${money(Number(c.por_reponer)-Number(c.por_revisar))}${Number(c.gastos_por_revisar)?` (faltan ${c.gastos_por_revisar} por revisar)`:''}</span></div>
+          ${papel==='direccion'?`<button class="btn btn-p" id="cj-pagar" data-rp="${pidio.id}" ${Number(c.gastos_por_revisar)?'disabled title="Revisa primero los gastos"':''}>Ya le deposité</button>`:''}`
+        :`<div style="color:var(--txt-2);font-size:13px">Sin reposición pendiente.</div>
+          ${papel==='custodio'?`<button class="btn ${bajo?'btn-p':''}" id="cj-repo" ${Number(c.por_reponer)>0?'':'disabled'}>Pedir reposición</button>`:''}`}
+      ${papel==='direccion'?'<button class="btn btn-sm" id="cj-fondo">Entregar fondo</button>':''}
+    </div>`;
+  }
+
+  if(papel==='direccion'){
+    html+=`<h3 style="margin:8px 0 10px;font-size:14px">Compras por aprobar</h3>
+      ${tablaSol(pendC,x=>`<button class="btn btn-sm btn-p" data-apr="${x.id}">Aprobar</button> <button class="btn btn-sm" data-rec="${x.id}">Rechazar</button>`,'Nada esperando tu aprobación.')}`;
+  }
+  if(papel==='custodio'||papel==='direccion'){
+    html+=`<h3 style="margin:22px 0 10px;font-size:14px">Por comprar</h3>
+      ${tablaSol(porComprar,x=>papel==='custodio'?`<button class="btn btn-sm btn-p" data-comprar="${x.id}">Ya lo compré</button>`:`<button class="btn btn-sm" data-can="${x.id}">Cancelar</button>`,'No hay compras aprobadas pendientes.')}`;
+  }
+  if(ve){
+    html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin:22px 0 10px;gap:10px;flex-wrap:wrap">
+      <h3 style="margin:0;font-size:14px">Gastos de la caja</h3>
+      <input type="month" id="cj-mes" value="${mes}" style="padding:7px 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card)"></div>
+      ${!M.length?'<div class="empty" style="padding:22px">Sin gastos en ese mes.</div>':`
+      <div class="tw"><table><thead><tr><th>Fecha</th><th>Categoría</th><th>Concepto</th><th class="num">Monto</th><th>Revisión</th><th></th></tr></thead>
+      <tbody>${M.map(x=>{ const r=REV_GASTO[x.revision]||['—','p-gray'];
+        return `<tr><td style="font-size:12.5px">${fecha(x.fecha)}</td>
+        <td style="font-size:12.5px">${esc(CAT_CAJA[x.categoria]||x.categoria||'')}</td>
+        <td><b>${esc(x.concepto)}</b>${x.solicitud_id?' <span style="font-size:11.5px;color:var(--txt-3)">· de una solicitud</span>':''}
+          ${x.nota_revision?`<div style="font-size:12px;color:var(--bad-ink)">${esc(x.nota_revision)}</div>`:''}</td>
+        <td class="num">${money(x.monto)}</td>
+        <td><span class="p ${r[1]}">${r[0]}</span>${x.reposicion_id?' <span style="font-size:11px;color:var(--txt-3)">repuesto</span>':''}</td>
+        <td class="num" style="white-space:nowrap">${x.foto_url?`<button class="btn btn-sm" data-cfoto="${esc(x.foto_url)}">Foto</button>`:''}
+          ${papel==='direccion'&&!x.reposicion_id?`${x.revision!=='aprobado'?` <button class="btn btn-sm btn-p" data-gok="${x.id}">Aprobar</button>`:''}${x.revision!=='rechazado'?` <button class="btn btn-sm" data-gno="${x.id}">Rechazar</button>`:''}`:''}</td></tr>`; }).join('')}
+      </tbody><tfoot><tr><td colspan="3"><b>Total del mes</b></td><td class="num"><b>${money(M.filter(x=>x.revision!=='rechazado').reduce((a,b)=>a+Number(b.monto),0))}</b></td><td colspan="2"></td></tr></tfoot></table></div>`}`;
+  }
+  if(papel!=='direccion'){
+    html+=`<h3 style="margin:22px 0 10px;font-size:14px">Lo que yo he pedido</h3>
+      ${tablaSol(misSol,x=>['pendiente','aprobada'].includes(x.estado)&&papel==='solicita'?`<button class="btn btn-sm" data-can="${x.id}">Cancelar</button>`:'','Todavía no has pedido nada.')}`;
+  }
+  if(papel==='direccion'){
+    const hist=SC.filter(x=>!['pendiente','aprobada'].includes(x.estado)).slice(0,30);
+    if(hist.length) html+=`<h3 style="margin:22px 0 10px;font-size:14px">Compras anteriores</h3>${tablaSol(hist,()=>'','')}`;
+  }
+  $('#main').innerHTML=html;
+
+  // ---- acciones ----
+  const rpc=async(f,args,recarga=true)=>{ const {data,error}=await sb.rpc(f,args);
+    if(error){ toast(error.message,'bad'); return null; }
+    const msg=typeof data==='string'?data:data?.msg; const ok=typeof data==='string'?!/^(Solo|No |Falta|Para |Ya hay|Esa |Tu |Escribe|El monto)/.test(data):data?.ok;
+    toast(msg||'Listo.', ok?'ok':'bad'); if(ok&&recarga) vistaCaja(); return data; };
+  $('#cj-pedir').onclick=abrirPedirCompra;
+  const g=$('#cj-gasto'); if(g) g.onclick=()=>abrirGastoCaja(null,porComprar);
+  const rpb=$('#cj-repo'); if(rpb) rpb.onclick=()=>{ if(confirm('¿Pedir la reposición de lo gastado?')) rpc('pedir_reposicion_caja',{}); };
+  const pg=$('#cj-pagar'); if(pg) pg.onclick=()=>{ if(confirm('¿Ya le depositaste? Se registra en Gastos como reposición de caja chica por lo aprobado.')) rpc('pagar_reposicion_caja',{p_reposicion:Number(pg.dataset.rp)}); };
+  const fo=$('#cj-fondo'); if(fo) fo.onclick=()=>{ const m=prompt('¿Cuánto le entregas al fondo?\n\nÚsalo para la entrega inicial o si sube el fondo. Las reposiciones se registran solas.'); if(!m) return;
+    const n=Number(String(m).replace(/[$,\s]/g,'')); if(!(n>0)){ toast('Monto no válido.','bad'); return; }
+    rpc('entregar_fondo_caja',{p_caja:c.caja_id,p_monto:n,p_nota:'Entrega de fondo'}); };
+  const ms=$('#cj-mes'); if(ms) ms.onchange=()=>{ S.cajaMes=ms.value; vistaCaja(); };
+  document.querySelectorAll('[data-apr]').forEach(b=>b.onclick=()=>rpc('resolver_compra',{p_id:Number(b.dataset.apr),p_aprobar:true,p_nota:null}));
+  document.querySelectorAll('[data-rec]').forEach(b=>b.onclick=()=>{ const n=prompt('¿Por qué se rechaza?'); if(n) rpc('resolver_compra',{p_id:Number(b.dataset.rec),p_aprobar:false,p_nota:n}); });
+  document.querySelectorAll('[data-can]').forEach(b=>b.onclick=()=>{ if(confirm('¿Cancelar esta solicitud?')) rpc('cancelar_compra',{p_id:Number(b.dataset.can)}); });
+  document.querySelectorAll('[data-comprar]').forEach(b=>b.onclick=()=>abrirGastoCaja(SC.find(x=>x.id===Number(b.dataset.comprar)),porComprar));
+  document.querySelectorAll('[data-gok]').forEach(b=>b.onclick=()=>rpc('revisar_gasto_caja',{p_mov:Number(b.dataset.gok),p_aprobar:true,p_nota:null}));
+  document.querySelectorAll('[data-gno]').forEach(b=>b.onclick=()=>{ const n=prompt('¿Por qué se rechaza? No se le repone ese dinero.'); if(n) rpc('revisar_gasto_caja',{p_mov:Number(b.dataset.gno),p_aprobar:false,p_nota:n}); });
+  document.querySelectorAll('[data-cfoto]').forEach(b=>b.onclick=async()=>{
+    const {data,error}=await sb.storage.from('comprobantes').createSignedUrl(b.dataset.cfoto,300);
+    if(error||!data?.signedUrl){ toast('No se pudo abrir la foto.','bad'); return; } window.open(data.signedUrl,'_blank'); });
+}
+
+function modalCaja(id,titulo,cuerpo,boton){
+  let ov=$('#'+id); if(!ov){ ov=document.createElement('div'); ov.className='ov'; ov.id=id; document.body.appendChild(ov); }
+  ov.innerHTML=`<div class="md" style="max-width:520px"><div class="md-h"><b>${titulo}</b><button data-close="${id}">&times;</button></div>
+    <div class="md-b">${cuerpo}</div>
+    <div class="md-f"><button class="btn" data-close="${id}">Cancelar</button><button class="btn btn-p" id="${id}-ok">${boton}</button></div></div>`;
+  ov.classList.add('on'); return ov;
+}
+const ESTILO_CAMPO='width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card)';
+
+function abrirPedirCompra(){
+  modalCaja('ov-compra','Pedir una compra',`
+    <label>¿Qué se necesita?</label><input id="pc-que" placeholder="Ej. Café, azúcar y vasos" style="${ESTILO_CAMPO}">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+      <div><label>Cantidad <span style="font-weight:400;color:var(--txt-3)">(opcional)</span></label><input id="pc-can" placeholder="Ej. 2 paquetes" style="${ESTILO_CAMPO}"></div>
+      <div><label>¿Para cuándo?</label><input type="date" id="pc-para" min="${hoyMexico()}" style="${ESTILO_CAMPO}"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;align-items:end">
+      <div><label>Costo aproximado <span style="font-weight:400;color:var(--txt-3)">(opcional)</span></label><input id="pc-est" inputmode="decimal" placeholder="$" style="${ESTILO_CAMPO}"></div>
+      <label style="display:flex;gap:8px;align-items:center;margin:0 0 10px;font-weight:500"><input type="checkbox" id="pc-urg" style="width:auto;margin:0">Es urgente</label>
+    </div>`,'Enviar a dirección');
+  $('#ov-compra-ok').onclick=async()=>{
+    const est=Number(String($('#pc-est').value).replace(/[$,\s]/g,''))||null;
+    const {data,error}=await sb.rpc('pedir_compra',{p_que:$('#pc-que').value,p_cantidad:$('#pc-can').value,
+      p_para:$('#pc-para').value||null,p_urgente:$('#pc-urg').checked,p_estimado:est});
+    if(error){ toast(error.message,'bad'); return; }
+    const ok=/^Solicitud enviada/.test(data); toast(data,ok?'ok':'bad');
+    if(ok){ cerrar('ov-compra'); vistaCaja(); }
+  };
+}
+
+async function comprimirFoto(file){
+  const img=await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=URL.createObjectURL(file); });
+  const max=1600, k=Math.min(1,max/Math.max(img.width,img.height));
+  const cv=document.createElement('canvas'); cv.width=Math.round(img.width*k); cv.height=Math.round(img.height*k);
+  cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+  return await new Promise(r=>cv.toBlob(r,'image/jpeg',0.8));
+}
+
+function abrirGastoCaja(sol,porComprar){
+  modalCaja('ov-gcaja', sol?'Registrar la compra':'Registrar gasto',`
+    ${sol?`<div class="note" style="margin-bottom:12px"><b>${esc(sol.que)}</b>${esc(sol.cantidad||'')} · pidió ${esc(sol.solicita_nombre||'')}</div>`
+      :(porComprar.length?`<label>¿Es de una compra aprobada?</label><select id="gc-sol" style="${ESTILO_CAMPO}"><option value="">No, es otro gasto</option>
+        ${porComprar.map(x=>`<option value="${x.id}">${esc(x.que)}</option>`).join('')}</select>`:'')}
+    <label style="margin-top:12px">Categoría</label>
+    <select id="gc-cat" style="${ESTILO_CAMPO}">${Object.entries(CAT_CAJA).map(([k,v])=>`<option value="${k}" ${sol&&k==='despensa'?'selected':''}>${v}</option>`).join('')}</select>
+    <label style="margin-top:12px">¿Qué se pagó?</label>
+    <input id="gc-con" value="${sol?esc(sol.que):''}" placeholder="Ej. Uber a la oficina de ExpertCell con expedientes" style="${ESTILO_CAMPO}">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+      <div><label>Monto</label><input id="gc-mon" inputmode="decimal" placeholder="$" style="${ESTILO_CAMPO}"></div>
+      <div><label>Fecha</label><input type="date" id="gc-fec" value="${hoyMexico()}" max="${hoyMexico()}" style="${ESTILO_CAMPO}"></div>
+    </div>
+    <label style="margin-top:12px">Foto <span style="font-weight:400;color:var(--txt-3)">(ticket, captura de Uber o foto de lo que se compró)</span></label>
+    <input type="file" id="gc-foto" accept="image/*" style="${ESTILO_CAMPO}">
+    <div id="gc-prev" style="margin-top:8px"></div>`,'Guardar gasto');
+  $('#gc-foto').onchange=e=>{ const f=e.target.files[0]; $('#gc-prev').innerHTML=f?`<img src="${URL.createObjectURL(f)}" style="max-height:160px;border-radius:8px;border:1px solid var(--line)">`:''; };
+  $('#ov-gcaja-ok').onclick=async()=>{
+    const b=$('#ov-gcaja-ok'), f=$('#gc-foto').files[0];
+    const monto=Number(String($('#gc-mon').value).replace(/[$,\s]/g,''));
+    if(!f){ toast('Falta la foto.','bad'); return; }
+    if(!(monto>0)){ toast('Escribe el monto.','bad'); return; }
+    b.disabled=true; b.classList.add('cargando');
+    try{
+      const blob=await comprimirFoto(f);
+      const ruta=`${S.perfil?.id||'sin'}/${Date.now()}.jpg`;
+      const up=await sb.storage.from('comprobantes').upload(ruta,blob,{contentType:'image/jpeg'});
+      if(up.error) throw new Error('No se pudo subir la foto: '+up.error.message);
+      const solId= sol?sol.id : ($('#gc-sol')&&$('#gc-sol').value?Number($('#gc-sol').value):null);
+      const {data,error}=await sb.rpc('registrar_gasto_caja',{p_categoria:$('#gc-cat').value,p_concepto:$('#gc-con').value,
+        p_monto:monto,p_foto:ruta,p_solicitud:solId,p_fecha:$('#gc-fec').value||null});
+      if(error) throw error;
+      toast(data.msg,data.ok?'ok':'bad');
+      if(data.ok){ cerrar('ov-gcaja'); vistaCaja(); }
+    }catch(e){ toast(e.message,'bad'); }
+    b.disabled=false; b.classList.remove('cargando');
+  };
+}
+
 async function pintarControlChecador(){
   if(!S.direccion){ $('#ch-cuerpo').innerHTML='<div class="empty"><b>Solo dirección</b></div>'; return; }
   $('#ch-cuerpo').innerHTML='<div class="empty">Cargando…</div>';
@@ -8677,6 +8887,7 @@ async function probarIP(){
 const esAgente = () => (S.perfil?.rol === 'agente');
 
 function puedeVerModulo(m){
+  if(m.ver==='caja')  return !!S.cajaPapel;
   if(m.soloDir)       return S.direccion;
   if(m.ver==='todos') return true;
   if(m.ver==='rh')    return S.direccion || S.rh;
@@ -9465,7 +9676,7 @@ async function abrirNuevoAviso(){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v62';
+const VERSION_APP='v64';
 async function revisarVersion(){
   try{
     const url=location.href.split('#')[0].split('?')[0]+'?nc='+Date.now();
@@ -9520,6 +9731,7 @@ const ICONOS = {
   salir:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
   ok:'<path d="m5 12 5 5L20 7"/>',
   alerta:'<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
+  caja:'<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M11 12v2h2v-2"/>',
   dinero:'<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'
 };
 const ico = (k,cl='') => `<svg class="ic ${cl}" viewBox="0 0 24 24" aria-hidden="true">${ICONOS[k]||ICONOS.doc}</svg>`;
@@ -9529,7 +9741,7 @@ const GRUPOS = [
   ['General',     ['inicio','guia','avisos']],
   ['Mi espacio',  ['checar','mificha','miasist','mispagos']],
   ['Personal',    ['plantilla','asistencia','asistencia_old','solicitudes','salidas']],
-  ['Operación',   ['ventas','auditoria','comisiones','accesos','tickets']],
+  ['Operación',   ['caja','ventas','auditoria','comisiones','accesos','tickets']],
   ['Finanzas',    ['nomina','nomina_old','dispersion','dispersion_old','gastos','ingresos','balance']],
   ['Sistema',     ['usuarios','config']]
 ];
@@ -9642,7 +9854,7 @@ async function vistaInicio(){
   const seguro=q=>Promise.resolve(q).then(r=>r&&r.error?null:(r?r.data:null)).catch(()=>null);
   const hace=n=>{ const d=new Date(hoy+'T12:00:00'); d.setDate(d.getDate()-n); return d.toISOString().slice(0,10); };
 
-  const [chk,emp,asis,saj,anom,cont,sdat,alf,baj,enc,acu,sal,flujo,pers] = await Promise.all([
+  const [chk,emp,asis,saj,anom,cont,sdat,alf,baj,enc,acu,sal,flujo,compras,caja,pers] = await Promise.all([
     seguro(sb.from('v_checadas_hoy').select('*')),
     seguro(sb.from('empleados').select('id',{count:'exact',head:false}).eq('estatus','activo').eq('tipo_registro','empleado')),
     seguro(sb.from('asistencia_dia').select('fecha,estatus_final').gte('fecha',hace(14)).lt('fecha',hoy).limit(3000)),
@@ -9656,6 +9868,8 @@ async function vistaInicio(){
     (dir||S.rh)?seguro(sb.from('v_avisos_acuses').select('aviso_id,enterado_en,tiene_usuario')):null,
     dir?seguro(sb.from('v_saldo_cuenta').select('*')):null,
     dir?seguro(sb.rpc('flujo_proyectado',{p_dias:15})):null,
+    dir?seguro(sb.from('solicitudes_compra').select('id').eq('estado','pendiente')):null,
+    dir?seguro(sb.from('v_caja_saldo').select('gastos_por_revisar,reposicion_pedida')):null,
     dir?seguro(sb.from('v_nomina_resumen').select('*').lte('fecha_inicio',hoy).order('fecha_inicio',{ascending:false}).limit(6)):null
   ]);
 
@@ -9708,6 +9922,9 @@ async function vistaInicio(){
     n(anom)?{n:n(anom),t:'Checadas raras hoy',s:'fuera de red, sin rostro o lejos',ir:'checar',c:'warn'}:null,
     n(baj)?{n:n(baj),t:'Salidas sin cerrar',s:'falta liquidar o firmar',ir:'salidas',c:'warn'}:null,
     n(enc)?{n:n(enc),t:'Encuestas de salida',s:'sin aplicar',ir:'salidas',c:'warn'}:null,
+    n(compras)?{n:n(compras),t:'Compras por aprobar',s:'lo que pidió supervisión o Perla',ir:'caja',c:'warn'}:null,
+    (caja||[]).some(x=>x.reposicion_pedida)?{n:'$',t:'Reposición de caja chica',s:'Perla pidió que le repongas lo gastado',ir:'caja',c:'warn'}:null,
+    (caja||[]).reduce((a,x)=>a+Number(x.gastos_por_revisar||0),0)?{n:(caja||[]).reduce((a,x)=>a+Number(x.gastos_por_revisar||0),0),t:'Gastos de caja por revisar',s:'con su foto',ir:'caja',c:'warn'}:null,
     avisosSin?{n:avisosSin,t:'Avisos sin "Enterado"',s:'personas que no lo han leído',ir:'avisos',c:'warn'}:null
   ].filter(Boolean);
 
