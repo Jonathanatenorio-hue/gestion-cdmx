@@ -8688,10 +8688,16 @@ async function comoLeLlega(tipo, monto, c){
       <div style="font-size:11.5px;color:var(--txt-3);margin-top:4px">${B.length?'Elige una dispersión que todavía está en borrador, o una fecha: si ese día ya hay una se suma ahí; si no, se crea.':'No hay dispersiones en borrador. Se crea una en la fecha que elijas (sugerido: el próximo jueves).'}</div>
     </div>
     <label style="display:flex;gap:8px;align-items:flex-start;margin:6px 0;font-weight:400;cursor:pointer"><input type="radio" name="ll-via" value="fuera" style="width:auto;margin:3px 0 0">
-      <span><b>Ya se le dio por fuera</b><br><span style="font-size:12.5px;color:var(--txt-2)">Efectivo o una transferencia que no va en la dispersión. Se registra ahorita.</span></span></label>`,
+      <span><b>Ya se le dio por fuera</b><br><span style="font-size:12.5px;color:var(--txt-2)">Una transferencia o efectivo que no va en la dispersión. Se registra ahorita.</span></span></label>
+    <div id="ll-fuera" style="margin:4px 0 0 26px;display:none">
+      <select id="ll-origen" style="${ESTILO_CAMPO}">
+        <option value="personal">Desde mi cuenta personal o efectivo · no toca la cuenta de la empresa</option>
+        <option value="empresa">Desde la cuenta de la empresa · se resta del saldo</option>
+      </select>
+    </div>`,
     'Confirmar');
   $('#ll-disp').onchange=()=>{ $('#ll-fecha').style.display=$('#ll-disp').value==='nueva'?'block':'none'; };
-  document.querySelectorAll('[name="ll-via"]').forEach(r=>r.onchange=()=>{ $('#ll-donde').style.display=document.querySelector('[name="ll-via"]:checked').value==='disp'?'block':'none'; });
+  document.querySelectorAll('[name="ll-via"]').forEach(r=>r.onchange=()=>{ const v=document.querySelector('[name="ll-via"]:checked').value; $('#ll-donde').style.display=v==='disp'?'block':'none'; $('#ll-fuera').style.display=v==='fuera'?'block':'none'; });
   $('#ov-llega-ok').onclick=async()=>{
     const via=document.querySelector('[name="ll-via"]:checked').value;
     const m=esFondo?Number(String($('#ll-mon').value).replace(/[$,\s]/g,'')):monto;
@@ -8703,13 +8709,13 @@ async function comoLeLlega(tipo, monto, c){
       r=await sb.rpc('caja_a_dispersion',{p_tipo:tipo,p_monto:esFondo?m:null,
         p_dispersion:sel==='nueva'?null:Number(sel), p_fecha:sel==='nueva'?$('#ll-fecha').value:null});
     }
-    else if(esFondo) r=await sb.rpc('entregar_fondo_caja',{p_caja:c.caja_id,p_monto:m,p_nota:'Entrega de fondo (por fuera)'});
+    else if(esFondo) r=await sb.rpc('entregar_fondo_caja',{p_caja:c.caja_id,p_monto:m,p_nota:'Entrega de fondo (por fuera)',p_afecta_cuenta:$('#ll-origen').value==='empresa'});
     else {
       const r1=await sb.rpc('pedir_reposicion_caja');
       if(r1.error){ toast(r1.error.message,'bad'); return; }
       const {data:rq}=await sb.from('caja_reposiciones').select('id').eq('estado','solicitada').order('id',{ascending:false}).limit(1);
       if(!rq||!rq.length){ toast(r1.data,'bad'); return; }
-      r=await sb.rpc('pagar_reposicion_caja',{p_reposicion:rq[0].id});
+      r=await sb.rpc('pagar_reposicion_caja',{p_reposicion:rq[0].id,p_fecha:null,p_afecta_cuenta:$('#ll-origen').value==='empresa'});
     }
     if(r.error){ toast(r.error.message,'bad'); return; }
     const ok=/agregada a la dispersión|^Fondo entregado|^Reposición pagada/.test(r.data);
@@ -9077,13 +9083,59 @@ const NOMBRE_CAMPO = {
 
 /* ---------------- MI INFORMACIÓN ---------------- */
 
+/* Cómo me pagan: sueldo y, si aplica, el tabulador vigente de su puesto */
+function tarjetaEsquemaPago(q){
+  if(!q||!q.ok) return '';
+  const rango=t=>t.hasta==null?`${t.desde} o más`:`${t.desde} a ${t.hasta}`;
+  let com='';
+  if(q.tipo_comision==='agente' && (q.tramos||[]).length){
+    const P=q.planes||[], filas={};
+    q.tramos.forEach(t=>{ const k=t.desde+'-'+(t.hasta??''); (filas[k]=filas[k]||{desde:t.desde,hasta:t.hasta,m:{}}).m[t.plan_id]=t.monto; });
+    const F=Object.values(filas).sort((a,b)=>a.desde-b.desde);
+    com=`<h4 style="margin:18px 0 6px;font-size:13.5px">Mis comisiones</h4>
+      <div style="font-size:12.5px;color:var(--txt-2);margin-bottom:10px;line-height:1.55">
+        Se cobra un monto por cada venta según el plan. El tramo se decide con <b>todas tus ventas del mes</b> y esa tarifa aplica a todas.
+        Solo se paga lo que AT&amp;T ya pagó.${q.nivel?` Tu nivel hoy es <b>${esc(q.nivel)}</b>, con meta de <b>${q.meta_mensual} ventas</b> al mes.`:''}</div>
+      <div style="overflow-x:auto"><table style="width:100%;font-size:13px"><thead><tr><th style="text-align:left">Ventas en el mes</th>${P.map(p=>`<th class="num">${esc(p.nombre)}</th>`).join('')}</tr></thead>
+      <tbody>${F.map(f=>`<tr><td>${rango(f)}</td>${P.map(p=>`<td class="num mono">${f.m[p.id]!=null?money(f.m[p.id]):'—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  } else if((q.tipo_comision==='supervisor'||q.tipo_comision==='coordinador') && (q.tramos||[]).length){
+    com=`<h4 style="margin:18px 0 6px;font-size:13.5px">Mis comisiones</h4>
+      <div style="font-size:12.5px;color:var(--txt-2);margin-bottom:10px;line-height:1.55">
+        Un porcentaje sobre el monto total que vende ${q.tipo_comision==='supervisor'?'tu equipo':'la operación'} en el mes (precio del plan por número de ventas).
+        El porcentaje del tramo alcanzado aplica a todo, no es escalonado. Solo se paga lo que AT&amp;T ya pagó.</div>
+      <table style="width:100%;font-size:13px;max-width:420px"><thead><tr><th style="text-align:left">Ventas en el mes</th>${q.tipo_comision==='coordinador'?'<th style="text-align:left">Nivel</th>':''}<th class="num">Porcentaje</th></tr></thead>
+      <tbody>${q.tramos.map(t=>`<tr><td>${rango(t)}</td>${q.tipo_comision==='coordinador'?`<td>${esc(t.nivel||'')}</td>`:''}<td class="num mono">${Number(t.pct)?Number(t.pct)+'%':'sin comisión'}</td></tr>`).join('')}</tbody></table>`;
+  }
+  return `<div class="tw" style="padding:22px;margin-bottom:20px">
+    <h3 style="margin:0 0 4px;font-size:15px">Cómo me pagan</h3>
+    <div style="font-size:12.5px;color:var(--txt-2);margin-bottom:12px">${esc(q.puesto||'')}</div>
+    ${q.sueldo_semanal?`<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:baseline">
+      <div><div style="font-size:11.5px;color:var(--txt-2);text-transform:uppercase;letter-spacing:.05em">Sueldo semanal</div>
+        <div style="font-family:var(--fuente-t);font-size:24px;font-weight:700">${money(q.sueldo_semanal)}</div></div>
+      <div style="font-size:12.5px;color:var(--txt-2);line-height:1.55;flex:1;min-width:220px">La semana va de lunes a domingo y se paga el viernes siguiente.
+        El detalle de cada pago está en <a href="#" data-ir-ep="mispagos" style="color:var(--teal)">Mis pagos</a>.</div></div>`
+     :`<div style="font-size:13px;color:var(--txt-2)">${q.esquema==='comisionista'?'Cobras solo por lo que vendes, sin sueldo fijo.':'Tu pago es por '+esc(String(q.esquema||'').replace(/_/g,' '))+'.'}</div>`}
+    ${com}
+    ${!com&&q.tipo_comision?'<div style="font-size:12.5px;color:var(--txt-3);margin-top:10px">Tu tabulador de comisiones todavía no está cargado.</div>':''}
+  </div>`;
+}
+
 async function vistaMiFicha(){
   $('#main').innerHTML='<div class="empty">Cargando…</div>';
-  const [f,s,hz]=await Promise.all([ sb.rpc('mi_ficha'), sb.rpc('mis_solicitudes'), sb.rpc('mi_horario') ]);
-  S.miHorario = hz.error ? null : hz.data;
-  if(f.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(f.error.message)}</div>`; return; }
+  const vc = S.direccion ? S.verComo : null;
+  const [f,s,hz,ep]=await Promise.all([
+    vc ? sb.rpc('ver_ficha',{p_emp:vc}) : sb.rpc('mi_ficha'),
+    vc ? Promise.resolve({data:[]}) : sb.rpc('mis_solicitudes'),
+    vc ? sb.rpc('ver_horario',{p_emp:vc}) : sb.rpc('mi_horario'),
+    sb.rpc('ver_esquema_pago',{p_emp:vc||null}) ]);
+  const esq = ep.error ? null : ep.data;
+  const horario = hz.error ? null : hz.data;
+  if(!vc) S.miHorario = horario;
+  const cab=`<div class="head"><div><h1>${vc?'Información':'Mi información'}</h1><p>${vc?'Así la ve esta persona. Solo lectura.':'Tus datos como están registrados hoy'}</p></div><div id="vc-wrap"></div></div>`;
+  const conVerComo=()=>pintarVerComo(true, vistaMiFicha);
+  if(f.error){ $('#main').innerHTML=cab+`<div class="empty"><b>No se pudo cargar</b>${esc(f.error.message)}${vc?'<br><span style="font-size:12.5px">Si dice que no existe la función, corre el SQL 142.</span>':''}</div>`; conVerComo(); return; }
   const d=f.data||{};
-  if(!d.ok){ $('#main').innerHTML=`<div class="empty"><b>Sin ficha</b>${esc(d.mensaje||'')}</div>`; return; }
+  if(!d.ok){ $('#main').innerHTML=cab+`<div class="empty"><b>Sin ficha</b>${esc(d.mensaje||'')}${S.direccion?'<br>Elige a alguien en "Ver como" para ver su información.':''}</div>`; conVerComo(); return; }
   S.miFicha=d;
   const sol=s.error?[]:(s.data||[]);
 
@@ -9100,11 +9152,10 @@ async function vistaMiFicha(){
   const meses=Math.floor((Number(d.antiguedad_dias||0)%365)/30);
 
   $('#main').innerHTML=`
-  <div class="head">
-    <div><h1>Mi información</h1><p>Tus datos como están registrados hoy</p></div>
-  </div>
+  ${cab}
 
-  ${tarjetaHorario(S.miHorario)}
+  ${tarjetaHorario(horario)}
+  ${tarjetaEsquemaPago(esq)}
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(330px,100%),1fr));gap:20px">
     <div class="tw" style="padding:22px">
       <h3 style="margin:0 0 4px;font-size:17px">${esc(d.nombre||'')}</h3>
@@ -9135,8 +9186,8 @@ async function vistaMiFicha(){
     </div>
 
     <div class="tw" style="padding:22px">
-      <h3 style="margin:0 0 14px;font-size:14px">Mis solicitudes</h3>
-      ${!sol.length?'<div style="color:var(--txt-2);font-size:13.5px">Todavía no has pedido ningún cambio.</div>':
+      <h3 style="margin:0 0 14px;font-size:14px">${vc?'Sus solicitudes':'Mis solicitudes'}</h3>
+      ${vc?'<div style="color:var(--txt-2);font-size:13.5px">Las solicitudes de cada persona se revisan en Solicitudes de la gente.</div>':!sol.length?'<div style="color:var(--txt-2);font-size:13.5px">Todavía no has pedido ningún cambio.</div>':
         sol.map(x=>`<div style="padding:9px 0;border-bottom:1px solid var(--line)">
           <div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
             <div style="font-size:13.5px"><b>${esc(NOMBRE_CAMPO[x.campo]||x.campo)}</b> → ${esc(x.valor_pedido)}</div>
@@ -9152,6 +9203,9 @@ async function vistaMiFicha(){
     <b>Por qué no puedes editar tus datos aquí</b>
     Si cualquiera pudiera cambiar su propia cuenta bancaria, bastaría con que alguien entrara a tu sesión un minuto para desviar tu pago. Por eso se pide el cambio y alguien lo aplica, y queda registrado quién lo hizo y cuándo.</div>`;
 
+  document.querySelectorAll('[data-ir-ep]').forEach(a=>a.onclick=e=>{ e.preventDefault(); irA(a.dataset.irEp); });
+  conVerComo();
+  if(vc){ document.querySelectorAll('[data-pedir]').forEach(b=>b.remove()); }
   document.querySelectorAll('[data-pedir]').forEach(b=>b.onclick=()=>abrirPedirCambio(b.dataset.pedir));
 }
 
@@ -9537,7 +9591,7 @@ async function pintarVerComo(dinero, recargar){
     S.listaVerComo=data||[];
   }
   w.innerHTML=`<label style="margin-bottom:4px">Ver como</label>
-    <select id="vc-sel" style="width:auto;min-width:240px">
+    <select id="vc-sel" style="width:auto;min-width:240px;padding:8px 11px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card);color:var(--txt)">
       <option value="">Yo</option>
       ${S.listaVerComo.map(e=>`<option value="${e.id}"${Number(S.verComo)===e.id?' selected':''}>${esc(e.nombre_completo)}</option>`).join('')}
     </select>`;
@@ -9852,7 +9906,7 @@ async function abrirNuevoAviso(){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v67';
+const VERSION_APP='v70';
 async function revisarVersion(){
   try{
     const url=location.href.split('#')[0].split('?')[0]+'?nc='+Date.now();
