@@ -1166,6 +1166,7 @@ const MODULOS = [
   {id:'accesos',    n:'06', t:'Accesos a plataformas',bloque:10,desc:'Padrón de usuarios de AT&T, Bonsaif, Odoo, iVentas y el CRM de leads. Sin contraseñas: solo quién tiene qué y desde cuándo.', pts:['Alta y baja ligada al movimiento de personal','Alerta de accesos activos de gente que ya causó baja','Costo mensual por plataforma','Historial de solicitudes']},
   {id:'gastos',     n:'07', t:'Gastos',               lista:true, soloDir:true},
   {id:'caja',       n:'07b', t:'Caja chica y compras', lista:true, ver:'caja'},
+  {id:'fijos',      n:'07c', t:'Pagos fijos',          lista:true, soloDir:true},
   {id:'ingresos',   n:'08', t:'Cobros ExpertCell',    lista:true, soloDir:true},
   {id:'balance',    n:'09', t:'Balance financiero',   lista:true, soloDir:true},
   {id:'dispersion', n:'10', t:'Dispersión de pagos',  lista:true, soloDir:true},
@@ -1260,7 +1261,7 @@ function irA(id){
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
   let m=MODULOS.find(x=>x.id===id);
   if(!m || !puedeVerModulo(m)){ m=MODULOS.find(x=>x.id==='checar'); id='checar'; vistaActual=id; }
-  const R={caja:vistaCaja, guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar,
+  const R={fijos:vistaPagosFijos, caja:vistaCaja, guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar,
              mificha:vistaMiFicha, miasist:vistaMiAsistencia, mispagos:vistaMisPagos,
              solicitudes:vistaSolicitudesDatos, inicio:vistaInicio, avisos:vistaAvisos};
   $('#app').classList.remove('menu');
@@ -8524,8 +8525,9 @@ async function leerReporteBonsaif(f){
 /* ============================================================
    CAJA CHICA Y COMPRAS
    ============================================================ */
-const CAT_CAJA={transporte:'Transporte (Uber, taxi)',copias:'Copias e impresiones',basura:'Basura',agua:'Agua de garrafón',
-  despensa:'Despensa',papeleria:'Papelería',limpieza:'Limpieza',otro:'Otro'};
+const CAT_CAJA={basura:'Basura',agua:'Agua de garrafón',despensa:'Despensa',papeleria:'Papelería',
+  uber:'Uber · copias y entrega de expedientes'};
+const CAT_CAJA_TODAS={...CAT_CAJA, saldo_anterior:'Saldo anterior'};
 const EST_COMPRA={pendiente:['Esperando dirección','p-warn'],aprobada:['Aprobada · por comprar','p-ok'],
   rechazada:['Rechazada','p-bad'],comprada:['Comprada','p-gray'],cancelada:['Cancelada','p-gray']};
 const REV_GASTO={por_revisar:['Por revisar','p-warn'],aprobado:['Aprobado','p-ok'],rechazado:['Rechazado','p-bad']};
@@ -8554,7 +8556,7 @@ async function vistaCaja(){
 
   const filaSol=(x,acc)=>{ const e=EST_COMPRA[x.estado]||[x.estado,'p-gray'];
     return `<tr><td style="font-size:12.5px">${fecha(String(x.creada_en).slice(0,10))}</td>
-      <td><b>${esc(x.que)}</b>${x.cantidad?` <span style="color:var(--txt-2);font-size:12.5px">· ${esc(x.cantidad)}</span>`:''}
+      <td><span style="font-size:11.5px;color:var(--txt-3)">${esc(CAT_CAJA[x.categoria]||'')}</span><br><b>${esc(x.que)}</b>${x.cantidad?` <span style="color:var(--txt-2);font-size:12.5px">· ${esc(x.cantidad)}</span>`:''}
         ${x.urgente?' <span class="p p-bad">urgente</span>':''}
         ${x.nota_direccion?`<div style="font-size:12px;color:var(--txt-2)">Dirección: ${esc(x.nota_direccion)}</div>`:''}</td>
       <td style="font-size:12.5px">${esc(x.solicita_nombre||'')}</td>
@@ -8579,6 +8581,7 @@ async function vistaCaja(){
   }
   if(ve && c){
     html+=`
+    ${bajo&&papel==='direccion'?`<div class="note" style="background:var(--warn-l);border-color:var(--warn-line);color:var(--warn-ink)"><b>A la caja le quedan ${money(c.saldo_en_mano)}</b>Considera presupuesto: ${pidio?'Perla ya pidió reposición.':'paga lo aprobado o entrega fondo.'}</div>`:''}
     ${bajo&&papel==='custodio'&&!pidio?`<div class="note" style="background:var(--warn-l);border-color:var(--warn-line);color:var(--warn-ink)"><b>Te queda poco</b>Pide la reposición para que dirección te deposite lo gastado.</div>`:''}
     <div class="kpis">
       <div class="kpi ${bajo?'w':'t'}"><span>Saldo en mano</span><b>${money(c.saldo_en_mano)}</b><small>de un fondo de ${money(c.monto_fondo)}</small></div>
@@ -8591,11 +8594,17 @@ async function vistaCaja(){
         ?`<div><b>Reposición pedida</b> <span style="color:var(--txt-2);font-size:13px">el ${fecha(String(pidio.solicitada_en).slice(0,10))} · se pagará lo aprobado: ${money(Number(c.por_reponer)-Number(c.por_revisar))}${Number(c.gastos_por_revisar)?` (faltan ${c.gastos_por_revisar} por revisar)`:''}</span></div>
           ${papel==='direccion'?`<button class="btn btn-p" id="cj-pagar" data-rp="${pidio.id}" ${Number(c.gastos_por_revisar)?'disabled title="Revisa primero los gastos"':''}>Ya le deposité</button>`:''}`
         :`<div style="color:var(--txt-2);font-size:13px">Sin reposición pendiente.</div>
-          ${papel==='custodio'?`<button class="btn ${bajo?'btn-p':''}" id="cj-repo" ${Number(c.por_reponer)>0?'':'disabled'}>Pedir reposición</button>`:''}`}
+          ${papel==='custodio'?`<button class="btn ${bajo?'btn-p':''}" id="cj-repo" ${Number(c.por_reponer)>0?'':'disabled'}>Pedir reposición</button>`:''}
+          ${papel==='direccion'&&Number(c.por_reponer)>0?`<button class="btn btn-p" id="cj-reponer" ${Number(c.gastos_por_revisar)?'disabled title="Revisa primero los gastos"':''}>Ya le deposité ${money(Number(c.por_reponer)-Number(c.por_revisar))}</button>`:''}`}
       ${papel==='direccion'?'<button class="btn btn-sm" id="cj-fondo">Entregar fondo</button>':''}
     </div>`;
   }
 
+  if(ve && M.length){
+    const porCat={}; M.filter(x=>x.revision!=='rechazado').forEach(x=>porCat[x.categoria]=(porCat[x.categoria]||0)+Number(x.monto));
+    html+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 18px">${Object.keys(CAT_CAJA_TODAS).filter(k=>porCat[k]).map(k=>
+      `<span class="p p-gray" style="font-size:12.5px;padding:6px 11px">${esc(CAT_CAJA_TODAS[k])} · <b>${money(porCat[k])}</b></span>`).join('')}</div>`;
+  }
   if(papel==='direccion'){
     html+=`<h3 style="margin:8px 0 10px;font-size:14px">Compras por aprobar</h3>
       ${tablaSol(pendC,x=>`<button class="btn btn-sm btn-p" data-apr="${x.id}">Aprobar</button> <button class="btn btn-sm" data-rec="${x.id}">Rechazar</button>`,'Nada esperando tu aprobación.')}`;
@@ -8612,13 +8621,13 @@ async function vistaCaja(){
       <div class="tw"><table><thead><tr><th>Fecha</th><th>Categoría</th><th>Concepto</th><th class="num">Monto</th><th>Revisión</th><th></th></tr></thead>
       <tbody>${M.map(x=>{ const r=REV_GASTO[x.revision]||['—','p-gray'];
         return `<tr><td style="font-size:12.5px">${fecha(x.fecha)}</td>
-        <td style="font-size:12.5px">${esc(CAT_CAJA[x.categoria]||x.categoria||'')}</td>
+        <td style="font-size:12.5px">${esc(CAT_CAJA_TODAS[x.categoria]||x.categoria||'')}</td>
         <td><b>${esc(x.concepto)}</b>${x.solicitud_id?' <span style="font-size:11.5px;color:var(--txt-3)">· de una solicitud</span>':''}
           ${x.nota_revision?`<div style="font-size:12px;color:var(--bad-ink)">${esc(x.nota_revision)}</div>`:''}</td>
         <td class="num">${money(x.monto)}</td>
         <td><span class="p ${r[1]}">${r[0]}</span>${x.reposicion_id?' <span style="font-size:11px;color:var(--txt-3)">repuesto</span>':''}</td>
-        <td class="num" style="white-space:nowrap">${x.foto_url?`<button class="btn btn-sm" data-cfoto="${esc(x.foto_url)}">Foto</button>`:''}
-          ${papel==='direccion'&&!x.reposicion_id?`${x.revision!=='aprobado'?` <button class="btn btn-sm btn-p" data-gok="${x.id}">Aprobar</button>`:''}${x.revision!=='rechazado'?` <button class="btn btn-sm" data-gno="${x.id}">Rechazar</button>`:''}`:''}</td></tr>`; }).join('')}
+        <td class="num" style="white-space:nowrap">${x.foto_url?`<button class="btn btn-sm" data-cfoto="${esc(x.foto_url)}">${/\.pdf$/i.test(x.foto_url)?'PDF':'Evidencia'}</button>`:''}
+          ${papel==='direccion'&&!x.reposicion_id&&x.categoria!=='saldo_anterior'?`${x.revision!=='aprobado'?` <button class="btn btn-sm btn-p" data-gok="${x.id}">Aprobar</button>`:''}${x.revision!=='rechazado'?` <button class="btn btn-sm" data-gno="${x.id}">Rechazar</button>`:''}`:''}</td></tr>`; }).join('')}
       </tbody><tfoot><tr><td colspan="3"><b>Total del mes</b></td><td class="num"><b>${money(M.filter(x=>x.revision!=='rechazado').reduce((a,b)=>a+Number(b.monto),0))}</b></td><td colspan="2"></td></tr></tfoot></table></div>`}`;
   }
   if(papel!=='direccion'){
@@ -8640,7 +8649,13 @@ async function vistaCaja(){
   const g=$('#cj-gasto'); if(g) g.onclick=()=>abrirGastoCaja(null,porComprar);
   const rpb=$('#cj-repo'); if(rpb) rpb.onclick=()=>{ if(confirm('¿Pedir la reposición de lo gastado?')) rpc('pedir_reposicion_caja',{}); };
   const pg=$('#cj-pagar'); if(pg) pg.onclick=()=>{ if(confirm('¿Ya le depositaste? Se registra en Gastos como reposición de caja chica por lo aprobado.')) rpc('pagar_reposicion_caja',{p_reposicion:Number(pg.dataset.rp)}); };
-  const fo=$('#cj-fondo'); if(fo) fo.onclick=()=>{ const m=prompt('¿Cuánto le entregas al fondo?\n\nÚsalo para la entrega inicial o si sube el fondo. Las reposiciones se registran solas.'); if(!m) return;
+  const rn=$('#cj-reponer'); if(rn) rn.onclick=async()=>{
+    if(!confirm('¿Ya le depositaste a Perla lo aprobado? Se registra en Gastos como reposición de caja chica.')) return;
+    const r1=await rpc('pedir_reposicion_caja',{},false); if(r1===null) return;
+    const {data:rq}=await sb.from('caja_reposiciones').select('id').eq('estado','solicitada').order('id',{ascending:false}).limit(1);
+    if(!rq||!rq.length){ vistaCaja(); return; }
+    rpc('pagar_reposicion_caja',{p_reposicion:rq[0].id}); };
+  const fo=$('#cj-fondo'); if(fo) fo.onclick=()=>{ const m=prompt('¿Cuánto le entregas a Perla?\n\nÚsalo para el fondo inicial o si sube el fondo. Las reposiciones se registran solas con "Ya le deposité".'); if(!m) return;
     const n=Number(String(m).replace(/[$,\s]/g,'')); if(!(n>0)){ toast('Monto no válido.','bad'); return; }
     rpc('entregar_fondo_caja',{p_caja:c.caja_id,p_monto:n,p_nota:'Entrega de fondo'}); };
   const ms=$('#cj-mes'); if(ms) ms.onchange=()=>{ S.cajaMes=ms.value; vistaCaja(); };
@@ -8666,7 +8681,9 @@ const ESTILO_CAMPO='width:100%;padding:9px 11px;border:1px solid var(--line);bor
 
 function abrirPedirCompra(){
   modalCaja('ov-compra','Pedir una compra',`
-    <label>¿Qué se necesita?</label><input id="pc-que" placeholder="Ej. Café, azúcar y vasos" style="${ESTILO_CAMPO}">
+    <label>Rubro</label>
+    <select id="pc-cat" style="${ESTILO_CAMPO}">${['despensa','papeleria','agua','basura'].map(k=>`<option value="${k}">${CAT_CAJA[k]}</option>`).join('')}</select>
+    <label style="margin-top:12px">¿Qué se necesita? <span style="font-weight:400;color:var(--txt-3)">(el producto, como se busca en la tienda)</span></label><input id="pc-que" placeholder="Ej. Café soluble 200 g, azúcar 1 kg, vasos térmicos" style="${ESTILO_CAMPO}">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
       <div><label>Cantidad <span style="font-weight:400;color:var(--txt-3)">(opcional)</span></label><input id="pc-can" placeholder="Ej. 2 paquetes" style="${ESTILO_CAMPO}"></div>
       <div><label>¿Para cuándo?</label><input type="date" id="pc-para" min="${hoyMexico()}" style="${ESTILO_CAMPO}"></div>
@@ -8678,13 +8695,21 @@ function abrirPedirCompra(){
   $('#ov-compra-ok').onclick=async()=>{
     const est=Number(String($('#pc-est').value).replace(/[$,\s]/g,''))||null;
     const {data,error}=await sb.rpc('pedir_compra',{p_que:$('#pc-que').value,p_cantidad:$('#pc-can').value,
-      p_para:$('#pc-para').value||null,p_urgente:$('#pc-urg').checked,p_estimado:est});
+      p_para:$('#pc-para').value||null,p_urgente:$('#pc-urg').checked,p_estimado:est,p_categoria:$('#pc-cat').value});
     if(error){ toast(error.message,'bad'); return; }
     const ok=/^Solicitud enviada/.test(data); toast(data,ok?'ok':'bad');
     if(ok){ cerrar('ov-compra'); vistaCaja(); }
   };
 }
 
+async function subirEvidencia(f){
+  const pdf=f.type==='application/pdf';
+  const blob=pdf?f:await comprimirFoto(f);
+  const ruta=`${S.perfil?.id||'sin'}/${Date.now()}.${pdf?'pdf':'jpg'}`;
+  const up=await sb.storage.from('comprobantes').upload(ruta,blob,{contentType:pdf?'application/pdf':'image/jpeg'});
+  if(up.error) throw new Error('No se pudo subir la evidencia: '+up.error.message);
+  return ruta;
+}
 async function comprimirFoto(file){
   const img=await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=URL.createObjectURL(file); });
   const max=1600, k=Math.min(1,max/Math.max(img.width,img.height));
@@ -8699,34 +8724,138 @@ function abrirGastoCaja(sol,porComprar){
       :(porComprar.length?`<label>¿Es de una compra aprobada?</label><select id="gc-sol" style="${ESTILO_CAMPO}"><option value="">No, es otro gasto</option>
         ${porComprar.map(x=>`<option value="${x.id}">${esc(x.que)}</option>`).join('')}</select>`:'')}
     <label style="margin-top:12px">Categoría</label>
-    <select id="gc-cat" style="${ESTILO_CAMPO}">${Object.entries(CAT_CAJA).map(([k,v])=>`<option value="${k}" ${sol&&k==='despensa'?'selected':''}>${v}</option>`).join('')}</select>
+    <select id="gc-cat" style="${ESTILO_CAMPO}">${Object.entries(CAT_CAJA).map(([k,v])=>`<option value="${k}" ${sol&&k===(sol.categoria||'despensa')?'selected':''}>${v}</option>`).join('')}</select>
+    <div style="font-size:11.5px;color:var(--txt-3);margin-top:4px">Uber: uno por semana. Si hizo falta otro, lo registra dirección.</div>
     <label style="margin-top:12px">¿Qué se pagó?</label>
     <input id="gc-con" value="${sol?esc(sol.que):''}" placeholder="Ej. Uber a la oficina de ExpertCell con expedientes" style="${ESTILO_CAMPO}">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
       <div><label>Monto</label><input id="gc-mon" inputmode="decimal" placeholder="$" style="${ESTILO_CAMPO}"></div>
       <div><label>Fecha</label><input type="date" id="gc-fec" value="${hoyMexico()}" max="${hoyMexico()}" style="${ESTILO_CAMPO}"></div>
     </div>
-    <label style="margin-top:12px">Foto <span style="font-weight:400;color:var(--txt-3)">(ticket, captura de Uber o foto de lo que se compró)</span></label>
-    <input type="file" id="gc-foto" accept="image/*" style="${ESTILO_CAMPO}">
+    <label style="margin-top:12px">Evidencia <span style="font-weight:400;color:var(--txt-3)">(ticket, factura o comprobante de transferencia · foto o PDF)</span></label>
+    <input type="file" id="gc-foto" accept="image/*,application/pdf" style="${ESTILO_CAMPO}">
+    <div style="font-size:11.5px;color:var(--txt-3);margin-top:4px">Sin evidencia el gasto no se cuenta ni se repone.</div>
     <div id="gc-prev" style="margin-top:8px"></div>`,'Guardar gasto');
-  $('#gc-foto').onchange=e=>{ const f=e.target.files[0]; $('#gc-prev').innerHTML=f?`<img src="${URL.createObjectURL(f)}" style="max-height:160px;border-radius:8px;border:1px solid var(--line)">`:''; };
+  $('#gc-foto').onchange=e=>{ const f=e.target.files[0];
+    $('#gc-prev').innerHTML=!f?'':(f.type==='application/pdf'?`<div class="p p-gray">PDF · ${esc(f.name)}</div>`:`<img src="${URL.createObjectURL(f)}" style="max-height:160px;border-radius:8px;border:1px solid var(--line)">`); };
   $('#ov-gcaja-ok').onclick=async()=>{
     const b=$('#ov-gcaja-ok'), f=$('#gc-foto').files[0];
     const monto=Number(String($('#gc-mon').value).replace(/[$,\s]/g,''));
-    if(!f){ toast('Falta la foto.','bad'); return; }
+    if(!f){ toast('Sin evidencia no se cuenta: sube el ticket, la factura o la transferencia.','bad'); return; }
     if(!(monto>0)){ toast('Escribe el monto.','bad'); return; }
     b.disabled=true; b.classList.add('cargando');
     try{
-      const blob=await comprimirFoto(f);
-      const ruta=`${S.perfil?.id||'sin'}/${Date.now()}.jpg`;
-      const up=await sb.storage.from('comprobantes').upload(ruta,blob,{contentType:'image/jpeg'});
-      if(up.error) throw new Error('No se pudo subir la foto: '+up.error.message);
+      const ruta=await subirEvidencia(f);
       const solId= sol?sol.id : ($('#gc-sol')&&$('#gc-sol').value?Number($('#gc-sol').value):null);
       const {data,error}=await sb.rpc('registrar_gasto_caja',{p_categoria:$('#gc-cat').value,p_concepto:$('#gc-con').value,
         p_monto:monto,p_foto:ruta,p_solicitud:solId,p_fecha:$('#gc-fec').value||null});
       if(error) throw error;
       toast(data.msg,data.ok?'ok':'bad');
       if(data.ok){ cerrar('ov-gcaja'); vistaCaja(); }
+    }catch(e){ toast(e.message,'bad'); }
+    b.disabled=false; b.classList.remove('cargando');
+  };
+}
+
+/* ============================================================
+   PAGOS FIJOS — renta, luz, internet: que no se pase la fecha
+   ============================================================ */
+const EST_FIJO={vencido:['Vencido','p-bad'],pronto:['Pagar pronto','p-warn'],al_corriente:['Al corriente','p-ok']};
+const PERIOD_FIJO={mensual:'Mensual',bimestral:'Bimestral',quincenal:'Quincenal',semanal:'Semanal',anual:'Anual'};
+async function vistaPagosFijos(){
+  $('#main').innerHTML='<div class="empty">Cargando…</div>';
+  const [pf,cat,hist]=await Promise.all([
+    sb.from('v_pagos_fijos').select('*'),
+    sb.from('categorias_gasto').select('clave,nombre,tipo').eq('activa',true).order('nombre'),
+    sb.from('gastos').select('fecha,concepto,monto,nota,comprobante,recurrente_id').not('recurrente_id','is',null).eq('estatus','pagado').order('fecha',{ascending:false}).limit(40)
+  ]);
+  if(pf.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(pf.error.message)}<br><span style="font-size:12.5px">Si dice que falta la vista, corre el SQL 137.</span></div>`; return; }
+  const L=pf.data||[]; S.catsFijo=cat.data||[];
+  const ven=L.filter(x=>x.estado==='vencido'), pronto=L.filter(x=>x.estado==='pronto');
+  const mes=L.filter(x=>x.proximo_pago&&x.proximo_pago.slice(0,7)===hoyMexico().slice(0,7)).reduce((a,b)=>a+Number(b.monto_estimado||0),0);
+  $('#main').innerHTML=`
+  <div class="head"><div><h1>Pagos fijos</h1><p>Renta, luz, internet y lo que se paga cada periodo. Te avisa antes de la fecha y, al pagarlo, entra a Gastos y se recorre al siguiente.</p></div>
+    <div class="acts"><button class="btn btn-p" id="pf-nuevo">Agregar pago fijo</button></div></div>
+  <div class="kpis">
+    <div class="kpi ${ven.length?'b':'t'}"><span>Vencidos</span><b>${ven.length}</b><small>${ven.length?'ya se pasó la fecha':'ninguno'}</small></div>
+    <div class="kpi ${pronto.length?'w':''}"><span>Por pagar pronto</span><b>${pronto.length}</b><small>dentro de su aviso</small></div>
+    <div class="kpi"><span>Este mes</span><b>${money(mes)}</b><small>aproximado por pagar</small></div>
+  </div>
+  ${!L.length?'<div class="empty"><b>Todavía no hay pagos fijos</b>Agrega renta, luz e internet con su próxima fecha de pago.</div>':`
+  <div class="tw"><table><thead><tr><th>Concepto</th><th>Próximo pago</th><th class="num">Aprox.</th><th>Cada</th><th>Paga</th><th>Último</th><th>Estado</th><th></th></tr></thead>
+  <tbody>${L.map(x=>{ const e=EST_FIJO[x.estado]||['—','p-gray'];
+    const dias=x.dias_para_pago; const cuando=dias<0?`hace ${-dias} día${dias===-1?'':'s'}`:dias===0?'hoy':`en ${dias} día${dias===1?'':'s'}`;
+    return `<tr><td><b>${esc(x.concepto)}</b><div style="font-size:11.5px;color:var(--txt-3)">${esc(x.categoria||'')}</div></td>
+      <td><b>${fecha(x.proximo_pago)}</b><div style="font-size:11.5px;color:${dias<0?'var(--bad)':'var(--txt-3)'}">${cuando}</div></td>
+      <td class="num">${money(x.monto_estimado)}</td><td style="font-size:12.5px">${PERIOD_FIJO[x.periodicidad]||x.periodicidad}</td>
+      <td style="font-size:12.5px">${esc(x.paga||'—')}</td>
+      <td style="font-size:12.5px">${x.ultimo_pago?`${fecha(x.ultimo_pago)} · ${money(x.ultimo_monto)}`:'—'}</td>
+      <td><span class="p ${e[1]}">${e[0]}</span></td>
+      <td class="num" style="white-space:nowrap"><button class="btn btn-sm btn-p" data-pfpag="${x.id}">Ya se pagó</button> <button class="btn btn-sm" data-pfed="${x.id}">Editar</button></td></tr>`; }).join('')}
+  </tbody></table></div>`}
+  ${(hist.data||[]).length?`<h3 style="margin:22px 0 10px;font-size:14px">Pagos registrados</h3>
+  <div class="tw"><table><thead><tr><th>Fecha</th><th>Concepto</th><th>Nota</th><th class="num">Monto</th><th></th></tr></thead>
+  <tbody>${hist.data.map(g=>`<tr><td style="font-size:12.5px">${fecha(g.fecha)}</td><td><b>${esc(g.concepto)}</b></td>
+    <td style="font-size:12.5px;color:var(--txt-2)">${esc(g.nota||'')}</td><td class="num">${money(g.monto)}</td>
+    <td class="num">${g.comprobante?`<button class="btn btn-sm" data-cfoto="${esc(g.comprobante)}">Comprobante</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:''}`;
+  $('#pf-nuevo').onclick=()=>abrirPagoFijo(null);
+  document.querySelectorAll('[data-pfed]').forEach(b=>b.onclick=()=>abrirPagoFijo(L.find(x=>x.id===Number(b.dataset.pfed))));
+  document.querySelectorAll('[data-pfpag]').forEach(b=>b.onclick=()=>abrirPagarFijo(L.find(x=>x.id===Number(b.dataset.pfpag))));
+  document.querySelectorAll('[data-cfoto]').forEach(b=>b.onclick=async()=>{
+    const {data,error}=await sb.storage.from('comprobantes').createSignedUrl(b.dataset.cfoto,300);
+    if(error||!data?.signedUrl){ toast('No se pudo abrir.','bad'); return; } window.open(data.signedUrl,'_blank'); });
+}
+
+function abrirPagoFijo(x){
+  const cats=S.catsFijo||[];
+  const ov=modalCaja('ov-pfijo', x?'Editar pago fijo':'Agregar pago fijo',`
+    <label>Concepto</label><input id="pf-con" value="${esc(x?.concepto||'')}" placeholder="Ej. Renta de la oficina" style="${ESTILO_CAMPO}">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+      <div><label>Categoría</label><select id="pf-cat" style="${ESTILO_CAMPO}">${cats.map(c=>`<option value="${esc(c.clave)}" ${x?.categoria_clave===c.clave?'selected':''}>${esc(c.nombre)}</option>`).join('')}</select></div>
+      <div><label>Monto aproximado</label><input id="pf-mon" inputmode="decimal" value="${x?Number(x.monto_estimado):''}" placeholder="$" style="${ESTILO_CAMPO}"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+      <div><label>Próxima fecha de pago</label><input type="date" id="pf-prox" value="${x?.proximo_pago||''}" style="${ESTILO_CAMPO}"></div>
+      <div><label>Cada cuándo</label><select id="pf-per" style="${ESTILO_CAMPO}">${Object.entries(PERIOD_FIJO).map(([k,v])=>`<option value="${k}" ${(x?.periodicidad||'mensual')===k?'selected':''}>${v}</option>`).join('')}</select></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+      <div><label>¿Quién lo paga?</label><select id="pf-paga" style="${ESTILO_CAMPO}">${['Jonathan','Yelitza'].map(p=>`<option ${x?.paga===p?'selected':''}>${p}</option>`).join('')}</select></div>
+      <div><label>Avisar con</label><select id="pf-av" style="${ESTILO_CAMPO}">${[3,5,7,10].map(d=>`<option value="${d}" ${(x?.aviso_dias||5)===d?'selected':''}>${d} días de anticipación</option>`).join('')}</select></div>
+    </div>
+    <label style="margin-top:12px">Nota <span style="font-weight:400;color:var(--txt-3)">(número de servicio, a quién se transfiere…)</span></label>
+    <input id="pf-nota" value="${esc(x?.nota||'')}" style="${ESTILO_CAMPO}">
+    ${x?`<div style="margin-top:14px"><button class="btn btn-sm" id="pf-quitar">Ya no se paga: quitarlo</button></div>`:''}`, x?'Guardar':'Agregar');
+  $('#ov-pfijo-ok').onclick=async()=>{
+    const {data,error}=await sb.rpc('guardar_pago_fijo',{p_id:x?.id||null,p_concepto:$('#pf-con').value,p_categoria_clave:$('#pf-cat').value,
+      p_monto:Number(String($('#pf-mon').value).replace(/[$,\s]/g,'')),p_periodicidad:$('#pf-per').value,p_proximo:$('#pf-prox').value||null,
+      p_paga:$('#pf-paga').value,p_aviso:Number($('#pf-av').value),p_nota:$('#pf-nota').value||null});
+    if(error){ toast(error.message,'bad'); return; }
+    const ok=/^Pago fijo/.test(data); toast(data,ok?'ok':'bad'); if(ok){ cerrar('ov-pfijo'); vistaPagosFijos(); }
+  };
+  const q=$('#pf-quitar'); if(q) q.onclick=async()=>{ if(!confirm('¿Quitar este pago fijo? Sus pagos anteriores se quedan en Gastos.')) return;
+    const {data,error}=await sb.rpc('quitar_pago_fijo',{p_id:x.id}); if(error){ toast(error.message,'bad'); return; }
+    toast(data,'ok'); cerrar('ov-pfijo'); vistaPagosFijos(); };
+}
+
+function abrirPagarFijo(x){
+  modalCaja('ov-pfpag','Registrar pago',`
+    <div class="note" style="margin-bottom:12px"><b>${esc(x.concepto)}</b>Correspondía al ${fecha(x.proximo_pago)}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div><label>¿Cuánto se pagó?</label><input id="pp-mon" inputmode="decimal" value="${Number(x.monto_estimado)}" style="${ESTILO_CAMPO}"></div>
+      <div><label>Fecha de pago</label><input type="date" id="pp-fec" value="${hoyMexico()}" max="${hoyMexico()}" style="${ESTILO_CAMPO}"></div>
+    </div>
+    <label style="margin-top:12px">¿Quién pagó?</label>
+    <select id="pp-quien" style="${ESTILO_CAMPO}">${['Jonathan','Yelitza'].map(p=>`<option ${x.paga===p?'selected':''}>${p}</option>`).join('')}</select>
+    <label style="margin-top:12px">Comprobante <span style="font-weight:400;color:var(--txt-3)">(opcional · foto o PDF)</span></label>
+    <input type="file" id="pp-comp" accept="image/*,application/pdf" style="${ESTILO_CAMPO}">`,'Registrar pago');
+  $('#ov-pfpag-ok').onclick=async()=>{
+    const b=$('#ov-pfpag-ok'); b.disabled=true; b.classList.add('cargando');
+    try{
+      const f=$('#pp-comp').files[0]; const comp=f?await subirEvidencia(f):null;
+      const {data,error}=await sb.rpc('pagar_pago_fijo',{p_id:x.id,p_monto:Number(String($('#pp-mon').value).replace(/[$,\s]/g,'')),
+        p_fecha:$('#pp-fec').value||null,p_pagado_por:$('#pp-quien').value,p_comprobante:comp,p_nota:null});
+      if(error) throw error;
+      const ok=/^Pagado/.test(data); toast(data,ok?'ok':'bad'); if(ok){ cerrar('ov-pfpag'); vistaPagosFijos(); }
     }catch(e){ toast(e.message,'bad'); }
     b.disabled=false; b.classList.remove('cargando');
   };
@@ -9676,7 +9805,7 @@ async function abrirNuevoAviso(){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v64';
+const VERSION_APP='v65';
 async function revisarVersion(){
   try{
     const url=location.href.split('#')[0].split('?')[0]+'?nc='+Date.now();
@@ -9732,6 +9861,7 @@ const ICONOS = {
   ok:'<path d="m5 12 5 5L20 7"/>',
   alerta:'<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
   caja:'<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M11 12v2h2v-2"/>',
+  fijos:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M12 13v5M10 14.5h3a1 1 0 0 1 0 2h-2a1 1 0 0 0 0 2h3"/>',
   dinero:'<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'
 };
 const ico = (k,cl='') => `<svg class="ic ${cl}" viewBox="0 0 24 24" aria-hidden="true">${ICONOS[k]||ICONOS.doc}</svg>`;
@@ -9742,7 +9872,7 @@ const GRUPOS = [
   ['Mi espacio',  ['checar','mificha','miasist','mispagos']],
   ['Personal',    ['plantilla','asistencia','asistencia_old','solicitudes','salidas']],
   ['Operación',   ['caja','ventas','auditoria','comisiones','accesos','tickets']],
-  ['Finanzas',    ['nomina','nomina_old','dispersion','dispersion_old','gastos','ingresos','balance']],
+  ['Finanzas',    ['nomina','dispersion','fijos','gastos','ingresos','balance']],
   ['Sistema',     ['usuarios','config']]
 ];
 
@@ -9854,7 +9984,7 @@ async function vistaInicio(){
   const seguro=q=>Promise.resolve(q).then(r=>r&&r.error?null:(r?r.data:null)).catch(()=>null);
   const hace=n=>{ const d=new Date(hoy+'T12:00:00'); d.setDate(d.getDate()-n); return d.toISOString().slice(0,10); };
 
-  const [chk,emp,asis,saj,anom,cont,sdat,alf,baj,enc,acu,sal,flujo,compras,caja,pers] = await Promise.all([
+  const [chk,emp,asis,saj,anom,cont,sdat,alf,baj,enc,acu,sal,flujo,compras,caja,fijos,pers] = await Promise.all([
     seguro(sb.from('v_checadas_hoy').select('*')),
     seguro(sb.from('empleados').select('id',{count:'exact',head:false}).eq('estatus','activo').eq('tipo_registro','empleado')),
     seguro(sb.from('asistencia_dia').select('fecha,estatus_final').gte('fecha',hace(14)).lt('fecha',hoy).limit(3000)),
@@ -9869,7 +9999,8 @@ async function vistaInicio(){
     dir?seguro(sb.from('v_saldo_cuenta').select('*')):null,
     dir?seguro(sb.rpc('flujo_proyectado',{p_dias:15})):null,
     dir?seguro(sb.from('solicitudes_compra').select('id').eq('estado','pendiente')):null,
-    dir?seguro(sb.from('v_caja_saldo').select('gastos_por_revisar,reposicion_pedida')):null,
+    dir?seguro(sb.from('v_caja_saldo').select('gastos_por_revisar,reposicion_pedida,saldo_en_mano,minimo_reponer')):null,
+    dir?seguro(sb.from('v_pagos_fijos').select('concepto,proximo_pago,estado,dias_para_pago,paga').neq('estado','al_corriente')):null,
     dir?seguro(sb.from('v_nomina_resumen').select('*').lte('fecha_inicio',hoy).order('fecha_inicio',{ascending:false}).limit(6)):null
   ]);
 
@@ -9922,6 +10053,10 @@ async function vistaInicio(){
     n(anom)?{n:n(anom),t:'Checadas raras hoy',s:'fuera de red, sin rostro o lejos',ir:'checar',c:'warn'}:null,
     n(baj)?{n:n(baj),t:'Salidas sin cerrar',s:'falta liquidar o firmar',ir:'salidas',c:'warn'}:null,
     n(enc)?{n:n(enc),t:'Encuestas de salida',s:'sin aplicar',ir:'salidas',c:'warn'}:null,
+    ...(fijos||[]).map(f=>({n:f.estado==='vencido'?'!':f.dias_para_pago===0?'hoy':f.dias_para_pago+'d',
+       t:(f.estado==='vencido'?'Vencido: ':'Pagar ')+f.concepto,
+       s:`${f.estado==='vencido'?'era el':'vence el'} ${fecha(f.proximo_pago)}${f.paga?' · paga '+f.paga:''}`,ir:'fijos',c:f.estado==='vencido'?'bad':'warn'})),
+    (caja||[]).some(x=>Number(x.saldo_en_mano)<=Number(x.minimo_reponer))?{n:'$',t:'Caja chica baja',s:`quedan ${money((caja||[])[0].saldo_en_mano)} · considera presupuesto`,ir:'caja',c:'warn'}:null,
     n(compras)?{n:n(compras),t:'Compras por aprobar',s:'lo que pidió supervisión o Perla',ir:'caja',c:'warn'}:null,
     (caja||[]).some(x=>x.reposicion_pedida)?{n:'$',t:'Reposición de caja chica',s:'Perla pidió que le repongas lo gastado',ir:'caja',c:'warn'}:null,
     (caja||[]).reduce((a,x)=>a+Number(x.gastos_por_revisar||0),0)?{n:(caja||[]).reduce((a,x)=>a+Number(x.gastos_por_revisar||0),0),t:'Gastos de caja por revisar',s:'con su foto',ir:'caja',c:'warn'}:null,
