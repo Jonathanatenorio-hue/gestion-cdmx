@@ -423,7 +423,9 @@ main>.tabs button.on{background:var(--card);color:var(--txt);box-shadow:0 1px 3p
 .tv-rank .enmeta .mb i{background:var(--ok)} .tv-rank .enmeta .pos{background:var(--ok);color:#fff}
 .tv-rank .cero .nom{color:var(--txt-3)}
 .tv-rank b .de{font-weight:400;color:var(--txt-3);font-size:11.5px}
-.tv-rank button{grid-template-columns:24px minmax(110px,180px) 1fr 52px 64px}
+.tv-rank b .trn{font-weight:600;color:var(--teal);font-size:11px;margin-left:3px}
+.tv-rank .mb s{position:absolute;top:0;bottom:0;background:var(--teal-line);border-radius:0 4px 4px 0;text-decoration:none;animation:tvcrece .8s var(--ease) both}
+.tv-rank button{grid-template-columns:24px minmax(110px,180px) 1fr 74px 56px}
 .tv-mas{margin-top:8px;border:none;background:none;color:var(--teal);font:inherit;font-size:12.5px;cursor:pointer;padding:4px 6px}
 .tv-rank .pos{width:22px;height:22px;border-radius:50%;background:var(--line-2);color:var(--txt-2);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
 .tv-rank .top .pos{background:var(--teal);color:#fff}
@@ -1232,6 +1234,7 @@ const MODULOS = [
   {id:'misventas',  n:'16b', t:'Mis ventas',           lista:true, ver:'agente'},
   {id:'fijos',      n:'07c', t:'Pagos fijos',          lista:true, soloDir:true},
   {id:'ingresos',   n:'08', t:'Cobros ExpertCell',    lista:true, soloDir:true},
+  {id:'cobranza',   n:'08b', t:'Validación de pagos',  lista:true, soloDir:true},
   {id:'balance',    n:'09', t:'Balance financiero',   lista:true, soloDir:true},
   {id:'dispersion', n:'10', t:'Dispersión de pagos',  lista:true, soloDir:true},
   {id:'salidas',    n:'12', t:'Salidas y finiquitos', lista:true, soloDir:true},
@@ -1325,7 +1328,7 @@ function irA(id){
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
   let m=MODULOS.find(x=>x.id===id);
   if(!m || !puedeVerModulo(m)){ m=MODULOS.find(x=>x.id==='checar'); id='checar'; vistaActual=id; }
-  const R={tablero:vistaTableroVentas, misventas:vistaTableroVentas, registro:vistaRegistroVentas, fijos:vistaPagosFijos, caja:vistaCaja, guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar,
+  const R={cobranza:vistaCobranza, tablero:vistaTableroVentas, misventas:vistaTableroVentas, registro:vistaRegistroVentas, fijos:vistaPagosFijos, caja:vistaCaja, guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar,
              mificha:vistaMiFicha, miasist:vistaMiAsistencia, mispagos:vistaMisPagos,
              solicitudes:vistaSolicitudesDatos, inicio:vistaInicio, avisos:vistaAvisos};
   $('#app').classList.remove('menu');
@@ -9028,7 +9031,7 @@ async function vistaRegistroVentas(){
     sb.from('v_ventas_mes').select('*'),
     tab==='ventas'?traerTodo(()=>{ let q=sb.from('v_registro_ventas').select('*'); if(!todo) q=q.gte('fecha_venta',ini).lte('fecha_venta',fin);
         return q.order('fecha_venta',{ascending:false}).order('hora',{ascending:false}).order('id'); }):{data:[]},
-    sb.from('v_pendientes_entrega').select('*')
+    sb.from('v_en_transito').select('*').order('dias_esperando',{ascending:false})
   ]);
   const err=[rm,lv,pe].find(x=>x.error);
   if(err){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(err.error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 147.</span></div>`; return; }
@@ -9108,10 +9111,11 @@ async function vistaRegistroVentas(){
     }
   } else if(tab==='pendientes'){
     if(!P.length) c.innerHTML='<div class="empty"><b>Nada pendiente de entregar</b>Todos los envíos ya son venta o están cancelados.</div>';
-    else tablaPaginada(c,P,`<th>Programación</th><th>Folio</th><th>Cliente</th><th>Equipo</th><th>Destino</th><th>Estatus</th><th class="num">Días esperando</th>`,
+    else tablaPaginada(c,P,`<th>Programación</th><th>Folio</th><th>Cliente</th><th>Equipo</th><th>Destino</th><th>Agente</th><th>Estatus</th><th class="num">Días esperando</th>`,
       x=>`<tr><td class="mono">${esc(x.programacion)}</td><td class="mono">${esc(x.folio||'')}</td>
       <td style="font-size:12.5px">${esc(x.cliente||'')}<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.telefono||'')}</div></td>
       <td style="font-size:12px">${esc(x.equipo||'')}</td><td style="font-size:12px">${esc([x.municipio,x.estado].filter(Boolean).join(', '))}</td>
+      <td style="font-size:12px;white-space:nowrap">${x.agente?esc(nomCorto(x.agente)):'<span style="color:var(--bad)">sin agente</span>'}</td>
       <td><span class="p p-warn">${esc(x.estatus||'')}</span>${x.status==='En Transito'?' <span style="font-size:11px;color:var(--txt-3)">en tránsito</span>':''}</td>
       <td class="num"><b style="color:${x.dias_esperando>7?'var(--bad)':'inherit'}">${x.dias_esperando??'—'}</b></td></tr>`);
   } else {
@@ -9246,7 +9250,7 @@ async function vistaTableroVentas(){
 function htmlEquipo(r,k,o){
   const eq=pct(k.con_equipo,k.ventas), porEnvio=k.con_equipo?k.dhl/k.con_equipo:0;
   const tipos=(r.tipos||[]).filter(x=>x.nombre!=='Sin dato');
-  const agentes=(r.agentes||[]), maxAg=Math.max(1,...agentes.map(a=>Math.max(a.n,a.meta||0)));
+  const agentes=(r.agentes||[]), maxAg=Math.max(1,...agentes.map(a=>Math.max(a.n+(a.transito||0),a.meta||0)));
   return `
   <div class="dash tv">
     <div class="tile"><div class="tt"><span class="ico">${ico('registro')}</span>Ventas terminadas</div>
@@ -9266,7 +9270,8 @@ function htmlEquipo(r,k,o){
       ${o.enCurso?`<div><small>Ritmo actual</small><b>${o.ritmo.toFixed(1)}</b><span>ventas por día hábil</span></div>
       <div><small>Quedan</small><b>${o.habQuedan}</b><span>días hábiles</span></div>
       <div><small>Si sigue igual cierra en</small><b>${o.proy}</b><span>ventas${o.antMes!=null?` · el mes pasado cerró con ${o.antMes}`:''}</span></div>`:''}
-      ${k.metas?`<div><small>Agentes en meta</small><b>${k.metas.cumplen}<span style="font-size:15px;color:var(--txt-3);margin-left:2px">/ ${k.metas.agentes}</span></b><span>avance ${pct(k.metas.vendido,k.metas.meta_total)}% de ${k.metas.meta_total} ventas</span></div>`:''}
+      ${k.metas?`<div><small>Agentes en meta</small><b>${k.metas.cumplen}<span style="font-size:15px;color:var(--txt-3);margin-left:2px">/ ${k.metas.agentes}</span></b><span>avance ${pct(k.metas.vendido,k.metas.meta_total)}% de ${k.metas.meta_total}${k.transito?` · con lo que va en tránsito llegarían <b style="font-size:inherit;letter-spacing:0">${k.metas.llegarian}</b>`:''}</span></div>`:''}
+      ${k.transito?`<div><small>En tránsito</small><b>${k.transito}</b><span>ventas por entregar con agente</span></div>`:''}
       <div class="tv-barra"><i style="width:${Math.min(100,k.metas?pct(k.metas.vendido,k.metas.meta_total):pct(k.ventas,o.proy))}%"></i></div></div></div>`:''}
 
     <div class="tile w8 tv-g"><div class="tv-h"><b>Ventas por mes</b><span>Últimos 12 meses · toca un mes para verlo</span></div><div class="tv-c" style="height:250px"><canvas id="g-meses"></canvas></div></div>
@@ -9274,10 +9279,10 @@ function htmlEquipo(r,k,o){
       <div class="tv-centro"><b>${(r.planes||[])[0]?esc((r.planes||[])[0].nombre):'—'}</b><span>${(r.planes||[])[0]?pct(r.planes[0].n,k.ventas)+'% del total':''}</span></div></div>
       <div class="leyenda" id="ley-planes"></div></div></div>
 
-    <div class="tile w8 tv-g"><div class="tv-h"><b>${o.alc==='equipo'?'Mi equipo':'Ranking de agentes'}</b><span>${agentes.some(a=>a.meta)?'La marca es la meta del mes · ':''}${agentes.filter(a=>a.n).length} con ventas · toca un nombre</span></div>
-      <div class="tv-rank ${agentes.length>15?'corto':''}" id="tv-rank">${agentes.map((a,i)=>`<button ${a.id?`data-ag="${a.id}" data-nom="${esc(a.nombre)}"`:'disabled'} class="${i<3&&a.n?'top':''} ${a.meta&&a.n>=a.meta?'enmeta':''} ${!a.n?'cero':''}" title="${a.meta?`${a.n} de ${a.meta} (${pct(a.n,a.meta)}% de su meta)`:''}">
+    <div class="tile w8 tv-g"><div class="tv-h"><b>${o.alc==='equipo'?'Mi equipo':'Ranking de agentes'}</b><span>${agentes.some(a=>a.meta)?'La marca es la meta del mes · ':''}${agentes.some(a=>a.transito)?'claro = en tránsito · ':''}${agentes.filter(a=>a.n).length} con ventas · toca un nombre</span></div>
+      <div class="tv-rank ${agentes.length>15?'corto':''}" id="tv-rank">${agentes.map((a,i)=>`<button ${a.id?`data-ag="${a.id}" data-nom="${esc(a.nombre)}"`:'disabled'} class="${i<3&&a.n?'top':''} ${a.meta&&a.n>=a.meta?'enmeta':''} ${!a.n?'cero':''}" title="${[a.meta?`${a.n} de ${a.meta} (${pct(a.n,a.meta)}% de su meta)`:`${a.n} ventas`, a.transito?`${a.transito} en tránsito`:''].filter(Boolean).join(' · ')}">
         <span class="pos">${i+1}</span><span class="nom">${esc(nomCorto(a.nombre))}</span>
-        <span class="mb"><i style="width:${a.n?Math.max(2,a.n*100/maxAg):0}%"></i>${a.meta?`<u style="left:${a.meta*100/maxAg}%"></u>`:''}</span><b>${a.n}${a.meta?`<span class="de">/${a.meta}</span>`:''}</b><small>${a.meta?pct(a.n,a.meta)+'%':money(a.precio).replace('.00','')}</small></button>`).join('')||'<div class="empty">Sin ventas en el periodo.</div>'}</div>
+        <span class="mb"><i style="width:${a.n?Math.max(2,a.n*100/maxAg):0}%"></i>${a.transito?`<s style="left:${a.n*100/maxAg}%;width:${a.transito*100/maxAg}%"></s>`:''}${a.meta?`<u style="left:${a.meta*100/maxAg}%"></u>`:''}</span><b>${a.n}${a.meta?`<span class="de">/${a.meta}</span>`:''}${a.transito?`<span class="trn">+${a.transito}</span>`:''}</b><small>${a.meta?pct(a.n,a.meta)+'%':money(a.precio).replace('.00','')}</small></button>`).join('')||'<div class="empty">Sin ventas en el periodo.</div>'}</div>
       ${agentes.length>15?`<button class="tv-mas" onclick="this.previousElementSibling.classList.toggle('corto');this.textContent=this.previousElementSibling.classList.contains('corto')?'Ver los ${agentes.length}':'Ver solo los primeros 15'">Ver los ${agentes.length}</button>`:''}</div>
     <div class="tile w4 tv-g"><div class="tv-h"><b>Ventas por día</b><span>${(r.dias||0)<=31?'Días hábiles del periodo':'Por semana'}</span></div><div class="tv-c" style="height:${Math.max(250,Math.min(15,agentes.length)*34-20)}px"><canvas id="g-dias"></canvas></div></div>
 
@@ -9301,19 +9306,22 @@ function listaBarras(L,vacio,attr){
 
 function htmlAgente(r,k,o){
   const meta=k.meta||0, avance=meta?Math.min(100,pct(k.ventas,meta)):0, falta=Math.max(0,meta-k.ventas);
+  const trn=o.enCurso?(k.transito||0):0, avT=meta?Math.min(100-avance,pct(trn,meta)):0;
   const R=44, Cc=2*Math.PI*R, C=coloresGraf();
   const porDia=o.habQuedan?Math.ceil(falta/o.habQuedan):falta;
   const msg = !meta ? 'Tu meta aparece cuando tu nivel por antigüedad la tiene definida.'
     : k.ventas>=meta ? `<b>Meta cumplida.</b> Llevas ${k.ventas-meta} arriba de tu meta.`
-    : o.enCurso ? `Te faltan <b>${falta}</b> para tu meta. Quedan ${o.habQuedan} días hábiles: <b>${porDia} por día</b> la alcanza.`
+    : o.enCurso ? `Te faltan <b>${falta}</b> para tu meta${trn?` (${Math.max(0,falta-trn)} si se entrega lo que va en tránsito)`:''}. Quedan ${o.habQuedan} días hábiles: <b>${porDia} por día</b> la alcanza.`
     : `Cerraste a ${falta} de tu meta.`;
   return `
   <div class="dash tv">
     <div class="tile w6 tv-meta"><div class="tt"><span class="ico">${ico('registro')}</span>${meta?`Meta del mes · nivel ${esc(k.nivel||'')}`:'Ventas del periodo'}</div>
       <div class="anillo">
         <svg viewBox="0 0 104 104"><circle cx="52" cy="52" r="${R}" stroke="${C.linea}"/>
+          ${avT?`<circle cx="52" cy="52" r="${R}" stroke="${C.suave}" stroke-dasharray="0 ${Cc}" stroke-dashoffset="${-Cc*avance/100}" data-dash="${Cc*avT/100} ${Cc}"/>`:''}
           <circle cx="52" cy="52" r="${R}" stroke="${avance>=100?C.ok:C.acento}" stroke-dasharray="0 ${Cc}" data-dash="${Cc*avance/100} ${Cc}"/></svg>
         <div><div class="vv" style="margin:0">${k.ventas}${meta?`<em> / ${meta}</em>`:''}</div>
+          ${trn?`<div style="margin-top:6px"><span class="p p-teal">+${trn} en tránsito</span>${meta&&k.ventas<meta?` <span style="font-size:12px;color:var(--txt-3)">entregadas, llegas a ${k.ventas+trn}</span>`:''}</div>`:''}
           <div class="ss" style="margin-top:6px;max-width:260px;line-height:1.5">${msg}</div></div>
       </div></div>
     <div class="tile tv-lugar"><div class="tt"><span class="ico c">${ico('inicio')}</span>${o.esAg?'Tu lugar':'Lugar en la operación'}</div>
@@ -9399,6 +9407,164 @@ function pintarGraficasTablero(r,k,o){
       plugins:{tooltip:{callbacks:{label:c=>` ${c.raw} ventas · ${pct(c.raw,k.ventas)}%`}}}}});
   hbar('g-marcas',(r.marcas||[]).filter(x=>x.nombre!=='Sin equipo').slice(0,8),'Ventas');
   hbar('g-estados',r.estados||[],'Ventas');
+}
+
+/* ============================================================
+   VALIDACIÓN DE PAGOS — cada venta facturada contra lo que pagó ExpertCell
+   ============================================================ */
+const EST_COB = {
+  pagada:          ['Pagada','p-ok','Cuadró con su mensual.'],
+  espera_remanente:['Espera remanente','p-teal','Llegó el anticipo; el 50% restante viene en su mensual.'],
+  en_tiempo:       ['Aún no le toca','p-teal','Su semanal todavía no llega.'],
+  sin_anticipo:    ['Debe venir al 100%','p-warn','Su semanal ya llegó y no vino: el mensual la debe pagar completa.'],
+  anticipo_corto:  ['Anticipo corto','p-warn','El anticipo llegó por menos del 50% esperado.'],
+  reclamar_50:     ['Reclamar 50%','p-bad','Llegó el anticipo pero su mensual no trajo el remanente.'],
+  reclamar_100:    ['Reclamar 100%','p-bad','No vino en ningún archivo y su mensual ya llegó.'],
+  pagada_menos:    ['Pagada de menos','p-bad','El mensual la pagó por debajo de lo esperado.'],
+  byod:            ['BYOD','',  'No se paga: proceso no permitido.'],
+  carrusel:        ['Carrusel','p-warn','ExpertCell la marcó como carrusel.']
+};
+const RECLAMABLES=['reclamar_50','reclamar_100','pagada_menos'];
+const SEG={reclamado:['Reclamada','p-teal'],dado_por_bueno:['Dada por buena',''],recuperado:['Recuperada','p-ok']};
+
+async function vistaCobranza(){
+  $('#main').innerHTML='<div class="empty">Cargando…</div>';
+  const t=S.cob||(S.cob={desde:'2026-07',tab:'resumen',est:'',q:'',sem:''});
+  const desdeF=t.desde==='todo'?'2000-01-01':t.desde+'-01';
+  const [rv,rs,rm]=await Promise.all([
+    traerTodo(()=>sb.from('v_cobranza_ventas').select('*').gte('fecha_fact',desdeF).order('fecha_fact',{ascending:false}).order('folio')),
+    sb.from('v_cobranza_semanas').select('*').gte('semana_inicio',desdeF).order('semana_inicio',{ascending:false}),
+    sb.from('v_cobranza_meses').select('*').gte('mes',desdeF.slice(0,7)).order('mes',{ascending:false})
+  ]);
+  const err=[rv,rs,rm].find(x=>x.error);
+  if(err){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(err.error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 149.</span></div>`; return; }
+  const V=rv.data||[], W=rs.data||[], M=rm.data||[];
+  const abiertos=V.filter(x=>RECLAMABLES.includes(x.estado) && !['dado_por_bueno','recuperado'].includes(x.seguimiento));
+  const porReclamar=abiertos.reduce((a,x)=>a+Number(x.por_reclamar||0),0);
+  const yaReclamado=abiertos.filter(x=>x.seguimiento==='reclamado');
+  const mesesPend=M.filter(m=>!m.archivo_cargado);
+  const faltaLlegue=mesesPend.reduce((a,m)=>a+Number(m.falta_que_llegue||0),0);
+  const al100=V.filter(x=>x.estado==='sin_anticipo');
+  const cerr=V.filter(x=>x.mensual_cargado&&!['byod','carrusel'].includes(x.estado));
+  const okPct=cerr.length?Math.round(cerr.filter(x=>x.estado==='pagada').length*100/cerr.length):0;
+  const nomMes=k=>new Date(k+'-15T12:00:00').toLocaleDateString('es-MX',{month:'long',year:'numeric'});
+  const fc=d=>fecha(d).replace(/ \d{4}$/,'');
+  const sel='padding:7px 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card);color:var(--txt)';
+
+  $('#main').innerHTML=`
+  <div class="head"><div><h1>Validación de pagos</h1><p>Cada venta facturada contra lo que pagó ExpertCell: el 50% en su semanal y el 100% al cerrar su mensual.</p></div>
+    <div class="acts"><button class="btn" onclick="irA('ingresos')">Cargar archivos de pago</button>
+      <button class="btn btn-p" id="cb-exp" ${abiertos.length?'':'disabled'}>Exportar reclamo</button></div></div>
+  <div class="bar" style="gap:10px;margin:4px 0 14px">
+    <select id="cb-desde" style="${sel}">
+      <option value="2026-07" ${t.desde==='2026-07'?'selected':''}>Desde julio 2026</option>
+      <option value="2026-10" ${t.desde==='2026-10'?'selected':''}>Desde octubre 2026</option>
+      <option value="todo" ${t.desde==='todo'?'selected':''}>Todo el año</option></select>
+    <div class="tabs" style="margin:0">
+      ${[['resumen','Por semana y mes'],['reclamar',`Por reclamar · ${abiertos.length}`],['al100',`Deben venir al 100% · ${al100.length}`],['todas','Todas las ventas']]
+        .map(([k,l])=>`<button class="tab ${t.tab===k?'on':''}" data-cbt="${k}">${l}</button>`).join('')}
+    </div></div>
+  <div class="kpis">
+    <div class="kpi ${porReclamar>0?'b':''}"><span>Por reclamar</span><b>${money(porReclamar)}</b><small>${abiertos.length} ventas${yaReclamado.length?` · ${yaReclamado.length} ya reclamadas`:''}</small></div>
+    <div class="kpi t"><span>Falta que llegue</span><b>${money(faltaLlegue)}</b><small>${mesesPend.length?'en '+mesesPend.map(m=>nomMes(m.mes).split(' ')[0]).join(' y '):'nada pendiente'}</small></div>
+    <div class="kpi ${al100.length?'w':''}"><span>Deben venir al 100%</span><b>${al100.length}</b><small>sin anticipo, en su mensual</small></div>
+    <div class="kpi"><span>Cuadradas</span><b>${okPct}%</b><small>de los meses ya cerrados</small></div>
+  </div>
+  <div class="note" style="margin-top:12px"><b>Reglas</b>Semanal: el 50% de lo facturado de lunes a domingo. Mensual: cierra el 100% del mes (si no hubo anticipo, la paga completa).
+    Comisión = renta sin impuestos × 3.8 (3.5 hasta junio). Titanio comisiona sobre la renta de un plan de $825. BYOD no se paga.</div>
+  <div id="cb-cuerpo" style="margin-top:14px"></div>`;
+
+  const c=$('#cb-cuerpo');
+  const chip=x=>{ const e=EST_COB[x.estado]||[x.estado,'','']; return `<span class="p ${e[1]}" title="${esc(e[2])}">${esc(e[0])}</span>${x.seguimiento?` <span class="p ${SEG[x.seguimiento]?.[1]||''}" title="${esc(x.nota_seguimiento||'')}">${esc(SEG[x.seguimiento]?.[0]||x.seguimiento)}</span>`:''}`; };
+  const filaVenta=(x,acc)=>`<tr>
+    <td class="mono">${esc(x.folio)}</td>
+    <td style="font-size:12.5px;white-space:nowrap">${fc(x.fecha_venta)}${x.fecha_fact!==x.fecha_venta?`<div style="font-size:11px;color:var(--txt-3)">facturó ${fc(x.fecha_fact)}</div>`:''}</td>
+    <td style="font-size:12.5px">${esc((x.plan||'').replace(/^ATT /,''))}</td>
+    <td class="num">${money(x.comision_esperada)}</td>
+    <td class="num">${x.anticipo?money(x.anticipo):'—'}<div style="font-size:11px;color:var(--txt-3)">${esc(x.semanas||'')}</div></td>
+    <td class="num">${x.mensuales?money(x.total_mensual||0):'—'}<div style="font-size:11px;color:var(--txt-3)">${esc(x.mensuales||'')}</div></td>
+    <td class="num"><b style="color:${Number(x.por_reclamar)>0?'var(--bad)':'inherit'}">${Number(x.por_reclamar)>0?money(x.por_reclamar):''}</b></td>
+    <td>${chip(x)}</td>
+    <td style="font-size:12px">${esc(x.agente?nomCorto(x.agente):x.no_comisiona?'Dirección':'')}</td>
+    ${acc?`<td><select data-seg data-folio="${esc(x.folio)}" data-monto="${x.por_reclamar||0}" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--txt);font-size:12px">
+      <option value="">${x.seguimiento?'Cambiar…':'Seguimiento…'}</option><option value="reclamado">Ya la reclamé</option><option value="recuperado">Ya la pagaron</option><option value="dado_por_bueno">Dar por buena</option><option value="quitar">Quitar marca</option></select></td>`:''}
+  </tr>`;
+  const cabV=acc=>`<th>Folio</th><th>Venta</th><th>Plan</th><th class="num">Esperado</th><th class="num">Anticipo</th><th class="num">Mensual</th><th class="num">Falta</th><th>Estado</th><th>Agente</th>${acc?'<th></th>':''}`;
+  const enganchar=el=>el.querySelectorAll('[data-seg]').forEach(b=>b.onchange=async()=>{
+    const v=b.value; if(!v) return;
+    let error;
+    if(v==='quitar') ({error}=await sb.from('cobranza_seguimiento').delete().eq('folio',b.dataset.folio));
+    else { const nota=v==='dado_por_bueno'?prompt('¿Por qué se da por buena? (opcional)')||null:null;
+      ({error}=await sb.from('cobranza_seguimiento').upsert({folio:b.dataset.folio,estatus:v,monto:Number(b.dataset.monto)||null,nota,actualizado_en:new Date().toISOString()})); }
+    if(error) return toast(error.message,'bad');
+    toast('Guardado.','ok'); vistaCobranza(); });
+
+  if(t.tab==='resumen'){
+    const dif=n=>{ n=Number(n||0); return Math.abs(n)<1?'<span style="color:var(--ok)">Cuadra</span>':n>0?`<b style="color:var(--warn)" title="Lo que no vino en el semanal debe venir completo en su mensual">Faltan ${money(n)}</b><div style="font-size:11px;color:var(--txt-3)">debe venir en el mensual</div>`:`<b style="color:var(--ok)">Sobran ${money(-n)}</b>`; };
+    c.innerHTML=`
+    <div class="tv-h"><b>Por mes</b><span>El mensual cierra el 100% de lo facturado en el mes</span></div>
+    <div class="tw"><table><thead><tr><th>Mes</th><th>Archivo mensual</th><th class="num">Ventas</th><th class="num">Pagadas</th><th class="num">Por reclamar</th><th class="num">Al 100%</th><th class="num">Esperado</th><th class="num">Cobrado</th><th class="num">Por reclamar $</th><th class="num">Falta que llegue</th></tr></thead>
+    <tbody>${M.map(m=>`<tr><td><b style="text-transform:capitalize">${esc(nomMes(m.mes))}</b></td>
+      <td>${m.archivo_cargado?'<span class="p p-ok">Cargado</span>':'<span class="p p-teal">Por llegar</span>'}</td>
+      <td class="num">${m.ventas}</td><td class="num">${m.pagadas}</td>
+      <td class="num">${m.por_reclamar?`<b style="color:var(--bad)">${m.por_reclamar}</b>`:'0'}</td>
+      <td class="num">${m.deben_venir_al_100||0}</td>
+      <td class="num">${money(m.esperado||0)}</td><td class="num">${money(m.cobrado||0)}</td>
+      <td class="num">${Number(m.monto_por_reclamar)?`<b style="color:var(--bad)">${money(m.monto_por_reclamar)}</b>`:'—'}</td>
+      <td class="num">${m.archivo_cargado?'—':money(m.falta_que_llegue||0)}</td></tr>`).join('')}</tbody></table></div>
+    <div class="tv-h" style="margin-top:22px"><b>Por semana</b><span>El semanal trae el 50% de lo facturado de lunes a domingo · toca una semana para ver sus ventas</span></div>
+    <div id="cb-sem"></div>`;
+    tablaPaginada($('#cb-sem'),W,`<th>Semana</th><th>Facturado del</th><th>Archivo</th><th class="num">Ventas</th><th class="num">Con anticipo</th><th class="num">Sin anticipo</th><th class="num">Esperado (50%)</th><th class="num">Recibido</th><th>Cuadre</th>`,
+      w=>`<tr style="cursor:pointer" data-sem="${esc(w.semana)}"><td><b>${esc(w.semana.replace(/^\d{4}-/,''))}</b></td>
+        <td style="font-size:12.5px">${fc(w.semana_inicio)} – ${fc(w.semana_fin)}</td>
+        <td>${w.archivo_cargado?'<span class="p p-ok">Cargado</span>':'<span class="p p-teal">Por llegar</span>'}</td>
+        <td class="num">${w.ventas}</td><td class="num">${w.con_anticipo}</td>
+        <td class="num">${w.sin_anticipo?`<b style="color:${w.archivo_cargado?'var(--warn)':'inherit'}">${w.sin_anticipo}</b>`:'0'}</td>
+        <td class="num">${money(w.esperado||0)}</td><td class="num">${money(w.recibido||0)}</td>
+        <td>${w.archivo_cargado?dif(w.diferencia):'<span style="color:var(--txt-3);font-size:12px">Aún no llega</span>'}</td></tr>`,
+      {despues:el=>el.querySelectorAll('[data-sem]').forEach(tr=>tr.onclick=()=>{ t.tab='todas'; t.sem=tr.dataset.sem; t.est=''; vistaCobranza(); })});
+  } else if(t.tab==='reclamar'){
+    c.innerHTML=abiertos.length?'<div id="cb-l"></div>':'<div class="enorden"><span class="ico">✓</span><b>Nada por reclamar</b>Todo lo que ya cerró su mensual cuadra.</div>';
+    if(abiertos.length) tablaPaginada($('#cb-l'),abiertos.sort((a,b)=>b.por_reclamar-a.por_reclamar),cabV(true),x=>filaVenta(x,true),{despues:enganchar});
+  } else if(t.tab==='al100'){
+    c.innerHTML=`<div class="note" style="margin-bottom:12px"><b>Para revisar cuando llegue el mensual</b>Estas ventas ya tenían que venir en su semanal y no vinieron. No es reclamo todavía: el mensual de su mes las debe pagar al 100%. Si no vienen ahí, pasan solas a "Por reclamar".</div><div id="cb-l"></div>`;
+    tablaPaginada($('#cb-l'),al100,cabV(false),x=>filaVenta(x,false),{vacio:'Todas las ventas con semanal cargado trajeron su anticipo.'});
+  } else {
+    c.innerHTML=`<div class="bar" style="gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <input type="search" id="cb-q" value="${esc(t.q)}" placeholder="Buscar folio, plan o agente" style="flex:1;min-width:200px">
+      <select id="cb-sem" style="${sel}"><option value="">Todas las semanas</option>${W.map(w=>`<option value="${esc(w.semana)}" ${t.sem===w.semana?'selected':''}>${esc(w.semana.replace(/^\d{4}-/,''))} · ${fc(w.semana_inicio)}</option>`).join('')}</select>
+      <select id="cb-est" style="${sel}"><option value="">Todos los estados</option>${Object.entries(EST_COB).map(([k,v])=>`<option value="${k}" ${t.est===k?'selected':''}>${v[0]}</option>`).join('')}</select>
+    </div><div id="cb-l"></div>`;
+    const pintar=()=>{ const q=t.q.trim().toLowerCase();
+      tablaPaginada($('#cb-l'),V.filter(x=>(!t.est||x.estado===t.est)&&(!t.sem||x.semana_fact===t.sem)&&(!q||[x.folio,x.plan,x.agente].join(' ').toLowerCase().includes(q))),cabV(true),x=>filaVenta(x,true),{despues:enganchar}); };
+    let tm; $('#cb-q').oninput=e=>{ t.q=e.target.value; clearTimeout(tm); tm=setTimeout(pintar,180); };
+    $('#cb-sem').onchange=e=>{ t.sem=e.target.value; pintar(); };
+    $('#cb-est').onchange=e=>{ t.est=e.target.value; pintar(); };
+    pintar();
+  }
+
+  $('#cb-desde').onchange=e=>{ t.desde=e.target.value; vistaCobranza(); };
+  document.querySelectorAll('[data-cbt]').forEach(b=>b.onclick=()=>{ t.tab=b.dataset.cbt; if(t.tab!=='todas') t.sem=''; vistaCobranza(); });
+  $('#cb-exp').onclick=()=>exportarReclamo(abiertos);
+}
+
+/* Excel para mandar a ExpertCell: una venta por renglón, total con fórmula */
+function exportarReclamo(L){
+  if(!L.length) return;
+  const motivo=x=>({reclamar_50:'Llegó anticipo, falta el remanente',reclamar_100:'No vino en ningún archivo de pago',pagada_menos:'Pagada por debajo de lo esperado'}[x.estado]||x.estado);
+  const filas=[['Folio','Fecha de venta','Fecha de facturación','Plan','Renta sin impuestos (base)','Factor','Comisión esperada','Anticipo recibido','Total del mensual','Falta','Motivo','Archivos donde aparece']];
+  L.forEach((x,i)=>{ const r=i+2;
+    filas.push([String(x.folio),x.fecha_venta,x.fecha_fact,(x.plan||'').replace(/^ATT /,''),Number(x.base||0),
+      {f:`ROUND(G${r}/E${r},2)`},Number(x.comision_esperada||0),Number(x.anticipo||0),x.mensuales?Number(x.total_mensual||0):null,
+      {f:x.mensuales?`G${r}-I${r}`:`G${r}-H${r}`},motivo(x),[x.semanas,x.mensuales].filter(Boolean).join(', ')]); });
+  const n=L.length+1;
+  filas.push(['TOTAL','','','','','',{f:`SUM(G2:G${n})`},{f:`SUM(H2:H${n})`},{f:`SUM(I2:I${n})`},{f:`SUM(J2:J${n})`},`${L.length} ventas`,'']);
+  const ws=XLSX.utils.aoa_to_sheet(filas.map(f=>f.map(v=>v&&typeof v==='object'?null:v)));
+  filas.forEach((f,ri)=>f.forEach((v,ci)=>{ if(v&&typeof v==='object'&&v.f) ws[XLSX.utils.encode_cell({r:ri,c:ci})]={t:'n',f:v.f}; }));
+  ws['!cols']=[14,12,14,10,14,8,14,14,14,12,36,30].map(w=>({wch:w}));
+  for(let r=2;r<=n+1;r++) ['E','G','H','I','J'].forEach(c=>{ const cel=ws[c+r]; if(cel) cel.z='"$"#,##0.00'; });
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Reclamo');
+  XLSX.writeFile(wb,`reclamo_expertcell_${hoyMexico()}.xlsx`);
 }
 
 async function cargarReportesGlobal(archivos){
@@ -10453,7 +10619,7 @@ async function abrirNuevoAviso(){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v73';
+const VERSION_APP='v75';
 async function revisarVersion(){
   try{
     const url=location.href.split('#')[0].split('?')[0]+'?nc='+Date.now();
@@ -10509,6 +10675,7 @@ const ICONOS = {
   ok:'<path d="m5 12 5 5L20 7"/>',
   alerta:'<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
   caja:'<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M11 12v2h2v-2"/>',
+  cobranza:'<path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/>',
   tablero:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   misventas:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
   registro:'<path d="M4 4h16v16H4z"/><path d="M4 9h16M9 9v11"/><path d="m12 15 2 2 4-4"/>',
@@ -10523,7 +10690,7 @@ const GRUPOS = [
   ['Mi espacio',  ['checar','misventas','mificha','miasist','mispagos']],
   ['Personal',    ['plantilla','asistencia','asistencia_old','solicitudes','salidas']],
   ['Operación',   ['tablero','registro','caja','ventas','auditoria','comisiones','accesos','tickets']],
-  ['Finanzas',    ['nomina','dispersion','fijos','gastos','ingresos','balance']],
+  ['Finanzas',    ['nomina','dispersion','fijos','gastos','ingresos','cobranza','balance']],
   ['Sistema',     ['usuarios','config']]
 ];
 
