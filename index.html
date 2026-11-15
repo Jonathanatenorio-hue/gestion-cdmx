@@ -382,6 +382,67 @@ main>.tabs button.on{background:var(--card);color:var(--txt);box-shadow:0 1px 3p
   .tile{padding:15px}.tile .vv{font-size:26px}.anillo svg{width:86px;height:86px}
   .inis{grid-template-columns:1fr 1fr;gap:8px}.ini{padding:12px}.ini b{font-size:22px}}
 
+
+/* ---------- Paginación ---------- */
+.pager{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 4px 2px;font-size:12.5px;color:var(--txt-3)}
+.pager b{color:var(--txt)}
+.pager .pg{display:flex;gap:4px;align-items:center}
+.pager .pg button{min-width:32px;height:32px;padding:0 9px;border:1px solid var(--line);background:var(--card);color:var(--txt-2);border-radius:9px;cursor:pointer;font:inherit;font-size:12.5px;font-variant-numeric:tabular-nums;transition:background .15s,border-color .15s}
+.pager .pg button:hover:not(:disabled){border-color:var(--teal-line);color:var(--teal)}
+.pager .pg button.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600}
+.pager .pg button:disabled{opacity:.4;cursor:default}
+.pager .pg i{font-style:normal;padding:0 4px}
+/* ---------- Tablero de ventas ---------- */
+.tv-filtros{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 18px}
+.tv-chips{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:3px}
+.tv-chips button{border:none;background:none;padding:6px 13px;border-radius:8px;font:inherit;font-size:12.5px;color:var(--txt-2);cursor:pointer;transition:background .15s,color .15s}
+.tv-chips button.on{background:var(--card);color:var(--txt);font-weight:600;box-shadow:var(--sh)}
+.tv-filtros select{padding:7px 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card);color:var(--txt);font:inherit;font-size:12.5px}
+.tv-per{margin-left:auto;font-size:12px;color:var(--txt-3);text-transform:capitalize}
+.tv-tag{border:1px solid var(--teal-line);background:var(--teal-l);color:var(--teal-ink);padding:5px 11px;border-radius:20px;font:inherit;font-size:12px;cursor:pointer}
+.tv-volver{border:none;background:none;color:var(--teal);font:inherit;font-size:12.5px;cursor:pointer;padding:0;margin-bottom:6px}
+.dash.tv .tile.tv-g,.dash.tv .tile.tv-proy,.dash.tv .tile.tv-meta{cursor:default}
+.dash.tv .tile.tv-g:hover,.dash.tv .tile.tv-proy:hover,.dash.tv .tile.tv-meta:hover{transform:none;box-shadow:var(--sh)}
+.tv-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.tv-h b{font-size:14px;font-weight:600} .tv-h span{font-size:11.5px;color:var(--txt-3)}
+.tv-c{position:relative;width:100%;min-width:0}
+.dash.tv .tile{min-width:0}
+.tv-dona{display:flex;flex-direction:column;gap:14px}
+.tv-centro{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;text-align:center}
+.tv-centro b{font-size:18px;font-weight:700;letter-spacing:-.4px;max-width:96px;line-height:1.1} .tv-centro span{font-size:11px;color:var(--txt-3);margin-top:2px}
+.tv-rank{display:flex;flex-direction:column;gap:2px}
+.tv-rank button,.tv-lb .fila{display:grid;grid-template-columns:24px minmax(110px,180px) 1fr 38px 78px;align-items:center;gap:10px;padding:6px 6px;border:none;background:none;
+  border-radius:8px;font:inherit;color:inherit;text-align:left;cursor:pointer;transition:background .15s}
+.tv-lb .fila{grid-template-columns:minmax(90px,200px) 1fr 34px 38px;cursor:default}
+.tv-lb button.fila{cursor:pointer}
+.tv-rank button:hover:not(:disabled),.tv-lb button.fila:hover{background:var(--surface-2)}
+.tv-rank button:disabled{cursor:default}
+.tv-rank.corto button:nth-child(n+16){display:none}
+.tv-rank .mb{position:relative;overflow:visible}
+.tv-rank .mb u{position:absolute;top:-4px;bottom:-4px;width:2px;margin-left:-1px;background:var(--txt-2);border-radius:1px;text-decoration:none}
+.tv-rank .enmeta .mb i{background:var(--ok)} .tv-rank .enmeta .pos{background:var(--ok);color:#fff}
+.tv-rank .cero .nom{color:var(--txt-3)}
+.tv-rank b .de{font-weight:400;color:var(--txt-3);font-size:11.5px}
+.tv-rank button{grid-template-columns:24px minmax(110px,180px) 1fr 52px 64px}
+.tv-mas{margin-top:8px;border:none;background:none;color:var(--teal);font:inherit;font-size:12.5px;cursor:pointer;padding:4px 6px}
+.tv-rank .pos{width:22px;height:22px;border-radius:50%;background:var(--line-2);color:var(--txt-2);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.tv-rank .top .pos{background:var(--teal);color:#fff}
+.tv-rank .nom,.tv-lb .nom{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tv-rank .mb,.tv-lb .mb{height:8px;border-radius:4px;background:var(--line-2);overflow:hidden}
+.tv-rank .mb i,.tv-lb .mb i{display:block;height:100%;background:var(--teal);border-radius:4px;animation:tvcrece .8s var(--ease) both}
+.tv-rank b,.tv-lb b{font-variant-numeric:tabular-nums;text-align:right;font-size:13px}
+.tv-rank small,.tv-lb small{font-size:11.5px;color:var(--txt-3);text-align:right;font-variant-numeric:tabular-nums}
+@keyframes tvcrece{from{width:0}}
+.tv-proy{padding:16px 22px}
+.tv-proy-in{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:18px;align-items:end}
+.tv-proy-in>div small{display:block;font-size:11.5px;color:var(--txt-3);margin-bottom:4px}
+.tv-proy-in>div b{font-family:var(--fuente-t);font-size:26px;font-weight:700;letter-spacing:-.8px;font-variant-numeric:tabular-nums}
+.tv-proy-in>div span{font-size:12px;color:var(--txt-2);margin-left:6px}
+.tv-barra{grid-column:1/-1;height:6px;border-radius:3px;background:var(--line-2);overflow:hidden}
+.tv-barra i{display:block;height:100%;background:linear-gradient(90deg,var(--teal),var(--copper));border-radius:3px;animation:tvcrece 1s var(--ease) both}
+@media(max-width:760px){.tv-per{margin-left:0;width:100%}.tv-proy-in{grid-template-columns:1fr;gap:10px}
+  .tv-rank button{grid-template-columns:22px 1fr 60px 30px}.tv-rank small{display:none}.tv-lb .fila{grid-template-columns:1fr 70px 30px 34px}}
+
 /* ---------- Guía ---------- */
 .guia{max-width:860px}
 .gcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;box-shadow:var(--sh);overflow:hidden;transition:box-shadow .2s}
@@ -1167,6 +1228,8 @@ const MODULOS = [
   {id:'gastos',     n:'07', t:'Gastos',               lista:true, soloDir:true},
   {id:'caja',       n:'07b', t:'Caja chica y compras', lista:true, ver:'caja'},
   {id:'registro',   n:'05b', t:'Registro de ventas',   lista:true, soloDir:true},
+  {id:'tablero',    n:'05c', t:'Tablero de ventas',    lista:true, ver:'ventasjefe'},
+  {id:'misventas',  n:'16b', t:'Mis ventas',           lista:true, ver:'agente'},
   {id:'fijos',      n:'07c', t:'Pagos fijos',          lista:true, soloDir:true},
   {id:'ingresos',   n:'08', t:'Cobros ExpertCell',    lista:true, soloDir:true},
   {id:'balance',    n:'09', t:'Balance financiero',   lista:true, soloDir:true},
@@ -1262,7 +1325,7 @@ function irA(id){
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
   let m=MODULOS.find(x=>x.id===id);
   if(!m || !puedeVerModulo(m)){ m=MODULOS.find(x=>x.id==='checar'); id='checar'; vistaActual=id; }
-  const R={registro:vistaRegistroVentas, fijos:vistaPagosFijos, caja:vistaCaja, guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar,
+  const R={tablero:vistaTableroVentas, misventas:vistaTableroVentas, registro:vistaRegistroVentas, fijos:vistaPagosFijos, caja:vistaCaja, guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar,
              mificha:vistaMiFicha, miasist:vistaMiAsistencia, mispagos:vistaMisPagos,
              solicitudes:vistaSolicitudesDatos, inicio:vistaInicio, avisos:vistaAvisos};
   $('#app').classList.remove('menu');
@@ -8916,89 +8979,426 @@ function abrirPagarFijo(x){
 }
 
 /* ============================================================
+   UTILIDADES: traer todo (más de 1000 filas) y paginar tablas
+   ============================================================ */
+async function traerTodo(armar){
+  const out=[]; let i=0;
+  for(;;){
+    const {data,error}=await armar().range(i,i+999);
+    if(error) return {error};
+    out.push(...(data||[]));
+    if(!data || data.length<1000) break;
+    i+=1000;
+  }
+  return {data:out};
+}
+
+/* Tabla por páginas. filas = arreglo ya filtrado; fila(x) = <tr>…</tr>.
+   Devuelve la página actual para poder volver a pintar con filtros. */
+function tablaPaginada(el, filas, cabecera, fila, opt={}){
+  const por=opt.por||50, total=filas.length, paginas=Math.max(1,Math.ceil(total/por));
+  let p=Math.min(Math.max(1,opt.pagina||1),paginas);
+  const pintar=()=>{
+    const ini=(p-1)*por, trozo=filas.slice(ini,ini+por);
+    const nums=[]; for(let k=1;k<=paginas;k++){ if(k===1||k===paginas||Math.abs(k-p)<=2) nums.push(k); else if(nums[nums.length-1]!=='…') nums.push('…'); }
+    el.innerHTML=`<div class="tw"><table><thead><tr>${cabecera}</tr></thead><tbody>${trozo.map(fila).join('')||
+      `<tr><td colspan="20" style="text-align:center;color:var(--txt-3);padding:26px">${esc(opt.vacio||'Sin resultados con estos filtros.')}</td></tr>`}</tbody></table></div>
+      <div class="pager">
+        <span>${total?`${ini+1}–${Math.min(ini+por,total)} de <b>${total.toLocaleString('es-MX')}</b>`:'0 resultados'}</span>
+        ${paginas>1?`<div class="pg">
+          <button data-pg="${p-1}" ${p===1?'disabled':''} aria-label="Anterior">‹</button>
+          ${nums.map(k=>k==='…'?'<i>…</i>':`<button data-pg="${k}" class="${k===p?'on':''}">${k}</button>`).join('')}
+          <button data-pg="${p+1}" ${p===paginas?'disabled':''} aria-label="Siguiente">›</button></div>`:''}
+      </div>`;
+    el.querySelectorAll('[data-pg]').forEach(b=>b.onclick=()=>{ p=Number(b.dataset.pg); opt.alCambiar&&opt.alCambiar(p); pintar();
+      const top=el.getBoundingClientRect().top; if(top<0) el.scrollIntoView({behavior:'smooth',block:'start'}); });
+    opt.despues&&opt.despues(el);
+  };
+  pintar();
+}
+
+/* ============================================================
    REGISTRO DE VENTAS — reportes oficiales de Global
    ============================================================ */
 async function vistaRegistroVentas(){
   $('#main').innerHTML='<div class="empty">Cargando…</div>';
-  const mes=S.rvMes||hoyMexico().slice(0,7), tab=S.rvTab||'ventas';
-  const ini=mes+'-01', fin=new Date(Number(mes.slice(0,4)),Number(mes.slice(5,7)),0).toISOString().slice(0,10);
+  const mes=S.rvMes||hoyMexico().slice(0,7), tab=S.rvTab||'ventas', todo=mes==='todo';
+  const ini=todo?null:mes+'-01', fin=todo?null:new Date(Number(mes.slice(0,4)),Number(mes.slice(5,7)),0).toISOString().slice(0,10);
   const [rm,lv,pe]=await Promise.all([
     sb.from('v_ventas_mes').select('*'),
-    tab==='ventas'?sb.from('v_registro_ventas').select('*').gte('fecha_venta',ini).lte('fecha_venta',fin).order('fecha_venta',{ascending:false}).order('hora',{ascending:false}).limit(3000):{data:[]},
+    tab==='ventas'?traerTodo(()=>{ let q=sb.from('v_registro_ventas').select('*'); if(!todo) q=q.gte('fecha_venta',ini).lte('fecha_venta',fin);
+        return q.order('fecha_venta',{ascending:false}).order('hora',{ascending:false}).order('id'); }):{data:[]},
     sb.from('v_pendientes_entrega').select('*')
   ]);
   const err=[rm,lv,pe].find(x=>x.error);
-  if(err){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(err.error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 143.</span></div>`; return; }
-  const M=rm.data||[], m=M.find(x=>x.mes===mes)||{}, L=lv.data||[], P=pe.data||[];
-  const nombreMes=new Date(mes+'-15T12:00:00').toLocaleDateString('es-MX',{month:'long',year:'numeric'});
+  if(err){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(err.error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 147.</span></div>`; return; }
+  const M=rm.data||[], L=lv.data||[], P=pe.data||[];
+  const sum=k=>M.reduce((a,x)=>a+Number(x[k]||0),0);
+  const m=todo?{terminadas:sum('terminadas'),canceladas:sum('canceladas'),folios_recapturados:sum('folios_recapturados'),con_equipo:sum('con_equipo'),
+                costo_dhl:sum('costo_dhl'),costo_dhl_cancelados:sum('costo_dhl_cancelados')}:(M.find(x=>x.mes===mes)||{});
+  const nomMes=k=>new Date(k+'-15T12:00:00').toLocaleDateString('es-MX',{month:'long',year:'numeric'});
+  const nombreMes=todo?'todos los meses':nomMes(mes);
   const planes=[...new Set(L.map(x=>x.plan).filter(Boolean))].sort();
+  const agentes=[...new Set(L.map(x=>x.ejecutivo).filter(Boolean))].sort();
+  const meses=[...new Set([hoyMexico().slice(0,7),...M.map(x=>x.mes)])].sort().reverse();
+  const sel='padding:7px 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card);color:var(--txt)';
 
   $('#main').innerHTML=`
   <div class="head"><div><h1>Registro de ventas</h1><p>Los reportes oficiales de Global: cada venta con su plan, estatus, equipo, zona y costo de envío.</p></div>
-    <div class="acts"><button class="btn btn-p" id="rv-cargar">Cargar reportes</button>
+    <div class="acts"><button class="btn" onclick="irA('tablero')">Ver tablero</button><button class="btn btn-p" id="rv-cargar">Cargar reportes</button>
       <input type="file" id="rv-file" accept=".xlsx,.xls" multiple style="display:none"></div></div>
   <div class="note"><b>Qué se carga</b>"Global ventas" y "Detalle programación", de cualquier rango de fechas y cuantas veces quieras: lo que ya existe se actualiza y lo nuevo se agrega.
     Solo entra la cuenta de Yelitza. Back office y canceladas no hacen falta: vienen dentro de programación.</div>
   <div class="bar" style="gap:10px;margin:14px 0">
-    <input type="month" id="rv-mes" value="${mes}" style="padding:7px 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card)">
+    <select id="rv-mes" style="${sel};text-transform:capitalize">
+      <option value="todo" ${todo?'selected':''}>Todos los meses</option>
+      ${meses.map(k=>`<option value="${k}" ${k===mes?'selected':''}>${esc(nomMes(k))}</option>`).join('')}
+    </select>
     <div class="tabs" style="margin:0">
-      <button class="tab ${tab==='ventas'?'on':''}" data-rvt="ventas">Ventas del mes</button>
+      <button class="tab ${tab==='ventas'?'on':''}" data-rvt="ventas">Ventas</button>
       <button class="tab ${tab==='pendientes'?'on':''}" data-rvt="pendientes">Pendientes de entrega · ${P.length}</button>
       <button class="tab ${tab==='meses'?'on':''}" data-rvt="meses">Por mes</button>
     </div></div>
   <div class="kpis">
-    <div class="kpi t"><span>Terminadas</span><b>${m.terminadas||0}</b><small>${esc(nombreMes)}</small></div>
-    <div class="kpi ${m.canceladas?'b':''}"><span>Canceladas</span><b>${m.canceladas||0}</b><small>en el mes</small></div>
+    <div class="kpi t"><span>Terminadas</span><b>${(m.terminadas||0).toLocaleString('es-MX')}</b><small style="text-transform:capitalize">${esc(nombreMes)}</small></div>
+    <div class="kpi ${m.canceladas?'b':''}"><span>Canceladas</span><b>${m.canceladas||0}</b><small>${todo?'en total':'en el mes'}</small></div>
     <div class="kpi ${m.folios_recapturados?'w':''}"><span>Folios recapturados</span><b>${m.folios_recapturados||0}</b><small>cancelado y vuelto a subir</small></div>
-    <div class="kpi"><span>Con equipo</span><b>${m.con_equipo||0}</b><small>se enviaron por DHL</small></div>
-    <div class="kpi ${Number(m.costo_dhl)?'w':''}"><span>Costo DHL</span><b>${money(m.costo_dhl||0)}</b><small>${Number(m.costo_dhl_cancelados)?money(m.costo_dhl_cancelados)+' en cancelados':'guías del mes'}</small></div>
+    <div class="kpi"><span>Con equipo</span><b>${(m.con_equipo||0).toLocaleString('es-MX')}</b><small>llevaron teléfono</small></div>
+    <div class="kpi ${Number(m.costo_dhl)?'w':''}"><span>Costo DHL</span><b>${money(m.costo_dhl||0)}</b><small>${Number(m.costo_dhl_cancelados)?money(m.costo_dhl_cancelados)+' en cancelados':'guías'}</small></div>
   </div>
   <div id="rv-cuerpo"></div>`;
 
   const c=$('#rv-cuerpo');
   if(tab==='ventas'){
-    c.innerHTML=!L.length?`<div class="empty"><b>Sin ventas en ${esc(nombreMes)}</b>Carga los reportes de Global.</div>`:`
-    <div class="bar" style="gap:8px;margin-bottom:10px">
-      <input type="search" id="rv-q" placeholder="Buscar folio, teléfono, equipo, estado" style="flex:1;min-width:200px">
-      <select id="rv-plan" style="padding:7px 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card)"><option value="">Todos los planes</option>${planes.map(p=>`<option>${esc(p)}</option>`).join('')}</select>
-      <select id="rv-est" style="padding:7px 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card)"><option value="">Todos</option><option>Terminada</option><option>Cancelada</option><option value="recap">Recapturadas</option><option value="equipo">Con equipo</option></select>
-    </div>
-    <div class="tw"><table><thead><tr><th>Fecha</th><th>Folio</th><th>Teléfono</th><th>Plan</th><th class="num">Precio</th><th>Estatus</th><th>Equipo</th><th>Envío a</th><th class="num">Guía</th><th>Ejecutivo</th></tr></thead>
-    <tbody>${L.map(x=>`<tr data-rv="${esc([x.folio,x.telefono,x.equipo,x.estado_envio,x.municipio,x.subregion].join(' ').toLowerCase())}" data-plan="${esc(x.plan||'')}" data-est="${esc(x.estatus_att||'')}" data-recap="${x.recapturada?1:0}" data-eq="${x.equipo?1:0}">
-      <td style="font-size:12.5px;white-space:nowrap">${fecha(x.fecha_venta)} <span style="color:var(--txt-3)">${String(x.hora||'').slice(0,5)}</span></td>
-      <td class="mono">${esc(x.folio)}${x.recapturada?' <span class="p p-warn" title="Este folio aparece más de una vez">recapturado</span>':''}</td>
-      <td class="mono" style="font-size:12.5px">${esc(x.telefono||'')}</td>
-      <td style="font-size:12.5px">${esc((x.plan||'').replace(/^ATT /,''))}</td>
-      <td class="num">${x.precio?money(x.precio):'—'}</td>
-      <td><span class="p ${x.estatus_att==='Terminada'?'p-ok':'p-bad'}">${esc(x.estatus_att||'')}</span></td>
-      <td style="font-size:12px">${esc(x.equipo||'')}</td>
-      <td style="font-size:12px">${esc([x.municipio,x.estado_envio].filter(Boolean).join(', ')||x.subregion||'')}</td>
-      <td class="num" style="font-size:12.5px">${Number(x.total_guia)?money(x.total_guia):''}</td>
-      <td style="font-size:12px;color:${x.ejecutivo?'inherit':'var(--txt-3)'}">${esc(x.ejecutivo||'sin asignar')}</td></tr>`).join('')}</tbody></table></div>`;
-    const filtrar=()=>{ const q=($('#rv-q').value||'').trim().toLowerCase(), pl=$('#rv-plan').value, es=$('#rv-est').value;
-      document.querySelectorAll('[data-rv]').forEach(tr=>{ const ok=(!q||tr.dataset.rv.includes(q))&&(!pl||tr.dataset.plan===pl)&&
-        (!es||(es==='recap'?tr.dataset.recap==='1':es==='equipo'?tr.dataset.eq==='1':tr.dataset.est===es)); tr.style.display=ok?'':'none'; }); };
-    if($('#rv-q')){ $('#rv-q').oninput=filtrar; $('#rv-plan').onchange=filtrar; $('#rv-est').onchange=filtrar; }
+    if(!L.length){ c.innerHTML=`<div class="empty"><b>Sin ventas en ${esc(nombreMes)}</b>Carga los reportes de Global.</div>`; }
+    else {
+      const F=S.rvF||(S.rvF={q:'',plan:'',est:'',ag:'',p:1});
+      c.innerHTML=`
+      <div class="bar" style="gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <input type="search" id="rv-q" value="${esc(F.q)}" placeholder="Buscar folio, teléfono, cliente, equipo, estado" style="flex:1;min-width:200px">
+        <select id="rv-ag" style="${sel}"><option value="">Todos los agentes</option>${agentes.map(p=>`<option ${p===F.ag?'selected':''}>${esc(p)}</option>`).join('')}</select>
+        <select id="rv-plan" style="${sel}"><option value="">Todos los planes</option>${planes.map(p=>`<option ${p===F.plan?'selected':''}>${esc(p)}</option>`).join('')}</select>
+        <select id="rv-est" style="${sel}">${[['','Todos'],['Terminada','Terminada'],['Cancelada','Cancelada'],['recap','Recapturadas'],['equipo','Con equipo'],['sinequipo','Solo SIM']]
+          .map(([v,t])=>`<option value="${v}" ${v===F.est?'selected':''}>${t}</option>`).join('')}</select>
+      </div><div id="rv-tabla"></div>`;
+      const busc=x=>(x._b||(x._b=[x.folio,x.telefono,x.cliente,x.equipo,x.estado_envio,x.municipio,x.subregion,x.ejecutivo].join(' ').toLowerCase()));
+      const cab=`<th>Fecha</th><th>Folio</th><th>Teléfono</th><th>Plan</th><th class="num">Precio</th><th>Estatus</th><th>Equipo</th><th>Envío a</th><th class="num">Guía</th><th>Ejecutivo</th>`;
+      const fila=x=>`<tr>
+        <td style="font-size:12.5px;white-space:nowrap">${fecha(x.fecha_venta)} <span style="color:var(--txt-3)">${String(x.hora||'').slice(0,5)}</span></td>
+        <td class="mono">${esc(x.folio)}${x.recapturada?' <span class="p p-warn" title="Este folio aparece más de una vez">recapturado</span>':''}</td>
+        <td class="mono" style="font-size:12.5px">${esc(x.telefono||'')}</td>
+        <td style="font-size:12.5px">${esc((x.plan||'').replace(/^ATT /,''))}</td>
+        <td class="num">${x.precio?money(x.precio):'—'}</td>
+        <td><span class="p ${x.estatus_att==='Terminada'?'p-ok':'p-bad'}">${esc(x.estatus_att||'')}</span></td>
+        <td style="font-size:12px">${x.equipo?esc(x.equipo):'<span style="color:var(--txt-3)">Solo SIM</span>'}</td>
+        <td style="font-size:12px">${esc([x.municipio,x.estado_envio].filter(Boolean).join(', ')||x.subregion||'')}</td>
+        <td class="num" style="font-size:12.5px">${Number(x.total_guia)?money(x.total_guia):''}</td>
+        <td style="font-size:12px;white-space:nowrap;color:${x.ejecutivo?'inherit':'var(--txt-3)'}" title="${esc([x.ejecutivo,x.supervisor&&'Supervisa: '+x.supervisor].filter(Boolean).join(' · '))}">${esc(x.ejecutivo?nomCorto(x.ejecutivo):'sin asignar')}${x.supervisor?`<div style="font-size:11px;color:var(--txt-3)">${esc(nomCorto(x.supervisor))}</div>`:''}</td></tr>`;
+      const filtrar=(reset)=>{ if(reset) F.p=1;
+        const q=F.q.trim().toLowerCase();
+        const R=L.filter(x=>(!q||busc(x).includes(q))&&(!F.plan||x.plan===F.plan)&&(!F.ag||x.ejecutivo===F.ag)&&
+          (!F.est||(F.est==='recap'?x.recapturada:F.est==='equipo'?!!x.equipo:F.est==='sinequipo'?!x.equipo:x.estatus_att===F.est)));
+        tablaPaginada($('#rv-tabla'),R,cab,fila,{pagina:F.p,alCambiar:p=>F.p=p});
+      };
+      let t; $('#rv-q').oninput=e=>{ F.q=e.target.value; clearTimeout(t); t=setTimeout(()=>filtrar(true),180); };
+      $('#rv-plan').onchange=e=>{ F.plan=e.target.value; filtrar(true); };
+      $('#rv-ag').onchange=e=>{ F.ag=e.target.value; filtrar(true); };
+      $('#rv-est').onchange=e=>{ F.est=e.target.value; filtrar(true); };
+      filtrar(false);
+    }
   } else if(tab==='pendientes'){
-    c.innerHTML=!P.length?'<div class="empty"><b>Nada pendiente de entregar</b>Todos los envíos ya son venta o están cancelados.</div>':`
-    <div class="tw"><table><thead><tr><th>Programación</th><th>Folio</th><th>Cliente</th><th>Equipo</th><th>Destino</th><th>Estatus</th><th class="num">Días esperando</th></tr></thead>
-    <tbody>${P.map(x=>`<tr><td class="mono">${esc(x.programacion)}</td><td class="mono">${esc(x.folio||'')}</td>
+    if(!P.length) c.innerHTML='<div class="empty"><b>Nada pendiente de entregar</b>Todos los envíos ya son venta o están cancelados.</div>';
+    else tablaPaginada(c,P,`<th>Programación</th><th>Folio</th><th>Cliente</th><th>Equipo</th><th>Destino</th><th>Estatus</th><th class="num">Días esperando</th>`,
+      x=>`<tr><td class="mono">${esc(x.programacion)}</td><td class="mono">${esc(x.folio||'')}</td>
       <td style="font-size:12.5px">${esc(x.cliente||'')}<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.telefono||'')}</div></td>
       <td style="font-size:12px">${esc(x.equipo||'')}</td><td style="font-size:12px">${esc([x.municipio,x.estado].filter(Boolean).join(', '))}</td>
       <td><span class="p p-warn">${esc(x.estatus||'')}</span>${x.status==='En Transito'?' <span style="font-size:11px;color:var(--txt-3)">en tránsito</span>':''}</td>
-      <td class="num"><b style="color:${x.dias_esperando>7?'var(--bad)':'inherit'}">${x.dias_esperando??'—'}</b></td></tr>`).join('')}</tbody></table></div>`;
+      <td class="num"><b style="color:${x.dias_esperando>7?'var(--bad)':'inherit'}">${x.dias_esperando??'—'}</b></td></tr>`);
   } else {
     c.innerHTML=!M.length?'<div class="empty">Todavía no hay ventas cargadas.</div>':`
     <div class="tw"><table><thead><tr><th>Mes</th><th class="num">Terminadas</th><th class="num">Canceladas</th><th class="num">Recapturadas</th><th class="num">Con equipo</th><th class="num">Precio total</th><th class="num">Costo DHL</th></tr></thead>
-    <tbody>${M.map(x=>`<tr style="cursor:pointer" data-mes="${x.mes}"><td><b>${new Date(x.mes+'-15T12:00:00').toLocaleDateString('es-MX',{month:'long',year:'numeric'})}</b></td>
+    <tbody>${M.map(x=>`<tr style="cursor:pointer" data-mes="${x.mes}"><td><b style="text-transform:capitalize">${esc(nomMes(x.mes))}</b></td>
       <td class="num">${x.terminadas}</td><td class="num">${x.canceladas}</td><td class="num">${x.folios_recapturados}</td><td class="num">${x.con_equipo}</td>
       <td class="num">${money(x.precio_total||0)}</td><td class="num">${money(x.costo_dhl||0)}</td></tr>`).join('')}</tbody></table></div>`;
-    document.querySelectorAll('[data-mes]').forEach(tr=>tr.onclick=()=>{ S.rvMes=tr.dataset.mes; S.rvTab='ventas'; vistaRegistroVentas(); });
+    document.querySelectorAll('[data-mes]').forEach(tr=>tr.onclick=()=>{ S.rvMes=tr.dataset.mes; S.rvTab='ventas'; S.rvF=null; vistaRegistroVentas(); });
   }
-  $('#rv-mes').onchange=e=>{ S.rvMes=e.target.value; vistaRegistroVentas(); };
+  $('#rv-mes').onchange=e=>{ S.rvMes=e.target.value; S.rvF&&(S.rvF.p=1); vistaRegistroVentas(); };
   document.querySelectorAll('[data-rvt]').forEach(b=>b.onclick=()=>{ S.rvTab=b.dataset.rvt; vistaRegistroVentas(); });
   $('#rv-cargar').onclick=()=>$('#rv-file').click();
   $('#rv-file').onchange=e=>cargarReportesGlobal([...e.target.files]);
+}
+
+/* ============================================================
+   TABLERO DE VENTAS — dirección, supervisión y cada agente
+   ============================================================ */
+let _chartJs=null;
+function cargarChartJs(){
+  if(window.Chart) return Promise.resolve();
+  if(_chartJs) return _chartJs;
+  _chartJs=new Promise((ok,mal)=>{ const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
+    s.onload=()=>ok(); s.onerror=()=>{ _chartJs=null; mal(new Error('No se pudo cargar la librería de gráficas.')); }; document.head.appendChild(s); });
+  return _chartJs;
+}
+/* Paleta categórica validada (orden fijo) y colores del tema */
+function coloresGraf(){
+  const os=document.documentElement.getAttribute('data-theme')==='dark', cs=getComputedStyle(document.documentElement), v=k=>cs.getPropertyValue(k).trim();
+  return { os, acento:v('--teal'), suave:v('--teal-line'), txt:v('--txt'), txt2:v('--txt-2'), txt3:v('--txt-3'), linea:v('--line-2'), card:v('--card'), ok:v('--ok'), bad:v('--bad'), warn:v('--warn'),
+    cat: os?['#3987e5','#d95926','#199e70','#c98500','#d55181','#0ca30c','#9085e9','#e66767']
+           :['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300','#6250d6','#e34948'] };
+}
+S.graficas=[];
+function limpiarGraficas(){ (S.graficas||[]).forEach(g=>{ try{ g.destroy(); }catch(e){} }); S.graficas=[]; }
+function grafica(id, cfg){
+  const el=document.getElementById(id); if(!el||!window.Chart) return null;
+  const C=coloresGraf();
+  Chart.defaults.font.family=getComputedStyle(document.body).fontFamily;
+  Chart.defaults.color=C.txt3;
+  const g=new Chart(el,{...cfg, options:{responsive:true, maintainAspectRatio:false, animation:{duration:700,easing:'easeOutCubic'},
+    interaction:{mode:'nearest',intersect:false}, ...cfg.options,
+    plugins:{legend:{display:false}, tooltip:{backgroundColor:C.os?'#0b0b0b':'#ffffff', titleColor:C.txt, bodyColor:C.txt2, borderColor:C.linea, borderWidth:1,
+      padding:10, cornerRadius:10, displayColors:true, boxWidth:8, boxHeight:8, boxPadding:4, titleFont:{weight:'600'}, ...(cfg.options?.plugins?.tooltip||{})},
+      ...(cfg.options?.plugins||{})}}});
+  S.graficas.push(g); return g;
+}
+const ejes=(C,extra={})=>({
+  x:{grid:{display:false}, border:{display:false}, ticks:{color:C.txt3,font:{size:11}}, ...(extra.x||{})},
+  y:{grid:{color:C.linea}, border:{display:false}, ticks:{color:C.txt3,font:{size:11},precision:0}, beginAtZero:true, ...(extra.y||{})}
+});
+
+function rangoTablero(t){
+  const hoy=hoyMexico(), y=Number(hoy.slice(0,4)), mo=Number(hoy.slice(5,7));
+  const finMes=(a,m)=>new Date(a,m,0).toISOString().slice(0,10), ini=(a,m)=>`${a}-${String(m).padStart(2,'0')}-01`;
+  const mm=(a,m)=>{ const d=new Date(a,m-1,1); return [d.getFullYear(),d.getMonth()+1]; };
+  if(t.per==='mesant'){ const [a,m]=mm(y,mo-1); return [ini(a,m),finMes(a,m),'el mes pasado']; }
+  if(t.per==='3m'){ const [a,m]=mm(y,mo-2); return [ini(a,m),finMes(y,mo),'los últimos 3 meses']; }
+  if(t.per==='anio') return [`${y}-01-01`,`${y}-12-31`,String(y)];
+  if(t.per==='mes' && t.mes){ const a=Number(t.mes.slice(0,4)), m=Number(t.mes.slice(5,7));
+    return [ini(a,m),finMes(a,m),new Date(t.mes+'-15T12:00:00').toLocaleDateString('es-MX',{month:'long',year:'numeric'})]; }
+  return [ini(y,mo),finMes(y,mo),'este mes'];
+}
+/* Días hábiles (lun–vie) entre dos fechas, inclusive */
+function habiles(a,b){ let n=0; const d=new Date(a+'T12:00:00'), f=new Date(b+'T12:00:00'); while(d<=f){ const w=d.getDay(); if(w&&w<6) n++; d.setDate(d.getDate()+1); } return n; }
+const pct=(a,b)=>b?Math.round(a*100/b):0;
+const nomCorto=n=>{ n=String(n||'');
+  if(/^Direcci/i.test(n)||/no comisiona/i.test(n)) return 'Dirección (no comisiona)';
+  const p=n.split(/\s+/).filter(Boolean), cap=w=>w.charAt(0).toUpperCase()+w.slice(1).toLowerCase();
+  const sel=p.length<=2?p:[p[0],p.length>=4?p[p.length-2]:p[1]];
+  return sel.map(cap).join(' '); };
+
+async function vistaTableroVentas(){
+  const t=S.tv||(S.tv={per:'mes',mes:null,emp:null,empNom:null,sup:null});
+  const esAg=S.perfil?.rol==='agente';
+  const [desde,hasta,etiqueta]=rangoTablero(t);
+  $('#main').innerHTML='<div class="empty">Cargando…</div>';
+  limpiarGraficas();
+  let r, cargaErr=null;
+  try{
+    const [res]=await Promise.all([
+      sb.rpc('tablero_ventas',{p_desde:desde,p_hasta:hasta,p_emp:esAg?null:t.emp,p_supervisor:t.sup}),
+      cargarChartJs().catch(e=>{ cargaErr=e; })
+    ]);
+    if(res.error) throw res.error; r=res.data;
+  }catch(e){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar el tablero</b>${esc(e.message||e)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 147.</span></div>`; return; }
+  if(!r||r.ok===false){ $('#main').innerHTML=`<div class="empty"><b>Sin tablero</b>${esc(r?.msg||'')}</div>`; return; }
+  if(cargaErr) toast(cargaErr.message,'bad');
+
+  const k=r.kpi||{}, alc=r.alcance, hoy=hoyMexico();
+  const enCurso=desde<=hoy && hoy<=hasta;
+  const delta=(a,b)=>{ if(!b) return ''; const d=Math.round((a-b)*100/b); return `<span class="delta ${d>0?'up':d<0?'down':'eq'}">${d>0?'▲':d<0?'▼':'='} ${Math.abs(d)}%</span>`; };
+  const antTxt=k.ant_desde?`vs ${fecha(k.ant_desde).replace(/ \d{4}$/,'')} – ${fecha(k.ant_hasta).replace(/ \d{4}$/,'')}`:'';
+  const hab=habiles(desde,hasta), habVan=enCurso?habiles(desde,hoy):hab, habQuedan=enCurso?Math.max(0,habiles(hoy,hasta)-1):0;
+  const ritmo=habVan?k.ventas/habVan:0, proy=Math.round(k.ventas+ritmo*habQuedan);
+  const titulo = alc==='agente' ? (esAg?'Mis ventas':nomCorto(t.empNom||'Agente')) : alc==='equipo' ? 'Ventas de mi equipo' : 'Tablero de ventas';
+  const chips=[['mes','Este mes'],['mesant','Mes pasado'],['3m','3 meses'],['anio','Año']];
+  const mesesSel=(r.meses||[]).map(x=>x.mes).reverse();
+
+  $('#main').innerHTML=`
+  <div class="head"><div>
+      ${alc==='agente'&&!esAg?`<button class="tv-volver" id="tv-volver">← Volver al tablero</button>`:''}
+      <h1>${esc(titulo)}</h1>
+      <p>${alc==='agente'?(esAg?'Tus ventas terminadas según Global: tu avance, tu lugar y cómo vas contra el mes pasado.':'Lo que lleva este agente en el periodo.')
+         :alc==='equipo'?'Las ventas terminadas de las personas que tienes a cargo.':'Ventas terminadas de la operación según Global. Toca una barra o un nombre para profundizar.'}</p></div>
+    <div class="acts">${S.direccion?`<button class="btn" onclick="irA('registro')">Registro de ventas</button>`:''}</div></div>
+
+  <div class="tv-filtros">
+    <div class="tv-chips">${chips.map(([v,l])=>`<button data-per="${v}" class="${t.per===v&&!(v==='mes'&&t.mes)?'on':''}">${l}</button>`).join('')}</div>
+    <select id="tv-mes"><option value="">Elegir mes…</option>${mesesSel.map(m=>`<option value="${m}" ${t.per==='mes'&&t.mes===m?'selected':''}>${esc(new Date(m+'-15T12:00:00').toLocaleDateString('es-MX',{month:'long',year:'numeric'}))}</option>`).join('')}</select>
+    ${alc==='todo'&&(r.supervisores||[]).length>1?`<select id="tv-sup"><option value="">Todos los supervisores</option>${(r.supervisores||[]).map(s=>`<option ${t.sup===s.nombre?'selected':''}>${esc(s.nombre)}</option>`).join('')}</select>`
+      :t.sup?`<button class="tv-tag" id="tv-sup-x">${esc(t.sup)} ✕</button>`:''}
+    <span class="tv-per">${esc(etiqueta)} · ${fecha(desde)} – ${fecha(hasta)}</span>
+  </div>
+
+  ${alc==='agente'?htmlAgente(r,k,{enCurso,habQuedan,ritmo,proy,antTxt,delta,esAg}):htmlEquipo(r,k,{antMes:(t.per==='mes'&&!t.mes)?((r.meses||[]).slice(-2,-1)[0]?.ventas??null):null,enCurso,habQuedan,ritmo,proy,antTxt,delta,alc})}`;
+
+  /* eventos */
+  document.querySelectorAll('[data-per]').forEach(b=>b.onclick=()=>{ t.per=b.dataset.per; t.mes=null; vistaTableroVentas(); });
+  $('#tv-mes').onchange=e=>{ if(!e.target.value) return; t.per='mes'; t.mes=e.target.value; vistaTableroVentas(); };
+  if($('#tv-sup')) $('#tv-sup').onchange=e=>{ t.sup=e.target.value||null; vistaTableroVentas(); };
+  if($('#tv-sup-x')) $('#tv-sup-x').onclick=()=>{ t.sup=null; vistaTableroVentas(); };
+  if($('#tv-volver')) $('#tv-volver').onclick=()=>{ t.emp=null; t.empNom=null; vistaTableroVentas(); };
+  document.querySelectorAll('[data-ag]').forEach(b=>b.onclick=()=>{ t.emp=Number(b.dataset.ag); t.empNom=b.dataset.nom; vistaTableroVentas(); });
+  document.querySelectorAll('[data-sup]').forEach(b=>b.onclick=()=>{ t.sup=b.dataset.sup; vistaTableroVentas(); });
+  if(window.Chart) pintarGraficasTablero(r,k,{desde,hasta,alc,t});
+  if(alc==='agente') pintarListaAgente(r);
+}
+
+function htmlEquipo(r,k,o){
+  const eq=pct(k.con_equipo,k.ventas), porEnvio=k.con_equipo?k.dhl/k.con_equipo:0;
+  const tipos=(r.tipos||[]).filter(x=>x.nombre!=='Sin dato');
+  const agentes=(r.agentes||[]), maxAg=Math.max(1,...agentes.map(a=>Math.max(a.n,a.meta||0)));
+  return `
+  <div class="dash tv">
+    <div class="tile"><div class="tt"><span class="ico">${ico('registro')}</span>Ventas terminadas</div>
+      <div class="vv">${k.ventas.toLocaleString('es-MX')}</div>
+      <div class="ss">${o.delta(k.ventas,k.ventas_ant)} ${k.ventas_ant?`${k.ventas_ant} ${esc(o.antTxt)}`:'sin periodo previo para comparar'}</div></div>
+    <div class="tile"><div class="tt"><span class="ico ok">${ico('dinero')}</span>Monto de planes</div>
+      <div class="vv">${money(k.precio).replace('.00','')}</div>
+      <div class="ss">Ticket promedio ${money(k.ticket||0)}</div></div>
+    <div class="tile"><div class="tt"><span class="ico c">${ico('mispagos')}</span>Con equipo</div>
+      <div class="vv">${eq}<em>%</em></div>
+      <div class="ss">${k.con_equipo} con teléfono · ${k.ventas-k.con_equipo} solo SIM</div></div>
+    <div class="tile ${k.pendientes?'':''}" ${k.pendientes!=null&&S.direccion?`onclick="S.rvTab='pendientes';irA('registro')"`:''}><div class="tt"><span class="ico w">${ico('fijos')}</span>Costo DHL</div>
+      <div class="vv">${money(k.dhl||0).replace('.00','')}</div>
+      <div class="ss">${money(porEnvio)} por envío${k.pendientes!=null?` · <b style="color:var(--warn)">${k.pendientes} por entregar</b>`:''}</div></div>
+
+    ${o.enCurso||k.metas?`<div class="tile w12 tv-proy"><div class="tv-proy-in">
+      ${o.enCurso?`<div><small>Ritmo actual</small><b>${o.ritmo.toFixed(1)}</b><span>ventas por día hábil</span></div>
+      <div><small>Quedan</small><b>${o.habQuedan}</b><span>días hábiles</span></div>
+      <div><small>Si sigue igual cierra en</small><b>${o.proy}</b><span>ventas${o.antMes!=null?` · el mes pasado cerró con ${o.antMes}`:''}</span></div>`:''}
+      ${k.metas?`<div><small>Agentes en meta</small><b>${k.metas.cumplen}<span style="font-size:15px;color:var(--txt-3);margin-left:2px">/ ${k.metas.agentes}</span></b><span>avance ${pct(k.metas.vendido,k.metas.meta_total)}% de ${k.metas.meta_total} ventas</span></div>`:''}
+      <div class="tv-barra"><i style="width:${Math.min(100,k.metas?pct(k.metas.vendido,k.metas.meta_total):pct(k.ventas,o.proy))}%"></i></div></div></div>`:''}
+
+    <div class="tile w8 tv-g"><div class="tv-h"><b>Ventas por mes</b><span>Últimos 12 meses · toca un mes para verlo</span></div><div class="tv-c" style="height:250px"><canvas id="g-meses"></canvas></div></div>
+    <div class="tile w4 tv-g"><div class="tv-h"><b>Mezcla de planes</b><span>${k.ventas} ventas</span></div><div class="tv-dona"><div class="tv-c" style="height:170px"><canvas id="g-planes"></canvas>
+      <div class="tv-centro"><b>${(r.planes||[])[0]?esc((r.planes||[])[0].nombre):'—'}</b><span>${(r.planes||[])[0]?pct(r.planes[0].n,k.ventas)+'% del total':''}</span></div></div>
+      <div class="leyenda" id="ley-planes"></div></div></div>
+
+    <div class="tile w8 tv-g"><div class="tv-h"><b>${o.alc==='equipo'?'Mi equipo':'Ranking de agentes'}</b><span>${agentes.some(a=>a.meta)?'La marca es la meta del mes · ':''}${agentes.filter(a=>a.n).length} con ventas · toca un nombre</span></div>
+      <div class="tv-rank ${agentes.length>15?'corto':''}" id="tv-rank">${agentes.map((a,i)=>`<button ${a.id?`data-ag="${a.id}" data-nom="${esc(a.nombre)}"`:'disabled'} class="${i<3&&a.n?'top':''} ${a.meta&&a.n>=a.meta?'enmeta':''} ${!a.n?'cero':''}" title="${a.meta?`${a.n} de ${a.meta} (${pct(a.n,a.meta)}% de su meta)`:''}">
+        <span class="pos">${i+1}</span><span class="nom">${esc(nomCorto(a.nombre))}</span>
+        <span class="mb"><i style="width:${a.n?Math.max(2,a.n*100/maxAg):0}%"></i>${a.meta?`<u style="left:${a.meta*100/maxAg}%"></u>`:''}</span><b>${a.n}${a.meta?`<span class="de">/${a.meta}</span>`:''}</b><small>${a.meta?pct(a.n,a.meta)+'%':money(a.precio).replace('.00','')}</small></button>`).join('')||'<div class="empty">Sin ventas en el periodo.</div>'}</div>
+      ${agentes.length>15?`<button class="tv-mas" onclick="this.previousElementSibling.classList.toggle('corto');this.textContent=this.previousElementSibling.classList.contains('corto')?'Ver los ${agentes.length}':'Ver solo los primeros 15'">Ver los ${agentes.length}</button>`:''}</div>
+    <div class="tile w4 tv-g"><div class="tv-h"><b>Ventas por día</b><span>${(r.dias||0)<=31?'Días hábiles del periodo':'Por semana'}</span></div><div class="tv-c" style="height:${Math.max(250,Math.min(15,agentes.length)*34-20)}px"><canvas id="g-dias"></canvas></div></div>
+
+    <div class="tile w6 tv-g"><div class="tv-h"><b>Marcas de equipo</b><span>${k.con_equipo} ventas con teléfono</span></div><div class="tv-c" style="height:230px"><canvas id="g-marcas"></canvas></div></div>
+    <div class="tile w6 tv-g"><div class="tv-h"><b>Equipos más vendidos</b><span>Top 10 del periodo</span></div>${listaBarras(r.equipos||[],'Sin equipos en el periodo.')}</div>
+
+    <div class="tile ${(r.supervisores||[]).length>1||tipos.length?'w6':'w12'} tv-g"><div class="tv-h"><b>A dónde se vende</b><span>Estado de envío (o región si fue solo SIM)</span></div><div class="tv-c" style="height:280px"><canvas id="g-estados"></canvas></div></div>
+    ${(r.supervisores||[]).length>1?`<div class="tile w6 tv-g"><div class="tv-h"><b>Por supervisor</b><span>Toca uno para filtrar todo el tablero</span></div>
+      ${listaBarras(r.supervisores||[],'',s=>`data-sup="${esc(s.nombre)}"`)}
+      ${tipos.length?`<div class="tv-h" style="margin-top:18px"><b>Tipo de venta</b><span>Cuando viene en el layout</span></div>${listaBarras(r.tipos||[],'')}`:''}</div>`
+    :tipos.length?`<div class="tile w6 tv-g"><div class="tv-h"><b>Tipo de venta</b><span>Cuando viene en el layout</span></div>${listaBarras(r.tipos||[],'')}</div>`:''}
+  </div>`;
+}
+
+function listaBarras(L,vacio,attr){
+  if(!L.length) return `<div class="empty" style="padding:20px">${esc(vacio)}</div>`;
+  const mx=Math.max(...L.map(x=>x.n)), tot=L.reduce((a,x)=>a+x.n,0);
+  return `<div class="tv-lb">${L.map(x=>`<${attr?'button':'div'} class="fila" ${attr?attr(x):''}><span class="nom" title="${esc(x.nombre)}">${esc(x.nombre)}</span>
+    <span class="mb"><i style="width:${Math.max(2,x.n*100/mx)}%"></i></span><b>${x.n}</b><small>${pct(x.n,tot)}%</small></${attr?'button':'div'}>`).join('')}</div>`;
+}
+
+function htmlAgente(r,k,o){
+  const meta=k.meta||0, avance=meta?Math.min(100,pct(k.ventas,meta)):0, falta=Math.max(0,meta-k.ventas);
+  const R=44, Cc=2*Math.PI*R, C=coloresGraf();
+  const porDia=o.habQuedan?Math.ceil(falta/o.habQuedan):falta;
+  const msg = !meta ? 'Tu meta aparece cuando tu nivel por antigüedad la tiene definida.'
+    : k.ventas>=meta ? `<b>Meta cumplida.</b> Llevas ${k.ventas-meta} arriba de tu meta.`
+    : o.enCurso ? `Te faltan <b>${falta}</b> para tu meta. Quedan ${o.habQuedan} días hábiles: <b>${porDia} por día</b> la alcanza.`
+    : `Cerraste a ${falta} de tu meta.`;
+  return `
+  <div class="dash tv">
+    <div class="tile w6 tv-meta"><div class="tt"><span class="ico">${ico('registro')}</span>${meta?`Meta del mes · nivel ${esc(k.nivel||'')}`:'Ventas del periodo'}</div>
+      <div class="anillo">
+        <svg viewBox="0 0 104 104"><circle cx="52" cy="52" r="${R}" stroke="${C.linea}"/>
+          <circle cx="52" cy="52" r="${R}" stroke="${avance>=100?C.ok:C.acento}" stroke-dasharray="0 ${Cc}" data-dash="${Cc*avance/100} ${Cc}"/></svg>
+        <div><div class="vv" style="margin:0">${k.ventas}${meta?`<em> / ${meta}</em>`:''}</div>
+          <div class="ss" style="margin-top:6px;max-width:260px;line-height:1.5">${msg}</div></div>
+      </div></div>
+    <div class="tile tv-lugar"><div class="tt"><span class="ico c">${ico('inicio')}</span>${o.esAg?'Tu lugar':'Lugar en la operación'}</div>
+      <div class="vv">${k.posicion?`#${k.posicion}`:'—'}<em>${k.de?` de ${k.de}`:''}</em></div>
+      <div class="ss">${k.posicion===1?'Primer lugar de la operación':k.posicion?'En ventas de la operación en el periodo':'Sin ventas en el periodo'}</div></div>
+    <div class="tile"><div class="tt"><span class="ico ok">${ico('dinero')}</span>Contra el periodo anterior</div>
+      <div class="vv">${k.ventas_ant}</div>
+      <div class="ss">${o.delta(k.ventas,k.ventas_ant)} ${esc(o.antTxt)}</div></div>
+
+    <div class="tile w4"><div class="tt"><span class="ico">${ico('mispagos')}</span>Con equipo</div>
+      <div class="vv">${pct(k.con_equipo,k.ventas)}<em>%</em></div><div class="ss">${k.con_equipo} con teléfono · ticket ${money(k.ticket||0)}</div></div>
+    ${o.enCurso?`<div class="tile w8 tv-proy"><div class="tv-proy-in">
+      <div><small>Tu ritmo</small><b>${o.ritmo.toFixed(1)}</b><span>por día hábil</span></div>
+      <div><small>Quedan</small><b>${o.habQuedan}</b><span>días hábiles</span></div>
+      <div><small>A este ritmo cierras con</small><b>${o.proy}</b><span>${meta?(o.proy>=meta?'llegas a tu meta':`te quedarías a ${meta-o.proy}`):'ventas'}</span></div></div></div>`
+    :`<div class="tile w8"><div class="tt"><span class="ico ok">${ico('dinero')}</span>Monto de tus planes</div><div class="vv">${money(k.precio).replace('.00','')}</div><div class="ss">${k.ventas} ventas terminadas</div></div>`}
+
+    <div class="tile w8 tv-g"><div class="tv-h"><b>Mis ventas por mes</b><span>Últimos 12 meses${meta?' · la línea es tu meta actual':''}</span></div><div class="tv-c" style="height:240px"><canvas id="g-meses"></canvas></div></div>
+    <div class="tile w4 tv-g"><div class="tv-h"><b>Mis planes</b><span>${k.ventas} ventas</span></div><div class="tv-dona"><div class="tv-c" style="height:170px"><canvas id="g-planes"></canvas>
+      <div class="tv-centro"><b>${k.ventas}</b><span>ventas</span></div></div><div class="leyenda" id="ley-planes"></div></div></div>
+    <div class="tile w12 tv-g"><div class="tv-h"><b>Ventas por día</b><span>Cada barra es un día del periodo</span></div><div class="tv-c" style="height:200px"><canvas id="g-dias"></canvas></div></div>
+    <div class="tile w12 tv-g" style="cursor:default"><div class="tv-h"><b>Detalle de ventas</b><span>Folio, cliente, plan, equipo y si ya se entregó</span></div>
+      <input type="search" id="tv-q" placeholder="Buscar folio, cliente o equipo" style="width:100%;margin:6px 0 10px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2);color:var(--txt);font:inherit">
+      <div id="tv-lista"></div></div>
+  </div>`;
+}
+
+function pintarListaAgente(r){
+  const L=r.lista||[], el=$('#tv-lista'); if(!el) return;
+  setTimeout(()=>document.querySelectorAll('.tv-meta circle[data-dash]').forEach(c=>c.setAttribute('stroke-dasharray',c.dataset.dash)),60);
+  const cab=`<th>Fecha</th><th>Folio</th><th>Cliente</th><th>Plan</th><th class="num">Precio</th><th>Equipo</th><th>Entrega</th>`;
+  const fila=x=>`<tr><td style="white-space:nowrap;font-size:12.5px">${fecha(x.fecha)}</td><td class="mono">${esc(x.folio)}</td>
+    <td style="font-size:12.5px">${esc(x.cliente||'')}${x.estado?`<div style="font-size:11px;color:var(--txt-3)">${esc(x.estado)}</div>`:''}</td>
+    <td style="font-size:12.5px">${esc(x.plan||'')}</td><td class="num">${x.precio?money(x.precio):'—'}</td>
+    <td style="font-size:12px">${x.equipo?esc(x.equipo):'<span style="color:var(--txt-3)">Solo SIM</span>'}</td>
+    <td>${!x.equipo?'<span style="color:var(--txt-3);font-size:12px">—</span>':x.entrega==='Entregado'?'<span class="p p-ok">Entregado</span>':`<span class="p p-warn">${esc(x.entrega||'En proceso')}</span>`}</td></tr>`;
+  const pintar=q=>{ q=(q||'').trim().toLowerCase();
+    tablaPaginada(el,q?L.filter(x=>[x.folio,x.cliente,x.equipo,x.plan].join(' ').toLowerCase().includes(q)):L,cab,fila,{vacio:L.length?'Nada coincide.':'Sin ventas terminadas en el periodo.'}); };
+  let t; $('#tv-q').oninput=e=>{ clearTimeout(t); t=setTimeout(()=>pintar(e.target.value),180); };
+  pintar('');
+}
+
+function pintarGraficasTablero(r,k,o){
+  const C=coloresGraf(), nomMes=m=>new Date(m+'-15T12:00:00').toLocaleDateString('es-MX',{month:'short'}).replace('.','');
+  const meses=r.meses||[], desdeM=o.desde.slice(0,7), hastaM=o.hasta.slice(0,7);
+  /* 1. Tendencia: el periodo elegido en color, el resto atenuado */
+  const enPer=m=>m>=desdeM&&m<=hastaM;
+  const ds=[{type:'bar',label:'Ventas',data:meses.map(x=>x.ventas),backgroundColor:meses.map(x=>enPer(x.mes)?C.acento:C.suave),
+    hoverBackgroundColor:C.acento,borderRadius:{topLeft:4,topRight:4},borderSkipped:'bottom',maxBarThickness:38,categoryPercentage:.7}];
+  if(o.alc==='agente'&&k.meta) ds.push({type:'line',label:'Meta actual',data:meses.map(()=>k.meta),borderColor:C.txt3,borderDash:[5,4],borderWidth:1.5,pointRadius:0,pointHoverRadius:0});
+  grafica('g-meses',{type:'bar',data:{labels:meses.map(x=>nomMes(x.mes)),datasets:ds},
+    options:{scales:ejes(C),
+      plugins:{tooltip:{callbacks:{title:it=>new Date(meses[it[0].dataIndex].mes+'-15T12:00:00').toLocaleDateString('es-MX',{month:'long',year:'numeric'}),
+        afterBody:it=>{ const x=meses[it[0].dataIndex], i=it[0].dataIndex, ant=i?meses[i-1].ventas:null;
+          return [ant?`vs mes anterior: ${x.ventas>=ant?'+':''}${Math.round((x.ventas-ant)*100/ant)}%`:'', o.alc!=='agente'&&Number(x.dhl)?`DHL: ${money(x.dhl)}`:''].filter(Boolean); }}}},
+      onClick:(e,els)=>{ if(!els.length) return; o.t.per='mes'; o.t.mes=meses[els[0].index].mes; vistaTableroVentas(); },
+      onHover:(e,els)=>{ e.native.target.style.cursor=els.length?'pointer':'default'; }}});
+
+  /* 2. Planes: dona con leyenda en tabla (identidad nunca solo por color) */
+  let P=(r.planes||[]); if(P.length>7){ const resto=P.slice(6).reduce((a,x)=>a+x.n,0); P=[...P.slice(0,6),{nombre:'Otros',n:resto}]; }
+  grafica('g-planes',{type:'doughnut',data:{labels:P.map(x=>x.nombre),datasets:[{data:P.map(x=>x.n),backgroundColor:P.map((x,i)=>C.cat[i]),borderColor:C.card,borderWidth:2,hoverOffset:6}]},
+    options:{cutout:'72%',plugins:{tooltip:{callbacks:{label:c=>` ${c.label}: ${c.raw} (${pct(c.raw,k.ventas)}%)`}}}}});
+  const ley=$('#ley-planes'); if(ley) ley.innerHTML=P.map((x,i)=>`<div><i style="background:${C.cat[i]}"></i>${esc(x.nombre)}<b>${x.n}</b></div>`).join('');
+
+  /* 3. Ventas por día (o por semana si el periodo es largo) */
+  const D=r.dias_serie||[]; let lab=[], val=[], fechas=[];
+  if((r.dias||0)<=31){
+    const d=new Date(o.desde+'T12:00:00'), f=new Date(o.hasta+'T12:00:00'), mp=Object.fromEntries(D.map(x=>[x.d,x.n])), hoy=hoyMexico();
+    while(d<=f){ const s=d.toISOString().slice(0,10); if(s>hoy) break; const w=d.getDay();
+      if(w&&w<6||mp[s]){ lab.push(String(d.getDate())); val.push(mp[s]||0); fechas.push(s); } d.setDate(d.getDate()+1); }
+  } else {
+    const sem={}; D.forEach(x=>{ const d=new Date(x.d+'T12:00:00'); d.setDate(d.getDate()-((d.getDay()+6)%7)); const s=d.toISOString().slice(0,10); sem[s]=(sem[s]||0)+x.n; });
+    Object.keys(sem).sort().forEach(s=>{ lab.push(fecha(s).replace(/ \d{4}$/,'')); val.push(sem[s]); fechas.push(s); });
+  }
+  const vertical=o.alc==='agente';
+  grafica('g-dias',{type:'bar',data:{labels:lab,datasets:[{label:(r.dias||0)<=31?'Ventas del día':'Ventas de la semana',data:val,backgroundColor:C.acento,borderRadius:4,borderSkipped:vertical?'bottom':'start',maxBarThickness:vertical?26:14}]},
+    options:{indexAxis:vertical?'x':'y',scales:vertical?ejes(C):{x:{grid:{color:C.linea},border:{display:false},ticks:{precision:0,color:C.txt3,font:{size:11}},beginAtZero:true},y:{grid:{display:false},border:{display:false},ticks:{color:C.txt3,font:{size:10},autoSkip:lab.length>16}}},
+      plugins:{tooltip:{callbacks:{title:it=>(r.dias||0)<=31?new Date(fechas[it[0].dataIndex]+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'}):'Semana del '+fecha(fechas[it[0].dataIndex])}}}}});
+
+  /* 4. Marcas y 5. estados: barras horizontales de un solo color */
+  const hbar=(id,L,label)=>grafica(id,{type:'bar',data:{labels:L.map(x=>x.nombre),datasets:[{label,data:L.map(x=>x.n),backgroundColor:C.acento,borderRadius:4,borderSkipped:'start',maxBarThickness:16}]},
+    options:{indexAxis:'y',scales:{x:{grid:{color:C.linea},border:{display:false},ticks:{precision:0,color:C.txt3,font:{size:11}},beginAtZero:true},y:{grid:{display:false},border:{display:false},ticks:{color:C.txt2,font:{size:11.5},autoSkip:false}}},
+      plugins:{tooltip:{callbacks:{label:c=>` ${c.raw} ventas · ${pct(c.raw,k.ventas)}%`}}}}});
+  hbar('g-marcas',(r.marcas||[]).filter(x=>x.nombre!=='Sin equipo').slice(0,8),'Ventas');
+  hbar('g-estados',r.estados||[],'Ventas');
 }
 
 async function cargarReportesGlobal(archivos){
@@ -9215,6 +9615,8 @@ const esAgente = () => (S.perfil?.rol === 'agente');
 
 function puedeVerModulo(m){
   if(m.ver==='caja')  return !!S.cajaPapel;
+  if(m.ver==='ventasjefe') return S.direccion || ['supervisor','coordinador'].includes(S.perfil?.rol);
+  if(m.ver==='agente') return S.perfil?.rol==='agente';
   if(m.soloDir)       return S.direccion;
   if(m.ver==='todos') return true;
   if(m.ver==='rh')    return S.direccion || S.rh;
@@ -10051,7 +10453,7 @@ async function abrirNuevoAviso(){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v71';
+const VERSION_APP='v73';
 async function revisarVersion(){
   try{
     const url=location.href.split('#')[0].split('?')[0]+'?nc='+Date.now();
@@ -10107,6 +10509,8 @@ const ICONOS = {
   ok:'<path d="m5 12 5 5L20 7"/>',
   alerta:'<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
   caja:'<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M11 12v2h2v-2"/>',
+  tablero:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  misventas:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
   registro:'<path d="M4 4h16v16H4z"/><path d="M4 9h16M9 9v11"/><path d="m12 15 2 2 4-4"/>',
   fijos:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M12 13v5M10 14.5h3a1 1 0 0 1 0 2h-2a1 1 0 0 0 0 2h3"/>',
   dinero:'<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'
@@ -10116,9 +10520,9 @@ const ICONO_MOD = {asistencia_old:'doc', nomina_old:'doc', dispersion_old:'doc'}
 
 const GRUPOS = [
   ['General',     ['inicio','guia','avisos']],
-  ['Mi espacio',  ['checar','mificha','miasist','mispagos']],
+  ['Mi espacio',  ['checar','misventas','mificha','miasist','mispagos']],
   ['Personal',    ['plantilla','asistencia','asistencia_old','solicitudes','salidas']],
-  ['Operación',   ['registro','caja','ventas','auditoria','comisiones','accesos','tickets']],
+  ['Operación',   ['tablero','registro','caja','ventas','auditoria','comisiones','accesos','tickets']],
   ['Finanzas',    ['nomina','dispersion','fijos','gastos','ingresos','balance']],
   ['Sistema',     ['usuarios','config']]
 ];
@@ -10157,6 +10561,7 @@ function cambiarTema(){
   const oscuro = document.documentElement.getAttribute('data-theme')==='dark';
   try{ localStorage.setItem('tema', oscuro?'claro':'oscuro'); }catch(e){}
   aplicarTema();
+  if(['tablero','misventas'].includes(vistaActual) && window.Chart) vistaTableroVentas();
 }
 
 /* Menú contraído: '1' contraído, '0' expandido, vacío = según pantalla */
