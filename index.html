@@ -445,6 +445,38 @@ main>.tabs button.on{background:var(--card);color:var(--txt);box-shadow:0 1px 3p
 @media(max-width:760px){.tv-per{margin-left:0;width:100%}.tv-proy-in{grid-template-columns:1fr;gap:10px}
   .tv-rank button{grid-template-columns:22px 1fr 60px 30px}.tv-rank small{display:none}.tv-lb .fila{grid-template-columns:1fr 70px 30px 34px}}
 
+
+/* ---------- Registro de venta ---------- */
+.doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.doc-slot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border:1px dashed var(--line);border-radius:var(--r-sm);background:var(--surface-2)}
+.doc-slot.ok{border-style:solid;border-color:var(--ok);background:var(--ok-l)}
+.doc-slot b{display:block;font-size:13px} .doc-slot small{font-size:11.5px;color:var(--txt-3)}
+.doc-slot .btn{padding:6px 11px;font-size:12px;white-space:nowrap}
+.vr-barra{position:sticky;bottom:0;display:flex;gap:8px;align-items:center;justify-content:flex-end;padding:12px 0;margin-top:14px;background:linear-gradient(transparent,var(--paper) 35%);z-index:5}
+.vr-barra:empty{display:none}
+.vr-hist{display:flex;flex-direction:column;gap:6px;font-size:12.5px} .vr-hist span{color:var(--txt-3);display:inline-block;min-width:110px}
+.cargando{opacity:.6;pointer-events:none}
+
+/* ---------- Línea del tiempo de la venta ---------- */
+.vt{list-style:none;margin:6px 0 0;padding:0;display:grid;grid-template-columns:repeat(8,1fr);gap:0}
+.vt li{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding-right:10px}
+.vt li:before{content:'';position:absolute;top:13px;left:28px;right:0;height:2px;background:var(--line)}
+.vt li:last-child:before{display:none}
+.vt li.ok:before{background:var(--ok)}
+.vt i{position:relative;z-index:1;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:12px;font-weight:700;
+  background:var(--surface-2);border:2px solid var(--line);color:var(--txt-3)}
+.vt li.ok i{background:var(--ok);border-color:var(--ok);color:#fff}
+.vt li.ahora i{border-color:var(--teal);color:var(--teal);box-shadow:0 0 0 4px var(--teal-l);animation:vtpulso 1.8s ease-in-out infinite}
+.vt li.mal i{background:var(--bad);border-color:var(--bad);color:#fff}
+.vt li.fin i{width:32px;height:32px;margin-top:-2px}
+.vt li.fin.ok i{background:linear-gradient(135deg,var(--ok),#22a05d);box-shadow:0 0 0 4px var(--ok-l)}
+.vt b{font-size:12.5px;line-height:1.3;display:block} .vt small{display:block;font-size:11px;color:var(--txt-3);margin-top:2px}
+.vt small.err{color:var(--bad);font-weight:600} .vt small.ya{color:var(--teal);font-weight:600}
+.vt li:not(.ok):not(.ahora):not(.mal) b{color:var(--txt-3);font-weight:500}
+@keyframes vtpulso{0%,100%{box-shadow:0 0 0 4px var(--teal-l)}50%{box-shadow:0 0 0 8px var(--teal-l)}}
+.vt-mini{display:flex;gap:3px;margin-top:5px} .vt-mini i{width:12px;height:4px;border-radius:2px;background:var(--line)} .vt-mini i.ok{background:var(--ok)}
+@media(max-width:900px){.vt{grid-template-columns:1fr;gap:14px}.vt li{flex-direction:row;align-items:flex-start;padding:0}
+  .vt li:before{top:28px;bottom:-14px;left:13px;right:auto;width:2px;height:auto}.vt li.fin:before{display:none}}
 /* ---------- Guía ---------- */
 .guia{max-width:860px}
 .gcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;box-shadow:var(--sh);overflow:hidden;transition:box-shadow .2s}
@@ -1224,7 +1256,7 @@ const MODULOS = [
   {id:'asistencia', n:'01', t:'Asistencia',           lista:true},
   {id:'nomina',     n:'02', t:'Nómina',               lista:true, soloDir:true},
   {id:'comisiones', n:'03', t:'Comisiones y bonos',   bloque:6, desc:'Toma las ventas que sí pagó AT&T y las convierte en comisión por agente según el esquema vigente. Se alimenta de la auditoría, no del reporte interno.', pts:['Esquemas con vigencia y rangos por volumen','Factores por plan','Autorización antes de pasar a nómina','Comparativo de lo calculado contra lo pagado']},
-  {id:'ventas',     n:'04', t:'Ventas',                 lista:true},
+  {id:'ventas',     n:'04', t:'Ventas',                 lista:true, ver:'ventasreg'},
   {id:'auditoria',  n:'04b', t:'Auditoría de ventas',  bloque:5, desc:'El corazón del control: cruza tu reporte interno contra Global y contra los dos archivos de pago de ExpertCell, el semanal del 50% y el mensual del remanente.', pts:['Cruce por folio y por teléfono, con asignación manual para lo que no empate','Detección de duplicados en el interno','Clasificación: pagada sin comisionar, comisionada sin pagar, solo interno, solo Global','Control del remanente mensual pendiente de cobro']},
   {id:'accesos',    n:'06', t:'Accesos a plataformas',bloque:10,desc:'Padrón de usuarios de AT&T, Bonsaif, Odoo, iVentas y el CRM de leads. Sin contraseñas: solo quién tiene qué y desde cuándo.', pts:['Alta y baja ligada al movimiento de personal','Alerta de accesos activos de gente que ya causó baja','Costo mensual por plataforma','Historial de solicitudes']},
   {id:'gastos',     n:'07', t:'Gastos',               lista:true, soloDir:true},
@@ -1300,6 +1332,7 @@ async function iniciar(){
   $('#u-rol').textContent=perfil.rol;
   $('#u-ava').textContent=iniciales(perfil.nombre)||'·';
   try{ const {data:pc}=await sb.rpc('mi_papel_caja'); S.cajaPapel=pc||null; }catch(e){ S.cajaPapel=null; }
+  try{ const {data:pv}=await sb.rpc('mi_papel_ventas'); S.papelVentas=pv||null; }catch(e){ S.papelVentas=null; }
   pintarNav();
   pintarAyudas();
   S.inicio = (perfil.rol==='agente') ? 'checar' : 'inicio';
@@ -1328,7 +1361,7 @@ function irA(id){
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
   let m=MODULOS.find(x=>x.id===id);
   if(!m || !puedeVerModulo(m)){ m=MODULOS.find(x=>x.id==='checar'); id='checar'; vistaActual=id; }
-  const R={cobranza:vistaCobranza, tablero:vistaTableroVentas, misventas:vistaTableroVentas, registro:vistaRegistroVentas, fijos:vistaPagosFijos, caja:vistaCaja, guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentas, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar,
+  const R={cobranza:vistaCobranza, tablero:vistaTableroVentas, misventas:vistaTableroVentas, registro:vistaRegistroVentas, fijos:vistaPagosFijos, caja:vistaCaja, guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentasReg, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar,
              mificha:vistaMiFicha, miasist:vistaMiAsistencia, mispagos:vistaMisPagos,
              solicitudes:vistaSolicitudesDatos, inicio:vistaInicio, avisos:vistaAvisos};
   $('#app').classList.remove('menu');
@@ -9567,6 +9600,401 @@ function exportarReclamo(L){
   XLSX.writeFile(wb,`reclamo_expertcell_${hoyMexico()}.xlsx`);
 }
 
+/* ============================================================
+   VENTAS — registro del agente, mesa de control, facturación y cierre
+   ============================================================ */
+const DOCS_VENTA=[
+  ['contrato_firmado','Contrato firmado','pdf'],
+  ['contrato_blanco','Contrato en blanco','pdf'],
+  ['lista_nominal','Lista nominal actualizada','pdf'],
+  ['buro','Carta buró','pdf'],
+  ['resumen_servicios','Resumen de servicios','pdf'],
+  ['ine','INE','pdf'],
+  ['whatsapp','WhatsApp de confirmación del cliente','img'],
+  ['comprobante_pago','Comprobante del pago inicial','pdfimg'],
+  ['evidencia_entrega','Evidencia de entrega','pdfimg']
+];
+const CHECK_MESA=[
+  ['contrato','Contrato completo y firmado'],
+  ['pago','Pago inicial: el comprobante coincide con el monto (o no lleva pago)'],
+  ['ine','INE vigente y legible, coincide con el cliente'],
+  ['direccion','Dirección completa (calle, número, colonia, CP, referencias) y teléfono de contacto'],
+  ['plan_equipo','Plan, plazo y equipo exactos (modelo, color, capacidad y tipo de SIM)'],
+  ['renovacion','Si es renovación: la línea es viable por fecha de última cuota (si no aplica, márcalo)']
+];
+const TIPO_VENTA={linea_nueva:'Línea nueva',portabilidad:'Portabilidad',renovacion:'Renovación'};
+const ETAPA_CLASE=e=>/Terminada|Facturada/.test(e)?'p-ok':/Rechazada|Cancelada|falta evidencia|Regresada|Falta expediente/.test(e)?'p-bad':/revisión|Por capturar|Por facturar/.test(e)?'p-warn':/Borrador/.test(e)?'':'p-teal';
+const fh=t=>t?new Date(t).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+
+async function papelVentas(){
+  if(S.papelVentas!==undefined) return S.papelVentas;
+  try{ const {data}=await sb.rpc('mi_papel_ventas'); S.papelVentas=data||null; }catch(e){ S.papelVentas=null; }
+  return S.papelVentas;
+}
+
+async function vistaVentasReg(){
+  $('#main').innerHTML='<div class="empty">Cargando…</div>';
+  const papel=await papelVentas();
+  if(!papel){ $('#main').innerHTML='<div class="empty"><b>Sin acceso</b>Tu puesto no registra ni revisa ventas.</div>'; return; }
+  const tabs={
+    agente:   [['mias','Mis ventas']],
+    jefe:     [['todas','Ventas de mi equipo']],
+    mesa:     [['revisar','Por revisar'],['capturar','Por capturar en Global'],['logistica','En logística'],['sinreg','Sin registro'],['todas','Todas']],
+    factura:  [['facturar','Por facturar'],['todas','Todas']],
+    direccion:[['revisar','Por revisar'],['capturar','Por capturar en Global'],['logistica','En logística'],['facturar','Por facturar'],['sinreg','Sin registro'],['todas','Todas'],['cierre','Cierre de expedientes']]
+  }[papel];
+  const t=S.vr||(S.vr={tab:tabs[0][0],q:''});
+  if(!tabs.some(x=>x[0]===t.tab)) t.tab=tabs[0][0];
+
+  const [rl,rs]=await Promise.all([
+    traerTodo(()=>sb.from('v_ventas_registro').select('*').order('actualizado_en',{ascending:false}).order('id')),
+    ['mesa','direccion'].includes(papel)?sb.from('v_global_sin_registro').select('*').order('fecha_venta',{ascending:false}):{data:[]}
+  ]);
+  const err=[rl,rs].find(x=>x.error);
+  if(err){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(err.error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 151.</span></div>`; return; }
+  const L=rl.data||[], SR=rs.data||[];
+  const filtro={
+    mias:()=>L, todas:()=>L,
+    revisar:()=>L.filter(x=>x.estatus==='en_revision').sort((a,b)=>new Date(a.enviado_en)-new Date(b.enviado_en)),
+    capturar:()=>L.filter(x=>x.estatus==='aprobada'),
+    logistica:()=>L.filter(x=>x.estatus==='en_global'),
+    facturar:()=>L.filter(x=>x.estatus==='en_global'&&x.con_evidencia)
+  };
+  const n=k=>k==='sinreg'?SR.length:k==='cierre'?'':(filtro[k]?filtro[k]().length:0);
+  const atrasadas=L.filter(x=>x.estatus==='en_revision'&&x.minutos_en_revision>30).length;
+  const mias=papel==='agente'?L:[];
+  const pend=mias.filter(x=>['borrador','regresada','asignada'].includes(x.estatus)||(x.estatus==='en_global'&&!x.con_evidencia));
+
+  $('#main').innerHTML=`
+  <div class="head"><div><h1>Ventas</h1><p>${papel==='agente'?'Registra cada venta con su expediente completo. Lo que no se registra aquí no cuenta para tu meta ni para tu comisión.'
+      :papel==='factura'?'Ventas entregadas y con evidencia, listas para facturar y activar.'
+      :'Registro de ventas de los agentes: revisión, captura en Global, logística y facturación.'}</p></div>
+    <div class="acts">${['agente','mesa','direccion'].includes(papel)?'<button class="btn btn-p" id="vr-nueva">+ Registrar venta</button>':''}</div></div>
+  ${papel==='agente'&&pend.length?`<div class="note" style="margin-bottom:14px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">Tienes ${pend.length} venta${pend.length===1?'':'s'} que necesita${pend.length===1?'':'n'} algo de ti</b>
+     ${pend.map(x=>esc(x.folio||'borrador')+' · '+esc(x.estatus==='en_global'?'sube la evidencia de entrega':x.estatus==='regresada'?'corrige: '+(x.motivo||''):x.estatus==='asignada'?'sube su expediente':'termina de registrarla')).join('<br>')}</div>`:''}
+  ${atrasadas&&['mesa','direccion'].includes(papel)?`<div class="note" style="margin-bottom:14px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">${atrasadas} venta${atrasadas===1?'':'s'} con más de 30 minutos esperando revisión</b>Revísalas primero.</div>`:''}
+  <div class="tabs">${tabs.map(([k,l])=>`<button class="tab ${t.tab===k?'on':''}" data-vrt="${k}">${l}${n(k)!==''?` · ${n(k)}`:''}</button>`).join('')}</div>
+  <div id="vr-cuerpo" style="margin-top:14px"></div>`;
+
+  const c=$('#vr-cuerpo');
+  if(t.tab==='sinreg') pintarSinRegistro(c,SR);
+  else if(t.tab==='cierre') pintarCierreExpedientes(c);
+  else {
+    const filas=filtro[t.tab]();
+    c.innerHTML=`<input type="search" id="vr-q" value="${esc(t.q)}" placeholder="Buscar folio, DN, cliente o agente" style="${ESTILO_CAMPO};margin-bottom:10px"><div id="vr-lista"></div>`;
+    const cab=`<th>Folio</th><th>Cliente</th>${papel!=='agente'?'<th>Agente</th>':''}<th>Plan y equipo</th><th>Etapa</th><th>${t.tab==='revisar'?'Esperando':'Actualizada'}</th>`;
+    const fila=x=>`<tr style="cursor:pointer" data-vr="${x.id}">
+      <td class="mono">${esc(x.folio||'—')}${x.registro_tardio?' <span class="p p-warn" title="Apareció en Global sin registro">tardía</span>':''}<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.dn||'')}</div></td>
+      <td style="font-size:12.5px">${esc(x.cliente||'')}</td>
+      ${papel!=='agente'?`<td style="font-size:12.5px;white-space:nowrap">${esc(nomCorto(x.agente||''))}</td>`:''}
+      <td style="font-size:12.5px">${esc((x.plan||'').replace(/^AT&T /,''))}<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.con_equipo?[x.equipo_marca,x.equipo_modelo,x.equipo_capacidad,x.equipo_color].filter(Boolean).join(' '):'Solo SIM')}</div></td>
+      <td><span class="p ${ETAPA_CLASE(x.etapa||'')}">${esc(x.etapa||'')}</span>${(()=>{ const h=pasosVenta(x).hechos; return `<div class="vt-mini" title="${h} de 8 pasos">${Array.from({length:8},(_,i)=>`<i class="${i<h?'ok':''}"></i>`).join('')}</div>`; })()}${x.motivo&&['regresada','rechazada','cancelada'].includes(x.estatus)?`<div style="font-size:11.5px;color:var(--bad);max-width:220px">${esc(x.motivo)}</div>`:''}</td>
+      <td style="font-size:12px;white-space:nowrap">${t.tab==='revisar'?`<b style="color:${x.minutos_en_revision>30?'var(--bad)':'inherit'}">${x.minutos_en_revision} min</b>`:fh(x.actualizado_en)}</td></tr>`;
+    const pintar=()=>{ const q=t.q.trim().toLowerCase();
+      tablaPaginada($('#vr-lista'),q?filas.filter(x=>[x.folio,x.dn,x.cliente,x.agente,x.pt].join(' ').toLowerCase().includes(q)):filas,cab,fila,
+        {vacio:{revisar:'Nada por revisar.',capturar:'Nada por capturar.',facturar:'Nada por facturar.',logistica:'Nada en logística.'}[t.tab]||'Todavía no hay ventas registradas.',
+         despues:el=>el.querySelectorAll('[data-vr]').forEach(tr=>tr.onclick=()=>abrirVentaReg(Number(tr.dataset.vr)))}); };
+    let tm; $('#vr-q').oninput=e=>{ t.q=e.target.value; clearTimeout(tm); tm=setTimeout(pintar,180); };
+    pintar();
+  }
+  document.querySelectorAll('[data-vrt]').forEach(b=>b.onclick=()=>{ t.tab=b.dataset.vrt; vistaVentasReg(); });
+  if($('#vr-nueva')) $('#vr-nueva').onclick=()=>abrirVentaReg(null);
+}
+
+
+/* Línea del tiempo de una venta: de registrada a "ya cuenta" */
+function pasosVenta(v, evidFecha){
+  const est=v.estatus, entregada=v.envio_estatus==='Entregado'||v.envio_status==='Entregado'||est==='facturada';
+  const P=[
+    {l:'Registrada', s:v.registro_tardio?'Registro tardío':'', t:v.creado_en, ok:!!v.id},
+    {l:'Enviada a revisión', t:v.enviado_en, ok:!!v.enviado_en&&!['borrador','asignada'].includes(est)},
+    {l:'Aprobada por mesa de control', t:v.revisado_en, ok:['aprobada','en_global','facturada'].includes(est),
+       mal:['regresada','rechazada'].includes(est)?(est==='rechazada'?'Rechazada':'Regresada')+(v.motivo?': '+v.motivo:''):''},
+    {l:'Capturada en Global', s:v.pt||'', t:v.capturada_en, ok:['en_global','facturada'].includes(est)&&!!v.pt},
+    {l:'Entregada', s:!entregada&&v.envio_estatus?v.envio_estatus:'', t:v.envio_entregado_en, ok:entregada},
+    {l:'Evidencia de entrega', t:evidFecha, ok:!!(evidFecha||v.con_evidencia)},
+    {l:'Facturada y SIM activada', t:v.facturada_en, ok:est==='facturada'},
+    {l:'Terminada · ya cuenta', s:'Meta, comisión y cobro', t:v.terminada_global, ok:!!v.terminada_global, fin:true}
+  ];
+  let actual=P.findIndex(p=>!p.ok);
+  if(est==='cancelada'&&actual>=0) P[actual].mal='Venta caída'+(v.motivo?': '+v.motivo:'');
+  return {P, actual, hechos:P.filter(p=>p.ok).length};
+}
+function lineaVentaHTML(v, evidFecha){
+  const {P,actual}=pasosVenta(v, evidFecha);
+  return `<div class="tile w12 vt-wrap" style="cursor:default;transform:none"><div class="tv-h"><b>Línea del tiempo</b><span>${actual<0?'<b style="color:var(--ok)">Terminada: ya cuenta para todos</b>':'Cuenta para meta y comisión cuando llega al último paso'}</span></div>
+    <ol class="vt">${P.map((p,i)=>`<li class="${p.mal?'mal':p.ok?'ok':i===actual?'ahora':''} ${p.fin?'fin':''}">
+      <i>${p.mal?'!':p.ok?'✓':i+1}</i><div><b>${esc(p.l)}</b>${p.mal?`<small class="err">${esc(p.mal)}</small>`:p.s?`<small>${esc(p.s)}</small>`:''}${p.ok&&p.t?`<small>${fh(p.t)}</small>`:i===actual&&!p.mal?'<small class="ya">Aquí va</small>':''}</div></li>`).join('')}</ol></div>`;
+}
+
+/* ---------- Detalle / formulario de una venta ---------- */
+async function abrirVentaReg(id){
+  $('#main').innerHTML='<div class="empty">Cargando…</div>';
+  const papel=await papelVentas();
+  const [rv,rd,rb,rp,re]=await Promise.all([
+    id?sb.from('v_ventas_registro').select('*').eq('id',id).single():{data:null},
+    id?sb.from('ventas_registro_docs').select('*').eq('venta_id',id).is('borrado_en',null):{data:[]},
+    id?sb.from('ventas_registro_bitacora').select('*').eq('venta_id',id).order('en'):{data:[]},
+    sb.from('planes').select('id,nombre').eq('activo',true).order('orden'),
+    ['mesa','direccion'].includes(papel)?sb.from('empleados').select('id,nombre_completo').eq('estatus','activo').order('nombre_completo'):{data:[]}
+  ]);
+  const err=[rv,rd,rp].find(x=>x.error);
+  if(err){ $('#main').innerHTML=`<div class="empty"><b>No se pudo abrir</b>${esc(err.error.message)}</div>`; return; }
+  const v=rv.data||{estatus:'borrador',con_equipo:true,pago_inicial:false,entrega_tipo:'dhl',tipo_sim:'fisica'};
+  const docs=Object.fromEntries((rd.data||[]).map(d=>[d.tipo,d]));
+  const yo=S.perfil?.empleado_id;
+  const esDueno=!id||v.empleado_id===yo;
+  const editable=['borrador','regresada','asignada'].includes(v.estatus)&&(esDueno||['mesa','direccion'].includes(papel));
+  const mesa=['mesa','direccion'].includes(papel);
+  const val=k=>esc(v[k]??'');
+  const campo=(k,l,ph='',extra='')=>`<div><label>${l}</label><input id="vf-${k}" value="${val(k)}" placeholder="${ph}" ${editable?'':'disabled'} style="${ESTILO_CAMPO}" ${extra}></div>`;
+  const opc=(k,arr)=>arr.map(([a,b])=>`<option value="${a}" ${String(v[k]??'')===String(a)?'selected':''}>${b}</option>`).join('');
+  const sec=(t,h)=>`<div class="tile w12" style="cursor:default;transform:none"><div class="tv-h"><b>${t}</b></div>${h}</div>`;
+  const g2='display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px';
+  const docSlot=([k,l,tipo])=>{
+    if(k==='comprobante_pago'&&!v.pago_inicial) return '';
+    if(k==='evidencia_entrega'&&!['en_global','facturada'].includes(v.estatus)) return '';
+    const d=docs[k];
+    const puedeSubir=k==='evidencia_entrega'?(v.estatus==='en_global'&&(esDueno||mesa)):editable;
+    const acepta=tipo==='pdf'?'application/pdf':tipo==='img'?'image/*':'application/pdf,image/*';
+    return `<div class="doc-slot ${d?'ok':''}">
+      <div><b>${l}</b><small>${tipo==='pdf'?'PDF':tipo==='img'?'Imagen':'PDF o imagen'}${d?' · '+esc(d.nombre||'')+' · '+fh(d.subido_en):' · obligatorio'}</small></div>
+      <div style="display:flex;gap:6px">${d?`<button class="btn" data-ver="${esc(d.path)}">Ver</button>`:''}
+        ${puedeSubir?`<label class="btn ${d?'':'btn-p'}" style="margin:0">${d?'Cambiar':'Subir'}<input type="file" accept="${acepta}" data-subir="${k}" data-tipo="${tipo}" style="display:none"></label>`:''}</div></div>`;
+  };
+
+  $('#main').innerHTML=`
+  <div class="head"><div><button class="tv-volver" id="vf-volver">← Ventas</button>
+    <h1>${id?`Venta ${esc(v.folio||'#'+id)}`:'Registrar venta'}</h1>
+    <p>${id?`<span class="p ${ETAPA_CLASE(v.etapa||'')}">${esc(v.etapa||'')}</span> · ${esc(v.agente||'')}${v.pt?' · '+esc(v.pt):''}`:'Llena todo y sube el expediente completo. Sin expediente no se puede enviar.'}</p></div></div>
+  ${v.motivo&&['regresada','rechazada','cancelada','asignada'].includes(v.estatus)?`<div class="note" style="margin-bottom:14px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">${v.estatus==='rechazada'?'Rechazada':v.estatus==='cancelada'?'Cancelada':'Regresada para corregir'}</b>${esc(v.motivo)}</div>`:''}
+  ${v.estatus==='asignada'?`<div class="note" style="margin-bottom:14px"><b>Registro tardío</b>Esta venta apareció en Global sin registro. ${new Date()>=new Date('2026-12-01T00:00:00')?'No cuenta para tu meta ni comisión hasta que subas el expediente y mesa de control la apruebe.':'Sube su expediente para dejarla completa.'}</div>`:''}
+  <div class="dash" style="gap:14px">
+    ${id?lineaVentaHTML(v, docs.evidencia_entrega?.subido_en):''}
+    ${mesa&&editable?sec('Agente',`<select id="vf-empleado_id" style="${ESTILO_CAMPO}">${(re.data||[]).map(e=>`<option value="${e.id}" ${(v.empleado_id||yo)===e.id?'selected':''}>${esc(e.nombre_completo)}</option>`).join('')}</select>`):''}
+    ${sec('Venta',`<div style="${g2}">
+      ${campo('folio','Folio del contrato','Ej. 4091405416')}
+      ${campo('dn','DN (10 dígitos)','5512345678','inputmode="numeric" maxlength="12"')}
+      ${campo('cliente','Cliente','Nombre completo')}
+      <div><label>Tipo de venta</label><select id="vf-tipo_venta" ${editable?'':'disabled'} style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${opc('tipo_venta',Object.entries(TIPO_VENTA))}</select></div>
+      <div><label>Plan</label><select id="vf-plan_id" ${editable?'':'disabled'} style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${opc('plan_id',(rp.data||[]).map(p=>[p.id,p.nombre]))}</select></div>
+      <div><label>Plazo</label><select id="vf-plazo" ${editable?'':'disabled'} style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${opc('plazo',[[12,'12 meses'],[18,'18 meses'],[24,'24 meses'],[36,'36 meses']])}</select></div>
+    </div>`)}
+    ${sec('Equipo',`<div style="${g2}">
+      <div><label>¿Lleva equipo?</label><select id="vf-con_equipo" ${editable?'':'disabled'} style="${ESTILO_CAMPO}">${opc('con_equipo',[[true,'Sí, con equipo'],[false,'No, solo SIM']])}</select></div>
+      <div><label>Tipo de SIM</label><select id="vf-tipo_sim" ${editable?'':'disabled'} style="${ESTILO_CAMPO}">${opc('tipo_sim',[['fisica','Física'],['esim','eSIM (virtual)']])}</select></div>
+      <div class="vf-eq">${campo('equipo_marca','Marca','Ej. Apple')}</div>
+      <div class="vf-eq">${campo('equipo_modelo','Modelo','Ej. iPhone 18 Pro Max')}</div>
+      <div class="vf-eq">${campo('equipo_color','Color','Ej. Borgoña')}</div>
+      <div class="vf-eq">${campo('equipo_capacidad','Capacidad','Ej. 256 GB')}</div>
+    </div>`)}
+    ${sec('Pago inicial',`<div style="${g2}">
+      <div><label>¿Lleva pago inicial?</label><select id="vf-pago_inicial" ${editable?'':'disabled'} style="${ESTILO_CAMPO}">${opc('pago_inicial',[[false,'No'],[true,'Sí']])}</select></div>
+      <div class="vf-pago">${campo('pago_inicial_monto','Monto','$','inputmode="decimal"')}</div></div>`)}
+    ${sec('Entrega',`<div style="${g2}">
+      <div><label>Forma de entrega</label><select id="vf-entrega_tipo" ${editable?'':'disabled'} style="${ESTILO_CAMPO}">${opc('entrega_tipo',[['dhl','DHL'],['mensajero','Mensajero']])}</select></div>
+      ${campo('calle','Calle')}${campo('numero_ext','Número exterior')}${campo('numero_int','Número interior','Opcional')}
+      ${campo('colonia','Colonia')}${campo('cp','Código postal','5 dígitos','inputmode="numeric" maxlength="5"')}
+      ${campo('municipio','Municipio o alcaldía')}${campo('estado_dir','Estado')}
+      ${campo('telefono_contacto','Teléfono de contacto','10 dígitos','inputmode="numeric" maxlength="12"')}
+    </div><div style="margin-top:12px">${campo('referencias','Referencias','Entre calles, color de fachada…')}</div>`)}
+    ${sec('Expediente',`<div class="doc-grid">${DOCS_VENTA.map(docSlot).join('')}</div>
+      ${editable?'<div style="font-size:12px;color:var(--txt-3);margin-top:8px">Máximo 15 MB por archivo. Los documentos se guardan en privado: solo los ven el agente, mesa de control, facturación y dirección.</div>':''}`)}
+    ${v.estatus==='en_revision'&&mesa?sec('Revisión de mesa de control',`
+      ${v.minutos_en_revision!=null?`<div style="font-size:12.5px;margin-bottom:10px;color:${v.minutos_en_revision>30?'var(--bad)':'var(--txt-2)'}">Lleva <b>${v.minutos_en_revision} min</b> esperando revisión (máximo 30).</div>`:''}
+      ${CHECK_MESA.map(([k,l])=>`<label style="display:flex;gap:10px;align-items:flex-start;margin:8px 0;font-weight:500"><input type="checkbox" data-chk="${k}" style="width:auto;margin-top:3px">${l}</label>`).join('')}
+      <textarea id="vf-motivo" placeholder="Motivo (obligatorio para regresar o rechazar)" style="${ESTILO_CAMPO};min-height:60px;margin-top:8px"></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn btn-p" id="vf-aprobar">Aprobar</button><button class="btn" id="vf-regresar">Regresar al agente</button><button class="btn" id="vf-rechazar" style="color:var(--bad)">Rechazar</button></div>`):''}
+    ${v.estatus==='aprobada'&&mesa?sec('Captura en Global',`<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="vf-pt" placeholder="PT de Global, ej. PT24899" style="${ESTILO_CAMPO};max-width:260px"><button class="btn btn-p" id="vf-capturar">Ya la capturé en Global</button></div>`):''}
+    ${v.estatus==='en_global'&&['factura','direccion'].includes(papel)?sec('Facturación y activación',v.con_evidencia
+      ?`<button class="btn btn-p" id="vf-facturar">Facturada y SIM activada</button>`
+      :`<div style="color:var(--warn);font-size:13px">Falta la evidencia de entrega. Sin evidencia no se factura.</div>`):''}
+    ${id&&(rb.data||[]).length?sec('Historial',`<div class="vr-hist">${(rb.data||[]).map(b=>`<div><span>${fh(b.en)}</span><b>${esc(b.accion)}</b>${b.motivo?` · ${esc(b.motivo)}`:''}</div>`).join('')}</div>`):''}
+  </div>
+  <div class="vr-barra">
+    ${editable?`${id&&v.estatus==='borrador'?'<button class="btn" id="vf-borrar" style="color:var(--bad)">Borrar borrador</button>':''}<span style="flex:1"></span>
+      <button class="btn" id="vf-guardar">Guardar borrador</button><button class="btn btn-p" id="vf-enviar">Enviar a revisión</button>`:''}
+    ${mesa&&id&&!['facturada','cancelada','rechazada','borrador'].includes(v.estatus)?'<button class="btn" id="vf-cancelar" style="color:var(--bad)">Venta caída</button>':''}
+  </div>`;
+
+  const sinc=()=>{ const eq=$('#vf-con_equipo')?.value==='true', pg=$('#vf-pago_inicial')?.value==='true';
+    document.querySelectorAll('.vf-eq').forEach(e=>e.style.display=eq?'':'none');
+    document.querySelectorAll('.vf-pago').forEach(e=>e.style.display=pg?'':'none'); };
+  sinc(); ['vf-con_equipo','vf-pago_inicial'].forEach(k=>$('#'+k)&&($('#'+k).onchange=()=>{ sinc(); if(k==='vf-pago_inicial'&&editable) guardar(true).then(i=>i&&abrirVentaReg(i)); }));
+  $('#vf-volver').onclick=()=>vistaVentasReg();
+
+  const leer=()=>{ const o={id:id||null};
+    ['folio','dn','cliente','tipo_venta','plan_id','plazo','con_equipo','tipo_sim','equipo_marca','equipo_modelo','equipo_color','equipo_capacidad',
+     'pago_inicial','pago_inicial_monto','entrega_tipo','calle','numero_ext','numero_int','colonia','cp','municipio','estado_dir','referencias','telefono_contacto','empleado_id']
+      .forEach(k=>{ const el=$('#vf-'+k); if(el) o[k]=el.value; });
+    return o; };
+  const guardar=async(silencio)=>{ const {data,error}=await sb.rpc('guardar_venta_reg',{p:leer()});
+    if(error){ toast(error.message,'bad'); return null; } if(!silencio) toast('Guardado.','ok'); id=data; return data; };
+
+  if($('#vf-guardar')) $('#vf-guardar').onclick=async()=>{ const i=await guardar(); if(i) abrirVentaReg(i); };
+  if($('#vf-enviar')) $('#vf-enviar').onclick=async()=>{
+    const i=await guardar(true); if(!i) return;
+    const {data,error}=await sb.rpc('enviar_venta_reg',{p_id:i});
+    if(error) return toast(error.message,'bad');
+    if(data.ok){ toast('Enviada a mesa de control.','ok'); S.vr&&(S.vr.tab=papel==='agente'?'mias':'revisar'); return vistaVentasReg(); }
+    const nom=Object.fromEntries(DOCS_VENTA.map(d=>[d[0],d[1]]));
+    const msg=data.duplicado?data.duplicado:[ (data.faltan_datos||[]).length?'Falta: '+data.faltan_datos.join(', '):'', (data.faltan_docs||[]).length?'Faltan documentos: '+data.faltan_docs.map(d=>nom[d]||d).join(', '):'' ].filter(Boolean).join('. ');
+    toast(msg,'bad'); abrirVentaReg(i); };
+  if($('#vf-borrar')) $('#vf-borrar').onclick=async()=>{ if(!confirm('¿Borrar este borrador y sus documentos?')) return;
+    const {data,error}=await sb.rpc('borrar_borrador_reg',{p_id:id}); if(error) return toast(error.message,'bad');
+    if((data||[]).length) await sb.storage.from('expedientes').remove(data); toast('Borrador eliminado.','ok'); vistaVentasReg(); };
+
+  const revisar=async acc=>{ const chk=Object.fromEntries([...document.querySelectorAll('[data-chk]')].map(c=>[c.dataset.chk,c.checked]));
+    const {error}=await sb.rpc('revisar_venta_reg',{p_id:id,p_accion:acc,p_motivo:$('#vf-motivo').value||null,p_checklist:chk});
+    if(error) return toast(error.message,'bad'); toast({aprobar:'Aprobada.',regresar:'Regresada al agente.',rechazar:'Rechazada.'}[acc],'ok'); vistaVentasReg(); };
+  if($('#vf-aprobar')) $('#vf-aprobar').onclick=()=>revisar('aprobar');
+  if($('#vf-regresar')) $('#vf-regresar').onclick=()=>revisar('regresar');
+  if($('#vf-rechazar')) $('#vf-rechazar').onclick=()=>revisar('rechazar');
+  if($('#vf-capturar')) $('#vf-capturar').onclick=async()=>{ const {error}=await sb.rpc('capturar_global_reg',{p_id:id,p_pt:$('#vf-pt').value});
+    if(error) return toast(error.message,'bad'); toast('Queda en tránsito.','ok'); abrirVentaReg(id); };
+  if($('#vf-facturar')) $('#vf-facturar').onclick=async()=>{ const {error}=await sb.rpc('facturar_venta_reg',{p_id:id});
+    if(error) return toast(error.message,'bad'); toast('Facturada y activada.','ok'); vistaVentasReg(); };
+  if($('#vf-cancelar')) $('#vf-cancelar').onclick=async()=>{ const m=prompt('¿Por qué se cayó la venta?'); if(!m) return;
+    const {error}=await sb.rpc('cancelar_venta_reg',{p_id:id,p_motivo:m}); if(error) return toast(error.message,'bad'); toast('Cancelada.','ok'); vistaVentasReg(); };
+
+  document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=async()=>{
+    const w=window.open('','_blank');
+    const {data,error}=await sb.storage.from('expedientes').createSignedUrl(b.dataset.ver,300);
+    if(error){ w&&w.close(); return toast(error.message,'bad'); } if(w) w.location=data.signedUrl; else location.href=data.signedUrl; });
+  document.querySelectorAll('[data-subir]').forEach(inp=>inp.onchange=async()=>{
+    const f=inp.files[0]; if(!f) return;
+    const tipo=inp.dataset.tipo, k=inp.dataset.subir, pdf=f.type==='application/pdf', img=/^image\//.test(f.type);
+    if(tipo==='pdf'&&!pdf) return toast('Ese documento debe ser PDF.','bad');
+    if(tipo==='img'&&!img) return toast('Sube una imagen (captura de pantalla).','bad');
+    if(!pdf&&!img) return toast('Solo PDF o imagen.','bad');
+    if(f.size>15*1024*1024) return toast('El archivo pesa más de 15 MB.','bad');
+    const lbl=inp.closest('label'); lbl.classList.add('cargando');
+    try{
+      let vid=id; if(!vid&&editable){ vid=await guardar(true); if(!vid) throw new Error('Primero guarda la venta.'); }
+      else if(editable) await guardar(true);
+      const blob=img?await comprimirFoto(f):f, ext=img?'jpg':'pdf';
+      const ruta=`${vid}/${k}_${Date.now()}.${ext}`;
+      const up=await sb.storage.from('expedientes').upload(ruta,blob,{contentType:img?'image/jpeg':'application/pdf'});
+      if(up.error) throw new Error(up.error.message);
+      const {error}=await sb.rpc('agregar_doc_venta',{p_id:vid,p_tipo:k,p_path:ruta,p_nombre:f.name,p_bytes:blob.size});
+      if(error){ await sb.storage.from('expedientes').remove([ruta]); throw new Error(error.message); }
+      if(docs[k]) sb.storage.from('expedientes').remove([docs[k].path]).catch(()=>{});
+      toast('Documento cargado.','ok'); abrirVentaReg(vid);
+    }catch(e){ toast(e.message,'bad'); lbl.classList.remove('cargando'); }
+  });
+}
+
+/* ---------- Ventas en Global sin registro ---------- */
+async function pintarSinRegistro(c,SR){
+  if(!SR.length){ c.innerHTML='<div class="enorden"><span class="ico">✓</span><b>Todo registrado</b>Cada venta de Global desde el 14 de noviembre tiene su registro.</div>'; return; }
+  const {data:ag}=await sb.from('empleados').select('id,nombre_completo,puestos(clave)').eq('estatus','activo').order('nombre_completo');
+  const agentes=(ag||[]).filter(e=>e.puestos?.clave==='EJEC'||e.puestos?.clave==='SUP');
+  c.innerHTML=`<div class="note" style="margin-bottom:12px"><b>Ventas que llegaron de Global sin que el agente las registrara</b>Asígnalas a su agente. Quedan como "registro tardío" y el agente debe subir el expediente.
+    ${new Date()>=new Date('2026-12-01T00:00:00')?'Desde el 1 de diciembre no cuentan para meta ni comisión hasta que el expediente se apruebe.':'Hasta el 30 de noviembre cuentan al asignarlas; desde el 1 de diciembre ya no, hasta que el expediente se apruebe.'}</div><div id="sr-l"></div>`;
+  tablaPaginada($('#sr-l'),SR,`<th>Folio</th><th>Fecha</th><th>DN</th><th>Plan</th><th>Origen</th><th>Asignar a</th><th></th>`,
+    x=>`<tr><td class="mono">${esc(x.folio||'')}<div style="font-size:11px;color:var(--txt-3)">${esc(x.programacion||'')}</div></td><td style="font-size:12.5px">${fecha(x.fecha_venta)}</td>
+      <td class="mono" style="font-size:12.5px">${esc(x.telefono||'')}</td><td style="font-size:12.5px">${esc((x.plan||'').replace(/^ATT /,''))}</td>
+      <td><span class="p ${x.origen==='terminada'?'p-ok':'p-teal'}">${x.origen==='terminada'?'Terminada':'En tránsito'}</span></td>
+      <td><select data-sel="${esc(x.folio)}" style="${ESTILO_CAMPO};min-width:180px"><option value="">Elegir agente…</option>${agentes.map(a=>`<option value="${a.id}">${esc(a.nombre_completo)}</option>`).join('')}</select></td>
+      <td><button class="btn btn-p" data-asg="${esc(x.folio)}">Asignar</button></td></tr>`,
+    {despues:el=>el.querySelectorAll('[data-asg]').forEach(b=>b.onclick=async()=>{
+      const emp=Number(el.querySelector(`[data-sel="${CSS.escape(b.dataset.asg)}"]`).value); if(!emp) return toast('Elige el agente.','bad');
+      const {error}=await sb.rpc('asignar_sin_registro',{p_folio:b.dataset.asg,p_emp:emp}); if(error) return toast(error.message,'bad');
+      toast('Asignada como registro tardío.','ok'); vistaVentasReg(); })});
+}
+
+/* ---------- Cierre mensual de expedientes ---------- */
+let _jszip=null;
+function cargarJSZip(){ if(window.JSZip) return Promise.resolve(); if(_jszip) return _jszip;
+  _jszip=new Promise((ok,mal)=>{ const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    s.onload=()=>ok(); s.onerror=()=>{ _jszip=null; mal(new Error('No se pudo cargar el compresor.')); }; document.head.appendChild(s); }); return _jszip; }
+
+async function pintarCierreExpedientes(c){
+  const t=S.vrCierre||(S.vrCierre={mes:hoyMexico().slice(0,7)});
+  c.innerHTML='<div class="empty">Cargando…</div>';
+  const [rm,rb]=await Promise.all([sb.rpc('expedientes_del_mes',{p_mes:t.mes}), sb.rpc('expedientes_para_borrar')]);
+  if(rm.error||rb.error){ c.innerHTML=`<div class="empty">${esc((rm.error||rb.error).message)}</div>`; return; }
+  const V=rm.data||[], B=rb.data||[];
+  const bytes=V.reduce((a,x)=>a+(x.docs||[]).reduce((b,d)=>b+Number(d.bytes||0),0),0);
+  const sinResp=V.filter(x=>!x.respaldado_en);
+  const meses=[]; { const d=new Date(hoyMexico()+'T12:00:00'); for(let i=0;i<12;i++){ meses.push(d.toISOString().slice(0,7)); d.setMonth(d.getMonth()-1); } }
+  c.innerHTML=`
+  <div class="note" style="margin-bottom:14px"><b>Cómo funciona</b>1) Cada mes descargas el respaldo: un ZIP con una carpeta por venta (folio y cliente) y un índice en Excel. Guárdalo en el Drive de la empresa con acceso restringido.
+    2) Al confirmar, la venta queda como respaldada. 3) Los archivos se quedan en la plataforma hasta cumplir 210 días (por reclamos, chargeback y permanencia); después se pueden borrar aquí. Las rechazadas o canceladas se borran a los 30 días sin respaldo.</div>
+  <div class="bar" style="gap:10px;margin-bottom:12px"><select id="ce-mes" style="${ESTILO_CAMPO};max-width:220px">${meses.map(m=>`<option value="${m}" ${m===t.mes?'selected':''}>${esc(new Date(m+'-15T12:00:00').toLocaleDateString('es-MX',{month:'long',year:'numeric'}))}</option>`).join('')}</select></div>
+  <div class="kpis">
+    <div class="kpi t"><span>Ventas terminadas con expediente</span><b>${V.length}</b><small>${(bytes/1048576).toFixed(0)} MB</small></div>
+    <div class="kpi ${sinResp.length?'w':''}"><span>Sin respaldar</span><b>${sinResp.length}</b><small>del mes elegido</small></div>
+    <div class="kpi"><span>Listos para borrar</span><b>${B.length}</b><small>ya cumplieron su plazo</small></div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0">
+    <button class="btn btn-p" id="ce-zip" ${V.length?'':'disabled'}>Descargar respaldo del mes</button>
+    <button class="btn" id="ce-borrar" ${B.length?'':'disabled'} style="color:var(--bad)">Borrar de la plataforma lo que ya cumplió su plazo (${B.length})</button>
+  </div>
+  <div id="ce-prog" style="font-size:13px;color:var(--txt-2)"></div>
+  <div id="ce-l" style="margin-top:10px"></div>`;
+  tablaPaginada($('#ce-l'),V,`<th>Folio</th><th>Cliente</th><th>Agente</th><th class="num">Documentos</th><th>Respaldo</th>`,
+    x=>`<tr><td class="mono">${esc(x.folio||'')}</td><td style="font-size:12.5px">${esc(x.cliente||'')}</td><td style="font-size:12.5px">${esc(nomCorto(x.agente||''))}</td>
+      <td class="num">${(x.docs||[]).length}</td><td>${x.respaldado_en?`<span class="p p-ok">Respaldada ${fh(x.respaldado_en)}</span>`:'<span class="p p-warn">Pendiente</span>'}</td></tr>`,{vacio:'No hay ventas terminadas con expediente en ese mes.'});
+  $('#ce-mes').onchange=e=>{ t.mes=e.target.value; pintarCierreExpedientes(c); };
+  $('#ce-zip').onclick=()=>descargarRespaldo(t.mes,V);
+  $('#ce-borrar').onclick=()=>borrarExpedientes(B);
+}
+
+async function descargarRespaldo(mes,V){
+  const prog=$('#ce-prog'), b=$('#ce-zip'); b.disabled=true;
+  try{
+    await cargarJSZip();
+    const nom=Object.fromEntries(DOCS_VENTA.map(d=>[d[0],d[1]]));
+    const limpio=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w\s.-]/g,'').replace(/\s+/g,' ').trim().slice(0,60);
+    // Índice en Excel
+    const idx=[['Folio','Cliente','DN','Agente','Plan','Equipo','Tipo de SIM','Fecha de venta','PT','Terminada en Global','Carpeta','Documentos']];
+    V.forEach(x=>idx.push([String(x.folio||''),x.cliente,x.dn,x.agente,x.plan,x.equipo,x.tipo_sim,x.fecha_venta,x.pt,x.terminada_global,`${limpio(x.folio)} - ${limpio(x.cliente)}`,(x.docs||[]).length]));
+    idx.push(['TOTAL','','','','','','','','','','',null]);
+    const ws=XLSX.utils.aoa_to_sheet(idx); ws['L'+idx.length]={t:'n',f:`SUM(L2:L${idx.length-1})`};
+    ws['!cols']=[14,30,12,28,14,30,10,12,10,12,40,10].map(w=>({wch:w}));
+    const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Índice');
+    const indice=XLSX.write(wb,{type:'array',bookType:'xlsx'});
+
+    const LIM=450*1024*1024; let zip=new JSZip(), acum=0, parte=1, total=0, esperados=0, ids=[], idsParte=[];
+    const cerrar=async()=>{ zip.file(`indice_${mes}.xlsx`,indice);
+      const blob=await zip.generateAsync({type:'blob',compression:'STORE'});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`respaldo_expedientes_${mes}_parte${parte}.zip`; a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),60000); ids.push(...idsParte); idsParte=[]; parte++; zip=new JSZip(); acum=0; };
+    for(const [i,x] of V.entries()){
+      const carpeta=`${mes}/${limpio(x.folio)} - ${limpio(x.cliente)}/`;
+      let bien=0;
+      for(const d of x.docs||[]){ esperados++;
+        prog.textContent=`Descargando ${i+1} de ${V.length} · ${nom[d.tipo]||d.tipo}…`;
+        const {data,error}=await sb.storage.from('expedientes').download(d.path);
+        if(error) throw new Error(`No se pudo descargar ${nom[d.tipo]} del folio ${x.folio}: ${error.message}`);
+        if(acum+data.size>LIM && acum>0) await cerrar();
+        zip.file(carpeta+`${limpio(nom[d.tipo]||d.tipo)}.${d.path.split('.').pop()}`,data); acum+=data.size; total++; bien++;
+      }
+      if(bien===(x.docs||[]).length) idsParte.push(x.id);
+    }
+    if(acum>0||idsParte.length) await cerrar();
+    if(total!==esperados) throw new Error(`Se esperaban ${esperados} archivos y se descargaron ${total}. No se marca nada.`);
+    prog.innerHTML=`Listo: ${total} archivos de ${V.length} ventas en ${parte-1} archivo${parte-1===1?'':'s'} ZIP.`;
+    if(confirm(`Se descargaron ${parte-1} archivo(s) ZIP con ${total} documentos.\n\n¿Ya los guardaste en el Drive de la empresa? Al aceptar, estas ${ids.length} ventas quedan marcadas como respaldadas.`)){
+      const {error}=await sb.rpc('marcar_respaldado',{p_ids:ids,p_archivo:`respaldo_expedientes_${mes}`});
+      if(error) throw new Error(error.message); toast('Respaldo registrado.','ok'); pintarCierreExpedientes($('#vr-cuerpo'));
+    }
+  }catch(e){ toast(e.message,'bad'); prog.textContent=''; }
+  b.disabled=false;
+}
+
+async function borrarExpedientes(B){
+  const n=B.reduce((a,x)=>a+(x.paths||[]).length,0);
+  if(!confirm(`Se borrarán de la plataforma ${n} archivos de ${B.length} ventas.\nLas terminadas ya tienen respaldo y cumplieron 210 días; las rechazadas o canceladas tienen más de 30 días.\n\nEsto no se puede deshacer. ¿Continuar?`)) return;
+  try{
+    const paths=B.flatMap(x=>x.paths||[]);
+    for(let i=0;i<paths.length;i+=100){ const {error}=await sb.storage.from('expedientes').remove(paths.slice(i,i+100)); if(error) throw new Error(error.message); }
+    const {error}=await sb.rpc('marcar_borrados',{p_ids:B.map(x=>x.id)}); if(error) throw new Error(error.message);
+    toast(`${n} archivos borrados.`,'ok'); pintarCierreExpedientes($('#vr-cuerpo'));
+  }catch(e){ toast(e.message,'bad'); }
+}
+
 async function cargarReportesGlobal(archivos){
   if(!archivos.length) return;
   const b=$('#rv-cargar'); b.disabled=true; b.classList.add('cargando');
@@ -9619,7 +10047,8 @@ async function cargarReportesGlobal(archivos){
       const fuera=filas.length-lote.length;
       resumen.push(`${tipo==='ventas'?'Ventas':'Envíos'} (${f.name}): ${nuevas} nuevas, ${act} actualizadas${fuera?`, ${fuera} de otras cuentas no se cargaron`:''}.`);
     }
-    toast('Listo. '+resumen.join(' '),'ok');
+    const cr=await sb.rpc('cruzar_registro_global');
+    toast('Listo. '+resumen.join(' ')+(cr.data&&cr.data.agentes_amarrados?` ${cr.data.agentes_amarrados} ventas tomaron su agente del registro.`:''),'ok');
   }catch(e){ toast(e.message,'bad'); resumen.length&&console.log(resumen); }
   b.disabled=false; b.classList.remove('cargando');
   vistaRegistroVentas();
@@ -9781,6 +10210,7 @@ const esAgente = () => (S.perfil?.rol === 'agente');
 
 function puedeVerModulo(m){
   if(m.ver==='caja')  return !!S.cajaPapel;
+  if(m.ver==='ventasreg') return !!S.papelVentas;
   if(m.ver==='ventasjefe') return S.direccion || ['supervisor','coordinador'].includes(S.perfil?.rol);
   if(m.ver==='agente') return S.perfil?.rol==='agente';
   if(m.soloDir)       return S.direccion;
@@ -10619,7 +11049,7 @@ async function abrirNuevoAviso(){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v75';
+const VERSION_APP='v77';
 async function revisarVersion(){
   try{
     const url=location.href.split('#')[0].split('?')[0]+'?nc='+Date.now();
