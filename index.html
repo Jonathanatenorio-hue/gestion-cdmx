@@ -477,6 +477,74 @@ main>.tabs button.on{background:var(--card);color:var(--txt);box-shadow:0 1px 3p
 .vt-mini{display:flex;gap:3px;margin-top:5px} .vt-mini i{width:12px;height:4px;border-radius:2px;background:var(--line)} .vt-mini i.ok{background:var(--ok)}
 @media(max-width:900px){.vt{grid-template-columns:1fr;gap:14px}.vt li{flex-direction:row;align-items:flex-start;padding:0}
   .vt li:before{top:28px;bottom:-14px;left:13px;right:auto;width:2px;height:auto}.vt li.fin:before{display:none}}
+
+/* ---------- Comisión en tiempo real ---------- */
+.com-grid{display:grid;grid-template-columns:1.1fr 1.3fr .9fr;gap:22px;align-items:start}
+.com-escala{margin:22px 0 6px}
+.com-bar{position:relative;height:10px;border-radius:5px;background:var(--line-2)}
+.com-bar>i{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:linear-gradient(90deg,var(--teal),var(--ok));animation:tvcrece 1s var(--ease) both}
+.com-bar>s{position:absolute;top:0;bottom:0;background:var(--teal-line);border-radius:0 5px 5px 0;text-decoration:none}
+.com-bar>u{position:absolute;top:-5px;bottom:-5px;width:2px;margin-left:-1px;background:var(--txt-3);text-decoration:none}
+.com-bar>u.ok{background:var(--ok)}
+.com-bar>u em{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-style:normal;font-size:10.5px;color:var(--txt-3);font-weight:600}
+.com-det{margin-top:12px;font-size:12.5px} .com-det summary{cursor:pointer;color:var(--teal)} .com-det table{width:100%;margin-top:6px} .com-det td{padding:3px 0}
+.com-msg p{margin:0 0 10px;font-size:13.5px;line-height:1.55;color:var(--txt-2)} .com-msg b{color:var(--txt)}
+.com-tr{padding:10px 12px;border-radius:var(--r-sm);background:var(--teal-l)} .com-tr small{color:var(--txt-3);font-size:11.5px}
+.com-sim{border-left:1px solid var(--line);padding-left:18px} .com-sim>b{display:block;font-size:13px} .com-sim>small{display:block;font-size:11.5px;color:var(--txt-3);margin-bottom:8px}
+.sim-f{display:grid;grid-template-columns:1fr 26px 26px 26px;align-items:center;gap:4px;font-size:12.5px;margin:3px 0}
+.sim-f button{width:26px;height:26px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--txt);cursor:pointer;font:inherit}
+.sim-f b{text-align:center;font-variant-numeric:tabular-nums}
+.sim-r{margin-top:10px;font-size:13px} .sim-r small{display:block;color:var(--txt-3);font-size:11.5px}
+.tram-l{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}
+.tram-l button{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:11px 13px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card);color:inherit;font:inherit;text-align:left;cursor:pointer;transition:border-color .15s}
+.tram-l button:hover{border-color:var(--teal-line)} .tram-l button.cerca{border-color:var(--ok);background:var(--ok-l)}
+.tram-l .nom{font-weight:600;font-size:13px} .tram-l .det,.tram-l .fal{font-size:12px;color:var(--txt-2)} .tram-l .mon{font-size:12px;color:var(--txt-3)}
+@media(max-width:900px){.com-grid{grid-template-columns:1fr}.com-sim{border-left:none;padding-left:0;border-top:1px solid var(--line);padding-top:14px}}
+
+/* ---------- Campana de avisos ---------- */
+body:has(#campana) #main .head{padding-right:54px}
+#campana{position:fixed;top:14px;right:18px;z-index:60;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--txt);
+  box-shadow:var(--sh);display:flex;align-items:center;justify-content:center;cursor:pointer}
+#campana svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#campana i{position:absolute;top:-3px;right:-3px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--bad);color:#fff;font-style:normal;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
+#avisos-panel{position:fixed;top:62px;right:18px;z-index:61;width:min(380px,calc(100vw - 32px));max-height:min(560px,calc(100vh - 90px));overflow:auto;background:var(--card);
+  border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-2);display:none}
+#avisos-panel.on{display:block}
+.ap-h{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line-2);position:sticky;top:0;background:var(--card)}
+.ap-h button,.ap-act{border:none;background:none;color:var(--teal);font:inherit;font-size:12px;cursor:pointer}
+.ap-act{display:block;width:100%;text-align:left;padding:10px 16px;background:var(--teal-l)}
+.ap-i{display:flex;gap:10px;width:100%;text-align:left;padding:12px 16px;border:none;border-bottom:1px solid var(--line-2);background:none;color:inherit;font:inherit;cursor:pointer}
+.ap-i:hover{background:var(--surface-2)} .ap-i.nueva{background:var(--teal-l)}
+.ap-i b{display:block;font-size:13px} .ap-i span{display:block;font-size:12px;color:var(--txt-2);margin-top:2px} .ap-i small{display:block;font-size:11px;color:var(--txt-3);margin-top:3px}
+.ap-ico{width:26px;flex:none;text-align:center;font-size:15px}
+@media(max-width:760px){#campana{top:8px;right:10px;width:36px;height:36px}#avisos-panel{top:52px;right:16px}}
+/* ---------- Calendario ---------- */
+.cal-wrap{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start}
+.cal{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--sh)}
+.cal-nav{display:flex;align-items:center;gap:10px;margin-bottom:12px} .cal-nav b{font-size:16px;min-width:170px;text-align:center}
+.cal-nav button{width:32px;height:32px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--txt);cursor:pointer;font:inherit}
+.cal-nav .cal-hoyb{width:auto;padding:0 12px;font-size:12.5px;margin-left:auto}
+.cal-sem,.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-sem span{font-size:11px;color:var(--txt-3);font-weight:600;text-align:center;padding:4px 0}
+.cal-d{min-height:96px;border:1px solid var(--line-2);border-radius:8px;padding:5px;display:flex;flex-direction:column;gap:3px;overflow:hidden}
+.cal-d em{font-style:normal;font-size:12px;font-weight:600;color:var(--txt-2)}
+.cal-d.fuera{opacity:.4} .cal-d.hoy{border-color:var(--teal);box-shadow:inset 0 0 0 1px var(--teal)} .cal-d.hoy em{color:var(--teal)}
+.cal-d.fest{background:var(--bad-l)}
+.cal-e{font-size:10.5px;line-height:1.25;padding:2px 5px;border-radius:4px;background:color-mix(in srgb,var(--c) 14%,transparent);border-left:3px solid var(--c);color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-mas{font-size:10.5px;color:var(--txt-3)}
+.cal-ley{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:11.5px;color:var(--txt-2)} .cal-ley i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
+.cal-prox{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--sh)}
+.cp-i{padding:9px 0 9px 12px;border-left:3px solid var(--c);margin-bottom:8px} .cp-i span{display:block;font-size:11px;color:var(--txt-3)}
+.cp-i b{display:block;font-size:13px} .cp-i small{display:block;font-size:11.5px;color:var(--txt-2)}
+.ag-l{display:flex;flex-direction:column;gap:6px;margin-top:6px;text-align:left} .ag-l div{display:flex;gap:10px;font-size:12.5px;padding-left:9px;border-left:3px solid var(--c)}
+.ag-l span{color:var(--txt-3);min-width:62px} .ag-l b{font-weight:500}
+@media(max-width:900px){.cal-wrap{grid-template-columns:1fr}.cal-d{min-height:64px}.cal-e{font-size:0;height:6px;padding:0}}
+
+/* ---------- Salvan falta / comisiones ---------- */
+.cks{display:flex;flex-wrap:wrap;gap:4px;max-width:520px} .ck{font-size:11px;padding:2px 7px;border-radius:10px;background:var(--line-2);color:var(--txt-3);white-space:nowrap}
+.ck.si{background:var(--ok-l);color:var(--ok)} .ck.no{background:var(--bad-l);color:var(--bad)}
+.cr-det td{background:var(--surface-2);padding:10px 14px}
+.tabs{max-width:100%;overflow-x:auto;scrollbar-width:thin}
 /* ---------- Guía ---------- */
 .guia{max-width:860px}
 .gcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;box-shadow:var(--sh);overflow:hidden;transition:box-shadow .2s}
@@ -1243,6 +1311,7 @@ const S = {
 
 const MODULOS = [
   {id:'inicio',     n:'··', t:'Inicio',               lista:true, ver:'jefes'},
+  {id:'calendario', n:'01b', t:'Calendario',           lista:true},
   {id:'guia',       n:'00', t:'Cómo se usa',          lista:true, ver:'jefes'},
   {id:'avisos',     n:'18', t:'Avisos al personal',   lista:true, ver:'rh'},
   {id:'checar',     n:'13', t:'Checar',               lista:true, ver:'todos'},
@@ -1255,7 +1324,7 @@ const MODULOS = [
   {id:'plantilla',  n:'05', t:'Plantilla',            lista:true},
   {id:'asistencia', n:'01', t:'Asistencia',           lista:true},
   {id:'nomina',     n:'02', t:'Nómina',               lista:true, soloDir:true},
-  {id:'comisiones', n:'03', t:'Comisiones y bonos',   bloque:6, desc:'Toma las ventas que sí pagó AT&T y las convierte en comisión por agente según el esquema vigente. Se alimenta de la auditoría, no del reporte interno.', pts:['Esquemas con vigencia y rangos por volumen','Factores por plan','Autorización antes de pasar a nómina','Comparativo de lo calculado contra lo pagado']},
+  {id:'comisiones', n:'03', t:'Comisiones',           lista:true, soloDir:true},
   {id:'ventas',     n:'04', t:'Ventas',                 lista:true, ver:'ventasreg'},
   {id:'auditoria',  n:'04b', t:'Auditoría de ventas',  bloque:5, desc:'El corazón del control: cruza tu reporte interno contra Global y contra los dos archivos de pago de ExpertCell, el semanal del 50% y el mensual del remanente.', pts:['Cruce por folio y por teléfono, con asignación manual para lo que no empate','Detección de duplicados en el interno','Clasificación: pagada sin comisionar, comisionada sin pagar, solo interno, solo Global','Control del remanente mensual pendiente de cobro']},
   {id:'accesos',    n:'06', t:'Accesos a plataformas',bloque:10,desc:'Padrón de usuarios de AT&T, Bonsaif, Odoo, iVentas y el CRM de leads. Sin contraseñas: solo quién tiene qué y desde cuándo.', pts:['Alta y baja ligada al movimiento de personal','Alerta de accesos activos de gente que ya causó baja','Costo mensual por plataforma','Historial de solicitudes']},
@@ -1333,6 +1402,7 @@ async function iniciar(){
   $('#u-ava').textContent=iniciales(perfil.nombre)||'·';
   try{ const {data:pc}=await sb.rpc('mi_papel_caja'); S.cajaPapel=pc||null; }catch(e){ S.cajaPapel=null; }
   try{ const {data:pv}=await sb.rpc('mi_papel_ventas'); S.papelVentas=pv||null; }catch(e){ S.papelVentas=null; }
+  setTimeout(()=>iniciarAvisos().catch(()=>{}),300);
   pintarNav();
   pintarAyudas();
   S.inicio = (perfil.rol==='agente') ? 'checar' : 'inicio';
@@ -1361,7 +1431,7 @@ function irA(id){
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
   let m=MODULOS.find(x=>x.id===id);
   if(!m || !puedeVerModulo(m)){ m=MODULOS.find(x=>x.id==='checar'); id='checar'; vistaActual=id; }
-  const R={cobranza:vistaCobranza, tablero:vistaTableroVentas, misventas:vistaTableroVentas, registro:vistaRegistroVentas, fijos:vistaPagosFijos, caja:vistaCaja, guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentasReg, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar,
+  const R={comisiones:vistaComisionesRev, calendario:vistaCalendario, cobranza:vistaCobranza, tablero:vistaTableroVentas, misventas:vistaTableroVentas, registro:vistaRegistroVentas, fijos:vistaPagosFijos, caja:vistaCaja, guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentasReg, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar,
              mificha:vistaMiFicha, miasist:vistaMiAsistencia, mispagos:vistaMisPagos,
              solicitudes:vistaSolicitudesDatos, inicio:vistaInicio, avisos:vistaAvisos};
   $('#app').classList.remove('menu');
@@ -9278,6 +9348,10 @@ async function vistaTableroVentas(){
   document.querySelectorAll('[data-sup]').forEach(b=>b.onclick=()=>{ t.sup=b.dataset.sup; vistaTableroVentas(); });
   if(window.Chart) pintarGraficasTablero(r,k,{desde,hasta,alc,t});
   if(alc==='agente') pintarListaAgente(r);
+  if(desde.slice(0,7)===hasta.slice(0,7)){
+    if(alc==='agente') pintarComision(esAg?null:t.emp, desde, esAg);
+    else pintarTramosEquipo(desde);
+  }
 }
 
 function htmlEquipo(r,k,o){
@@ -9319,6 +9393,7 @@ function htmlEquipo(r,k,o){
       ${agentes.length>15?`<button class="tv-mas" onclick="this.previousElementSibling.classList.toggle('corto');this.textContent=this.previousElementSibling.classList.contains('corto')?'Ver los ${agentes.length}':'Ver solo los primeros 15'">Ver los ${agentes.length}</button>`:''}</div>
     <div class="tile w4 tv-g"><div class="tv-h"><b>Ventas por día</b><span>${(r.dias||0)<=31?'Días hábiles del periodo':'Por semana'}</span></div><div class="tv-c" style="height:${Math.max(250,Math.min(15,agentes.length)*34-20)}px"><canvas id="g-dias"></canvas></div></div>
 
+    <div class="tile w12 tv-g" id="tv-tramos" style="display:none"></div>
     <div class="tile w6 tv-g"><div class="tv-h"><b>Marcas de equipo</b><span>${k.con_equipo} ventas con teléfono</span></div><div class="tv-c" style="height:230px"><canvas id="g-marcas"></canvas></div></div>
     <div class="tile w6 tv-g"><div class="tv-h"><b>Equipos más vendidos</b><span>Top 10 del periodo</span></div>${listaBarras(r.equipos||[],'Sin equipos en el periodo.')}</div>
 
@@ -9372,6 +9447,7 @@ function htmlAgente(r,k,o){
       <div><small>A este ritmo cierras con</small><b>${o.proy}</b><span>${meta?(o.proy>=meta?'llegas a tu meta':`te quedarías a ${meta-o.proy}`):'ventas'}</span></div></div></div>`
     :`<div class="tile w8"><div class="tt"><span class="ico ok">${ico('dinero')}</span>Monto de tus planes</div><div class="vv">${money(k.precio).replace('.00','')}</div><div class="ss">${k.ventas} ventas terminadas</div></div>`}
 
+    <div class="tile w12 tv-g" id="tv-com" style="display:none"></div>
     <div class="tile w8 tv-g"><div class="tv-h"><b>Mis ventas por mes</b><span>Últimos 12 meses${meta?' · la línea es tu meta actual':''}</span></div><div class="tv-c" style="height:240px"><canvas id="g-meses"></canvas></div></div>
     <div class="tile w4 tv-g"><div class="tv-h"><b>Mis planes</b><span>${k.ventas} ventas</span></div><div class="tv-dona"><div class="tv-c" style="height:170px"><canvas id="g-planes"></canvas>
       <div class="tv-centro"><b>${k.ventas}</b><span>ventas</span></div></div><div class="leyenda" id="ley-planes"></div></div></div>
@@ -9380,6 +9456,70 @@ function htmlAgente(r,k,o){
       <input type="search" id="tv-q" placeholder="Buscar folio, cliente o equipo" style="width:100%;margin:6px 0 10px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2);color:var(--txt);font:inherit">
       <div id="tv-lista"></div></div>
   </div>`;
+}
+
+/* ---------- Comisión estimada en tiempo real ---------- */
+function calcComision(tab, min, planes, n){
+  if(n<min) return 0;
+  return planes.reduce((a,pid)=>{ const p=tab.find(x=>x.plan_id===pid); const tr=p&&p.tramos.find(t=>n>=t.desde&&(t.hasta==null||n<=t.hasta)); return a+(tr?Number(tr.monto):0); },0);
+}
+async function pintarComision(emp, mes, esAg){
+  const el=$('#tv-com'); if(!el) return;
+  const {data:c,error}=await sb.rpc('comision_estimada',{p_emp:emp,p_mes:mes});
+  if(error||!c||!c.aplica) return;
+  el.style.display='';
+  const tu=esAg?'Tu':'Su', te=esAg?'Te':'Le';
+  const sig=c.siguiente, tr=c.transito||{};
+  const cortes=[...new Set((c.tabulador[0]?.tramos||[]).map(t=>t.desde))].sort((a,b)=>a-b);
+  const tope=Math.max((cortes[cortes.length-1]||c.minimo)+4, c.ventas+(tr.n||0)+2);
+  const pos=n=>Math.min(100,n*100/tope);
+  const msg = c.ventas<c.minimo
+    ? `${te} faltan <b>${sig.faltan}</b> venta${sig.faltan===1?'':'s'} para empezar a cobrar comisión (mínimo ${c.minimo}). Al llegar: <b>${money(sig.comision_al_llegar)}</b>.`
+    : sig ? `${te} faltan <b>${sig.faltan}</b> para el tramo de ${sig.desde} en adelante. Al llegar, ${tu.toLowerCase()} comisión pasa de ${money(c.comision)} a <b>${money(sig.comision_al_llegar)}</b> <span class="p p-ok">+${money(sig.incremento)}</span>, porque todas las ventas del mes se pagan a la nueva tarifa.`
+    : `${esAg?'Estás':'Está'} en el tramo más alto: cada venta suma a la tarifa máxima.`;
+  el.innerHTML=`<div class="tv-h"><b>${tu} comisión del mes</b><span>${esc(c.nota)}</span></div>
+  <div class="com-grid">
+    <div>
+      <div class="vv" style="margin:0">${money(c.comision)}</div>
+      <div class="ss" style="margin-top:4px">${c.ventas} venta${c.ventas===1?'':'s'} terminada${c.ventas===1?'':'s'}${c.tramo?` · tramo ${c.tramo.desde} a ${c.tramo.hasta??'más'}`:' · aún sin tramo'}</div>
+      <div class="com-escala">
+        <div class="com-bar"><i style="width:${pos(c.ventas)}%"></i>${tr.n?`<s style="left:${pos(c.ventas)}%;width:${pos(c.ventas+tr.n)-pos(c.ventas)}%"></s>`:''}
+          ${cortes.map(k=>`<u style="left:${pos(k)}%" class="${c.ventas>=k?'ok':''}"><em>${k}</em></u>`).join('')}</div>
+      </div>
+      ${c.desglose.length?`<details class="com-det"><summary>Ver desglose por plan</summary><table>${c.desglose.map(d=>`<tr><td>${esc(d.plan.replace(/^AT&T /,''))}</td><td class="num">${d.n} × ${money(d.tarifa)}</td><td class="num"><b>${money(d.subtotal)}</b></td></tr>`).join('')}</table></details>`:''}
+    </div>
+    <div class="com-msg">
+      <p>${msg}</p>
+      ${c.siguiente_venta_vale>0?`<p>${esAg?'Tu':'Su'} siguiente venta vale <b>${money(c.siguiente_venta_vale)}</b>${sig&&sig.faltan===1&&c.ventas>=c.minimo?' (incluye el brinco de tramo)':''}.</p>`:''}
+      ${tr.n?`<p class="com-tr">Con ${esAg?'tus':'sus'} <b>${tr.n}</b> en tránsito: <b>${money(tr.comision_con_transito)}</b>${tr.sube_de_tramo?' <span class="p p-teal">sube de tramo</span>':''}<br><small>${esAg?'Asegura':'Que asegure'} que se entreguen y ${esAg?'sube':'suba'} la evidencia: hasta que estén terminadas no cuentan.</small></p>`:''}
+    </div>
+    <div class="com-sim">
+      <b>Simulador</b><small>¿Y si ${esAg?'cierro':'cierra'} más este mes?</small>
+      ${c.tabulador.map(p=>`<div class="sim-f"><span>${esc(p.plan.replace(/^AT&T /,''))}</span><button data-sim="${p.plan_id}" data-d="-1">−</button><b id="sim-${p.plan_id}">0</b><button data-sim="${p.plan_id}" data-d="1">+</button></div>`).join('')}
+      <div class="sim-r" id="sim-r"></div>
+    </div>
+  </div>`;
+  const extra={};
+  const sim=()=>{ const add=Object.entries(extra).flatMap(([p,k])=>Array(k).fill(Number(p)));
+    const planes=[...c.planes_mes,...add], n=planes.length, tot=calcComision(c.tabulador,c.minimo,planes,n);
+    $('#sim-r').innerHTML=add.length?`Con ${add.length} más: <b>${money(tot)}</b> <span class="p p-ok">+${money(tot-c.comision)}</span><small>${n} ventas en el mes</small>`:'<small>Suma ventas para ver cuánto ganarías.</small>'; };
+  el.querySelectorAll('[data-sim]').forEach(b=>b.onclick=()=>{ const p=b.dataset.sim; extra[p]=Math.max(0,(extra[p]||0)+Number(b.dataset.d)); $('#sim-'+p).textContent=extra[p]; sim(); });
+  sim();
+}
+async function pintarTramosEquipo(mes){
+  const el=$('#tv-tramos'); if(!el) return;
+  const {data,error}=await sb.rpc('tramos_equipo',{p_mes:mes});
+  if(error||!data||!data.length) return;
+  const L=data.filter(x=>x.siguiente!=null).slice(0,12);
+  if(!L.length) return;
+  el.style.display='';
+  el.innerHTML=`<div class="tv-h"><b>A punto de subir de tramo</b><span>A quién conviene empujar hoy · comisión estimada, sujeta al reporte final</span></div>
+    <div class="tram-l">${L.map(x=>`<button ${x.id?`data-ag="${x.id}" data-nom="${esc(x.nombre)}"`:''} class="${x.faltan<=1?'cerca':''}">
+      <span class="nom">${esc(nomCorto(x.nombre))}</span>
+      <span class="det">${x.ventas} terminada${x.ventas===1?'':'s'}${x.transito?` · <b style="color:var(--teal)">+${x.transito} en tránsito</b>`:''}</span>
+      <span class="fal">${x.empieza_a_cobrar?`Le falta${x.faltan===1?'':'n'} <b>${x.faltan}</b> para empezar a cobrar`:`Le falta${x.faltan===1?'':'n'} <b>${x.faltan}</b> para el tramo ${x.siguiente}`}${x.transito>=x.faltan?' <span class="p p-teal">lo logra con lo de tránsito</span>':''}</span>
+      ${x.comision!=null?`<span class="mon">${money(x.comision)}</span>`:''}</button>`).join('')}</div>`;
+  el.querySelectorAll('[data-ag]').forEach(b=>b.onclick=()=>{ S.tv.emp=Number(b.dataset.ag); S.tv.empNom=b.dataset.nom; vistaTableroVentas(); });
 }
 
 function pintarListaAgente(r){
@@ -9639,9 +9779,9 @@ async function vistaVentasReg(){
   const tabs={
     agente:   [['mias','Mis ventas']],
     jefe:     [['todas','Ventas de mi equipo']],
-    mesa:     [['revisar','Por revisar'],['capturar','Por capturar en Global'],['logistica','En logística'],['sinreg','Sin registro'],['todas','Todas']],
+    mesa:     [['revisar','Por revisar'],['capturar','Por capturar en Global'],['logistica','En logística'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas']],
     factura:  [['facturar','Por facturar'],['todas','Todas']],
-    direccion:[['revisar','Por revisar'],['capturar','Por capturar en Global'],['logistica','En logística'],['facturar','Por facturar'],['sinreg','Sin registro'],['todas','Todas'],['cierre','Cierre de expedientes']]
+    direccion:[['revisar','Por revisar'],['capturar','Por capturar en Global'],['logistica','En logística'],['facturar','Por facturar'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['cierre','Cierre de expedientes']]
   }[papel];
   const t=S.vr||(S.vr={tab:tabs[0][0],q:''});
   if(!tabs.some(x=>x[0]===t.tab)) t.tab=tabs[0][0];
@@ -9660,7 +9800,7 @@ async function vistaVentasReg(){
     logistica:()=>L.filter(x=>x.estatus==='en_global'),
     facturar:()=>L.filter(x=>x.estatus==='en_global'&&x.con_evidencia)
   };
-  const n=k=>k==='sinreg'?SR.length:k==='cierre'?'':(filtro[k]?filtro[k]().length:0);
+  const n=k=>k==='sinreg'?SR.length:(k==='cierre'||k==='salvan')?'':(filtro[k]?filtro[k]().length:0);
   const atrasadas=L.filter(x=>x.estatus==='en_revision'&&x.minutos_en_revision>30).length;
   const mias=papel==='agente'?L:[];
   const pend=mias.filter(x=>['borrador','regresada','asignada'].includes(x.estatus)||(x.estatus==='en_global'&&!x.con_evidencia));
@@ -9679,6 +9819,7 @@ async function vistaVentasReg(){
   const c=$('#vr-cuerpo');
   if(t.tab==='sinreg') pintarSinRegistro(c,SR);
   else if(t.tab==='cierre') pintarCierreExpedientes(c);
+  else if(t.tab==='salvan') pintarSalvanFalta(c);
   else {
     const filas=filtro[t.tab]();
     c.innerHTML=`<input type="search" id="vr-q" value="${esc(t.q)}" placeholder="Buscar folio, DN, cliente o agente" style="${ESTILO_CAMPO};margin-bottom:10px"><div id="vr-lista"></div>`;
@@ -9741,6 +9882,7 @@ async function abrirVentaReg(id){
   const err=[rv,rd,rp].find(x=>x.error);
   if(err){ $('#main').innerHTML=`<div class="empty"><b>No se pudo abrir</b>${esc(err.error.message)}</div>`; return; }
   const v=rv.data||{estatus:'borrador',con_equipo:true,pago_inicial:false,entrega_tipo:'dhl',tipo_sim:'fisica'};
+  const verifHTML=id?await cajaVerificacionVenta(v).catch(()=>''):'';
   const docs=Object.fromEntries((rd.data||[]).map(d=>[d.tipo,d]));
   const yo=S.perfil?.empleado_id;
   const esDueno=!id||v.empleado_id===yo;
@@ -9771,6 +9913,7 @@ async function abrirVentaReg(id){
   ${v.estatus==='asignada'?`<div class="note" style="margin-bottom:14px"><b>Registro tardío</b>Esta venta apareció en Global sin registro. ${new Date()>=new Date('2026-12-01T00:00:00')?'No cuenta para tu meta ni comisión hasta que subas el expediente y mesa de control la apruebe.':'Sube su expediente para dejarla completa.'}</div>`:''}
   <div class="dash" style="gap:14px">
     ${id?lineaVentaHTML(v, docs.evidencia_entrega?.subido_en):''}
+    ${verifHTML}
     ${mesa&&editable?sec('Agente',`<select id="vf-empleado_id" style="${ESTILO_CAMPO}">${(re.data||[]).map(e=>`<option value="${e.id}" ${(v.empleado_id||yo)===e.id?'selected':''}>${esc(e.nombre_completo)}</option>`).join('')}</select>`):''}
     ${sec('Venta',`<div style="${g2}">
       ${campo('folio','Folio del contrato','Ej. 4091405416')}
@@ -9822,6 +9965,7 @@ async function abrirVentaReg(id){
     document.querySelectorAll('.vf-pago').forEach(e=>e.style.display=pg?'':'none'); };
   sinc(); ['vf-con_equipo','vf-pago_inicial'].forEach(k=>$('#'+k)&&($('#'+k).onchange=()=>{ sinc(); if(k==='vf-pago_inicial'&&editable) guardar(true).then(i=>i&&abrirVentaReg(i)); }));
   $('#vf-volver').onclick=()=>vistaVentasReg();
+  engancharVerificacion(id);
 
   const leer=()=>{ const o={id:id||null};
     ['folio','dn','cliente','tipo_venta','plan_id','plazo','con_equipo','tipo_sim','equipo_marca','equipo_modelo','equipo_color','equipo_capacidad',
@@ -9993,6 +10137,231 @@ async function borrarExpedientes(B){
     const {error}=await sb.rpc('marcar_borrados',{p_ids:B.map(x=>x.id)}); if(error) throw new Error(error.message);
     toast(`${n} archivos borrados.`,'ok'); pintarCierreExpedientes($('#vr-cuerpo'));
   }catch(e){ toast(e.message,'bad'); }
+}
+
+/* ============================================================
+   CAMPANA DE AVISOS — en tiempo real
+   ============================================================ */
+const NOTIF_ICO={revision:'🔎',atraso:'⏰',regresada:'↩',rechazada:'✕',aprobada:'✓',asignada:'📎',en_global:'🚚',entregada:'📦',facturar:'🧾',facturada:'🧾',terminada:'🏆',cancelada:'✕'};
+S.notifs=[];
+async function iniciarAvisos(){
+  if(!$('#campana')){
+    const b=document.createElement('button'); b.id='campana'; b.setAttribute('aria-label','Avisos');
+    b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><i id="campana-n"></i>';
+    document.body.appendChild(b);
+    const p=document.createElement('div'); p.id='avisos-panel'; document.body.appendChild(p);
+    b.onclick=e=>{ e.stopPropagation(); p.classList.toggle('on'); if(p.classList.contains('on')) pintarPanelAvisos(); };
+    document.addEventListener('click',e=>{ if(!p.contains(e.target)&&e.target!==b) p.classList.remove('on'); });
+  }
+  await cargarAvisos();
+  try{
+    S.canalAvisos&&sb.removeChannel(S.canalAvisos);
+    S.canalAvisos=sb.channel('avisos-'+S.perfil.id)
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'notificaciones',filter:`usuario_id=eq.${S.perfil.id}`},pl=>{
+        const n=pl.new; S.notifs.unshift(n); pintarContadorAvisos();
+        if($('#avisos-panel').classList.contains('on')) pintarPanelAvisos();
+        if(document.hidden&&'Notification' in window&&Notification.permission==='granted'){
+          try{ const no=new Notification(n.titulo,{body:n.cuerpo||'',tag:'aviso-'+n.id}); no.onclick=()=>{ window.focus(); abrirAviso(n); }; }catch(e){}
+        } else toast(`${n.titulo}${n.cuerpo?' · '+n.cuerpo:''}`, ['regresada','rechazada','atraso','cancelada'].includes(n.tipo)?'bad':'ok');
+      }).subscribe();
+  }catch(e){}
+  // Respaldo por si el programador del servidor no está activo: mesa y dirección revisan atrasos
+  if(['mesa','direccion'].includes(S.papelVentas)){
+    const rev=()=>sb.rpc('revisar_avisos_pendientes').then(()=>{}).catch(()=>{});
+    rev(); clearInterval(S.relojAvisos); S.relojAvisos=setInterval(rev,5*60*1000);
+  }
+}
+async function cargarAvisos(){
+  const {data,error}=await sb.from('notificaciones').select('*').order('creada_en',{ascending:false}).limit(40);
+  if(error){ $('#campana')&&($('#campana').style.display='none'); return; }
+  S.notifs=data||[]; pintarContadorAvisos();
+}
+function pintarContadorAvisos(){
+  const n=S.notifs.filter(x=>!x.leida_en).length, el=$('#campana-n');
+  if(el){ el.textContent=n>9?'9+':n||''; el.style.display=n?'':'none'; }
+}
+function pintarPanelAvisos(){
+  const p=$('#avisos-panel'), L=S.notifs;
+  const puede='Notification' in window, perm=puede?Notification.permission:'denied';
+  p.innerHTML=`<div class="ap-h"><b>Avisos</b>${L.some(x=>!x.leida_en)?'<button id="ap-todas">Marcar todo como leído</button>':''}</div>
+    ${puede&&perm==='default'?'<button class="ap-act" id="ap-perm">Recibir avisos en este dispositivo aunque la plataforma esté en segundo plano</button>':''}
+    <div class="ap-l">${L.length?L.map(n=>`<button class="ap-i ${n.leida_en?'':'nueva'}" data-av="${n.id}">
+      <span class="ap-ico">${NOTIF_ICO[n.tipo]||'•'}</span><div><b>${esc(n.titulo)}</b>${n.cuerpo?`<span>${esc(n.cuerpo)}</span>`:''}<small>${fh(n.creada_en)}</small></div></button>`).join('')
+      :'<div class="empty" style="padding:24px">Sin avisos por ahora.</div>'}</div>`;
+  if($('#ap-todas')) $('#ap-todas').onclick=async e=>{ e.stopPropagation(); await sb.rpc('marcar_avisos_leidos',{p_ids:null}); S.notifs.forEach(x=>x.leida_en=x.leida_en||new Date().toISOString()); pintarContadorAvisos(); pintarPanelAvisos(); };
+  if($('#ap-perm')) $('#ap-perm').onclick=async e=>{ e.stopPropagation(); const r=await Notification.requestPermission(); toast(r==='granted'?'Listo: te llegarán avisos en este dispositivo.':'No se activaron los avisos del sistema.', r==='granted'?'ok':'bad'); pintarPanelAvisos(); };
+  p.querySelectorAll('[data-av]').forEach(b=>b.onclick=()=>{ const n=S.notifs.find(x=>x.id===Number(b.dataset.av)); p.classList.remove('on'); abrirAviso(n); });
+}
+async function abrirAviso(n){
+  if(!n) return;
+  if(!n.leida_en){ n.leida_en=new Date().toISOString(); pintarContadorAvisos(); sb.rpc('marcar_avisos_leidos',{p_ids:[n.id]}); }
+  if(n.ref_tipo==='venta'&&n.ref_id){ irA('ventas'); setTimeout(()=>abrirVentaReg(n.ref_id),50); }
+}
+
+/* ============================================================
+   CALENDARIO DE LA OPERACIÓN
+   ============================================================ */
+const CAL_TIPO={nomina:['Nómina','#2648D4'],comisiones:['Comisiones','#B8743F'],pago:['Pago','#1A8048'],expertcell:['ExpertCell','#6250d6'],
+  fijo:['Pago fijo','#B06A00'],festivo:['Festivo','#C0352A'],cumple:['Cumpleaños','#e87ba4']};
+async function vistaCalendario(){
+  const t=S.cal||(S.cal={mes:hoyMexico().slice(0,7)});
+  const [y,m]=t.mes.split('-').map(Number);
+  const ini=new Date(y,m-1,1), fin=new Date(y,m,0);
+  const desde=new Date(ini); desde.setDate(1-((ini.getDay()+6)%7));
+  const hasta=new Date(fin); hasta.setDate(fin.getDate()+(7-((fin.getDay()+6)%7)-1));
+  const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  $('#main').innerHTML='<div class="empty">Cargando…</div>';
+  const hoy=hoyMexico(), en14=(()=>{ const d=new Date(hoy+'T12:00:00'); d.setDate(d.getDate()+14); return iso(d); })();
+  const [rc,rp]=await Promise.all([sb.rpc('calendario_operacion',{p_desde:iso(desde),p_hasta:iso(hasta)}), sb.rpc('calendario_operacion',{p_desde:hoy,p_hasta:en14})]);
+  if(rc.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(rc.error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 153.</span></div>`; return; }
+  const E=rc.data||[], P=rp.data||[];
+  const porDia={}; E.forEach(e=>(porDia[e.fecha]=porDia[e.fecha]||[]).push(e));
+  const dias=[]; for(let d=new Date(desde); d<=hasta; d.setDate(d.getDate()+1)) dias.push(new Date(d));
+  const may=x=>x.charAt(0).toUpperCase()+x.slice(1);
+  const titulo=may(ini.toLocaleDateString('es-MX',{month:'long',year:'numeric'}));
+  const fd=f=>may(new Date(f+'T12:00:00').toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'}));
+  $('#main').innerHTML=`
+  <div class="head"><div><h1>Calendario</h1><p>Fechas importantes de la operación: nómina, comisiones, archivos de ExpertCell, pagos fijos, festivos y cumpleaños.</p></div></div>
+  <div class="cal-wrap">
+    <div class="cal">
+      <div class="cal-nav"><button id="cal-ant" aria-label="Mes anterior">‹</button><b>${esc(titulo)}</b><button id="cal-sig" aria-label="Mes siguiente">›</button><button id="cal-hoy" class="cal-hoyb">Hoy</button></div>
+      <div class="cal-sem">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d=>`<span>${d}</span>`).join('')}</div>
+      <div class="cal-grid">${dias.map(d=>{ const k=iso(d), ev=porDia[k]||[];
+        return `<div class="cal-d ${d.getMonth()!==m-1?'fuera':''} ${k===hoy?'hoy':''} ${ev.some(e=>e.tipo==='festivo')?'fest':''}"><em>${d.getDate()}</em>
+          ${ev.slice(0,3).map(e=>`<span class="cal-e" style="--c:${CAL_TIPO[e.tipo]?.[1]||'#888'}" title="${esc(e.titulo+(e.detalle?' · '+e.detalle:''))}">${esc(e.titulo)}</span>`).join('')}
+          ${ev.length>3?`<span class="cal-mas">+${ev.length-3} más</span>`:''}</div>`; }).join('')}</div>
+      <div class="cal-ley">${Object.values(CAL_TIPO).map(([l,c])=>`<span><i style="background:${c}"></i>${l}</span>`).join('')}</div>
+    </div>
+    <div class="cal-prox"><div class="tv-h"><b>Próximos 14 días</b></div>
+      ${P.length?P.map(e=>`<div class="cp-i" style="--c:${CAL_TIPO[e.tipo]?.[1]||'#888'}"><span>${esc(fd(e.fecha))}</span><b>${esc(e.titulo)}</b>${e.detalle?`<small>${esc(e.detalle)}</small>`:''}</div>`).join('')
+        :'<div class="empty" style="padding:20px">Nada en los próximos días.</div>'}</div>
+  </div>`;
+  const mover=k=>{ const d=new Date(y,m-1+k,1); t.mes=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; vistaCalendario(); };
+  $('#cal-ant').onclick=()=>mover(-1); $('#cal-sig').onclick=()=>mover(1); $('#cal-hoy').onclick=()=>{ t.mes=hoy.slice(0,7); vistaCalendario(); };
+}
+async function pintarAgendaInicio(){
+  const dash=document.querySelector('#main .dash'); if(!dash||$('#ini-agenda')) return;
+  const hoy=hoyMexico(), d=new Date(hoy+'T12:00:00'); d.setDate(d.getDate()+7);
+  const {data,error}=await sb.rpc('calendario_operacion',{p_desde:hoy,p_hasta:d.toISOString().slice(0,10)});
+  if(error||!data||!data.length||!document.querySelector('#main .dash')||$('#ini-agenda')) return;
+  const fd=f=>{ if(f===hoy) return 'Hoy'; const x=new Date(f+'T12:00:00').toLocaleDateString('es-MX',{weekday:'short',day:'numeric'}); return x.charAt(0).toUpperCase()+x.slice(1); };
+  const b=document.createElement('button'); b.className='tile w6'; b.id='ini-agenda';
+  b.innerHTML=`<div class="tt"><span class="ico">${ico('calendario')}</span>Esta semana</div>
+    <div class="ag-l">${data.slice(0,6).map(e=>`<div style="--c:${CAL_TIPO[e.tipo]?.[1]||'#888'}"><span>${esc(fd(e.fecha))}</span><b>${esc(e.titulo)}</b></div>`).join('')}</div>`;
+  b.onclick=()=>irA('calendario');
+  dash.appendChild(b);
+}
+
+/* ============================================================
+   FALTA → RETARDO POR VENTA (mesa de control y dirección)
+   ============================================================ */
+async function cajaVerificacionVenta(v){
+  if(!v||!v.id||!['mesa','direccion'].includes(S.papelVentas)) return '';
+  const dia=new Date(v.creado_en).toLocaleDateString('en-CA',{timeZone:'America/Mexico_City'});
+  const {data:ad}=await sb.from('asistencia_dia').select('hora_entrada,estatus_final,tipo_falta,ajustado').eq('empleado_id',v.empleado_id).eq('fecha',dia).maybeSingle();
+  const candidata=ad&&ad.tipo_falta==='llegada_tarde'&&(ad.estatus_final==='F'||ad.ajustado);
+  if(!candidata&&!v.verif_metodo) return '';
+  const hora=v.verif_hora?new Date(v.verif_hora).toLocaleTimeString('es-MX',{timeZone:'America/Mexico_City',hour:'2-digit',minute:'2-digit'}):'';
+  return `<div class="tile w12" style="cursor:default;transform:none;border-color:var(--warn-line);background:var(--warn-l)">
+    <div class="tv-h"><b>Esta venta puede salvar una falta</b><span>${ad?`Llegó a las ${String(ad.hora_entrada||'').slice(0,5)} el ${fecha(dia)}`:''}${ad&&ad.estatus_final==='R'?' · <b style="color:var(--ok)">ya se salvó</b>':''}</span></div>
+    <div style="font-size:13px;color:var(--txt-2);margin-bottom:10px">Verifica en Bonsaif o en WhatsApp que el contacto con el cliente fue <b>ese día y después de su llegada</b>. Revisa también que la fecha del contrato sea de ese día.</div>
+    ${v.verif_metodo?`<div style="font-size:13px"><span class="p p-ok">Verificada</span> por ${v.verif_metodo==='bonsaif'?'Bonsaif':'WhatsApp'} · contacto a las <b>${hora}</b> · ${esc(v.verif_nota||'')}</div>`
+    :`<div style="display:grid;grid-template-columns:160px 130px 1fr auto;gap:8px;align-items:end">
+      <div><label>Dónde lo verificaste</label><select id="vv-met" style="${ESTILO_CAMPO}"><option value="bonsaif">Bonsaif (llamada)</option><option value="whatsapp">WhatsApp (chat)</option></select></div>
+      <div><label>Hora del contacto</label><input type="time" id="vv-hora" style="${ESTILO_CAMPO}"></div>
+      <div><label>Qué viste</label><input id="vv-nota" placeholder="Ej. llamada de 8 min al DN, cliente confirma plan Plata" style="${ESTILO_CAMPO}"></div>
+      <button class="btn btn-p" id="vv-ok">Verificar</button></div>`}
+  </div>`;
+}
+function engancharVerificacion(id){
+  if(!$('#vv-ok')) return;
+  $('#vv-ok').onclick=async()=>{
+    const {error}=await sb.rpc('verificar_contacto_venta',{p_id:id,p_metodo:$('#vv-met').value,p_hora:$('#vv-hora').value||null,p_nota:$('#vv-nota').value});
+    if(error) return toast(error.message,'bad');
+    await sb.rpc('evaluar_retardos_por_venta',{p_desde:null,p_hasta:null,p_aplicar:true});
+    toast('Verificada. Si cumple todo, la falta pasa a retardo.','ok'); abrirVentaReg(id);
+  };
+}
+
+async function pintarSalvanFalta(c){
+  c.innerHTML='<div class="empty">Evaluando…</div>';
+  const {data,error}=await sb.rpc('evaluar_retardos_por_venta',{p_desde:null,p_hasta:null,p_aplicar:false});
+  if(error){ c.innerHTML=`<div class="empty">${esc(error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 154.</span></div>`; return; }
+  const L=data||[];
+  const est={se_salva:['Se salva','p-ok'],pendiente:['Pendiente','p-warn'],sin_venta:['Sin venta registrada aún',''],no_aplica:['No aplica','p-bad']};
+  const ck=(ok,l)=>`<span class="ck ${ok===true?'si':ok===false?'no':''}">${ok===true?'✓':ok===false?'✕':'·'} ${l}</span>`;
+  c.innerHTML=`<div class="note" style="margin-bottom:12px"><b>Faltas por llegada tarde que una venta puede salvar</b>Últimos 10 días. Un agente se salva con una venta registrada ese día después de su llegada, sin regresos, en Global a más tardar el siguiente día laborable, con folio del día, contacto verificado y en cuota. La supervisión se salva si el equipo genera el objetivo del día. Se aplica solo; aquí ves cómo va cada caso.</div>
+    <div style="margin-bottom:10px"><button class="btn btn-p" id="sf-aplicar">Aplicar ahora lo que ya cumple</button></div>
+    ${L.length?`<div class="tw"><table><thead><tr><th>Persona</th><th>Día</th><th>Llegó</th><th>Candados</th><th>Estado</th></tr></thead><tbody>${L.map(x=>{ const v=x.venta||{};
+      return `<tr ${v.venta?`style="cursor:pointer" data-vr="${v.venta}"`:''}><td style="font-size:12.5px;white-space:nowrap">${esc(nomCorto(x.nombre))}<div style="font-size:11px;color:var(--txt-3)">${x.puesto==='agente'?'Agente':'Supervisión'}</div></td>
+        <td style="font-size:12.5px;white-space:nowrap">${fecha(x.fecha)}</td><td class="mono">${String(x.entrada||'').slice(0,5)}</td>
+        <td><div class="cks">${x.puesto==='agente'?(v.venta?`${ck(v.registrada_ese_dia_despues_de_entrar,'registrada después de llegar')}${ck(v.sin_regreso,'sin regresos')}${ck(v.en_global_a_tiempo,'en Global a tiempo')}${ck(v.folio_del_dia,'folio del día')}${ck(v.contacto_verificado,'contacto verificado')}${ck(x.en_cuota,`en cuota (${x.llevan} de ${x.requeridas})`)}<div style="font-size:11px;color:var(--txt-3);margin-top:3px">Folio ${esc(v.folio||'—')}</div>`:'<span style="font-size:12px;color:var(--txt-3)">No registró venta ese día después de llegar</span>')
+          :`${ck(x.logradas>=x.objetivo,`objetivo del día: ${x.logradas} de ${x.objetivo}`)}`}</div></td>
+        <td><span class="p ${est[x.estado]?.[1]||''}">${est[x.estado]?.[0]||x.estado}</span></td></tr>`; }).join('')}</tbody></table></div>`
+      :'<div class="enorden"><span class="ico">✓</span><b>Nada por revisar</b>No hay faltas por llegada tarde en los últimos días.</div>'}`;
+  c.querySelectorAll('[data-vr]').forEach(tr=>tr.onclick=()=>abrirVentaReg(Number(tr.dataset.vr)));
+  $('#sf-aplicar').onclick=async()=>{ const {data,error}=await sb.rpc('evaluar_retardos_por_venta',{p_desde:null,p_hasta:null,p_aplicar:true});
+    if(error) return toast(error.message,'bad'); const n=(data||[]).filter(x=>x.estado==='se_salva').length;
+    toast(n?`${n} falta${n===1?'':'s'} pasaron a retardo.`:'Nada nuevo por aplicar.','ok'); pintarSalvanFalta(c); };
+}
+
+/* ============================================================
+   COMISIONES — revisión mensual (día 5)
+   ============================================================ */
+async function vistaComisionesRev(){
+  const hoy=hoyMexico(), t=S.crev||(S.crev={mes:(()=>{ const d=new Date(hoy+'T12:00:00'); d.setDate(1); d.setMonth(d.getMonth()-1); return d.toISOString().slice(0,7); })()});
+  if(t.mes<'2026-11') t.mes='2026-11';
+  $('#main').innerHTML='<div class="empty">Calculando…</div>';
+  const {data:r,error}=await sb.rpc('calcular_revision_comisiones',{p_mes:t.mes});
+  if(error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo calcular</b>${esc(error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 155.</span></div>`; return; }
+  const L=r.lineas||[];
+  const meses=[]; { const d=new Date('2026-11-15T12:00:00'), h=new Date(hoy+'T12:00:00'); while(d<=h){ meses.push(d.toISOString().slice(0,7)); d.setMonth(d.getMonth()+1); } }
+  const nomMes=k=>{ const x=new Date(k+'-15T12:00:00').toLocaleDateString('es-MX',{month:'long',year:'numeric'}); return x.charAt(0).toUpperCase()+x.slice(1); };
+  const arr=L.filter(x=>x.arrastre).reduce((a,x)=>a+Number(x.a_pagar),0);
+  const pend=L.reduce((a,x)=>a+Number(x.pendientes_de_archivo||0),0);
+  const personas=new Set(L.filter(x=>Number(x.a_pagar)!==0).map(x=>x.empleado_id)).size;
+  const sel=`padding:7px 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card);color:var(--txt)`;
+  $('#main').innerHTML=`
+  <div class="head"><div><h1>Comisiones</h1><p>Revisión mensual: se paga lo que ya viene en los archivos de pago de ExpertCell. Lo que llega después se paga en la siguiente revisión, con su diferencia de tramo.</p></div>
+    <div class="acts"><button class="btn" id="cr-exp" ${L.length?'':'disabled'}>Exportar revisión</button>
+      ${r.confirmada?'<button class="btn" id="cr-reabrir">Reabrir</button>':`<button class="btn btn-p" id="cr-conf" ${L.length?'':'disabled'}>Confirmar revisión</button>`}</div></div>
+  <div class="bar" style="gap:10px;margin:4px 0 14px"><select id="cr-mes" style="${sel}">${meses.map(m=>`<option value="${m}" ${m===t.mes?'selected':''}>Revisión de ${esc(nomMes(m))}</option>`).join('')}</select>
+    ${r.confirmada?'<span class="p p-ok">Confirmada</span>':'<span class="p p-warn">Borrador · aún no se confirma</span>'}</div>
+  <div class="kpis">
+    <div class="kpi t"><span>Total a pagar</span><b>${money(r.total||0)}</b><small>${personas} persona${personas===1?'':'s'}</small></div>
+    <div class="kpi ${arr?'w':''}"><span>Arrastre de meses anteriores</span><b>${money(arr)}</b><small>ventas que llegaron tarde a los archivos</small></div>
+    <div class="kpi ${pend?'w':''}" style="cursor:pointer" onclick="irA('cobranza')"><span>Ventas sin archivo aún</span><b>${pend}</b><small>se pagan cuando lleguen · ver validación</small></div>
+  </div>
+  <div class="tw" style="margin-top:14px"><table><thead><tr><th>Persona</th><th>Mes de venta</th><th class="num">Ventas pagables</th><th>Tramo</th><th class="num">Base</th><th class="num">Comisión del mes</th><th class="num">Pagado antes</th><th class="num">A pagar</th><th class="num">Sin archivo</th></tr></thead>
+  <tbody>${L.map((x,i)=>`<tr style="cursor:pointer" data-cr="${i}">
+    <td><b style="font-size:13px">${esc(nomCorto(x.nombre))}</b><div style="font-size:11px;color:var(--txt-3)">${x.esquema==='agente'?'Agente':'Supervisión'}</div></td>
+    <td style="font-size:12.5px">${esc(nomMes(x.mes_venta))}${x.arrastre?' <span class="p p-warn">arrastre</span>':''}</td>
+    <td class="num">${x.ventas}</td><td style="font-size:12px">${esc(x.tramo||'')}</td>
+    <td class="num">${x.base!=null?money(x.base):'—'}</td><td class="num">${money(x.comision_mes)}</td>
+    <td class="num">${Number(x.pagado_antes)?money(x.pagado_antes):'—'}</td>
+    <td class="num"><b>${money(x.a_pagar)}</b></td>
+    <td class="num">${x.pendientes_de_archivo?`<b style="color:var(--warn)">${x.pendientes_de_archivo}</b>`:'0'}</td></tr>
+    <tr class="cr-det" id="crd-${i}" style="display:none"><td colspan="9"><div style="font-size:12px;columns:3;column-gap:24px">${(x.detalle||[]).map(d=>`<div>${esc(d.folio)} · ${fecha(d.fecha)} · ${esc((d.plan||'').replace(/^ATT /,''))}${d.renta!=null?' · '+money(d.renta):''}</div>`).join('')||'Sin ventas pagables'}</div></td></tr>`).join('')
+    ||'<tr><td colspan="9" class="empty">Sin comisiones en esta revisión.</td></tr>'}</tbody></table></div>`;
+  document.querySelectorAll('[data-cr]').forEach(tr=>tr.onclick=()=>{ const d=$('#crd-'+tr.dataset.cr); d.style.display=d.style.display==='none'?'':'none'; });
+  $('#cr-mes').onchange=e=>{ t.mes=e.target.value; vistaComisionesRev(); };
+  if($('#cr-conf')) $('#cr-conf').onclick=async()=>{ if(!confirm(`¿Confirmar la revisión de ${nomMes(t.mes)} por ${money(r.total)}?\nQueda congelada y es la base para los arrastres.`)) return;
+    const {error}=await sb.rpc('confirmar_revision_comisiones',{p_mes:t.mes}); if(error) return toast(error.message,'bad'); toast('Revisión confirmada.','ok'); vistaComisionesRev(); };
+  if($('#cr-reabrir')) $('#cr-reabrir').onclick=async()=>{ if(!confirm('¿Reabrir esta revisión? Se recalcula con lo que haya hoy.')) return;
+    const {error}=await sb.rpc('reabrir_revision_comisiones',{p_mes:t.mes}); if(error) return toast(error.message,'bad'); vistaComisionesRev(); };
+  $('#cr-exp').onclick=()=>{
+    const f=[['Persona','Esquema','Mes de venta','Arrastre','Ventas pagables','Tramo','Base (renta sin impuestos)','Comisión del mes','Pagado antes','A pagar','Ventas sin archivo aún']];
+    L.forEach((x,i)=>{ const n=i+2; f.push([x.nombre,x.esquema==='agente'?'Agente':'Supervisión',x.mes_venta,x.arrastre?'Sí':'No',x.ventas,x.tramo,x.base!=null?Number(x.base):null,Number(x.comision_mes),Number(x.pagado_antes),{f:`H${n}-I${n}`},x.pendientes_de_archivo]); });
+    const n=L.length+1; f.push(['TOTAL','','','',{f:`SUM(E2:E${n})`},'',{f:`SUM(G2:G${n})`},{f:`SUM(H2:H${n})`},{f:`SUM(I2:I${n})`},{f:`SUM(J2:J${n})`},{f:`SUM(K2:K${n})`}]);
+    const ws=XLSX.utils.aoa_to_sheet(f.map(r=>r.map(v=>v&&typeof v==='object'?null:v)));
+    f.forEach((r,ri)=>r.forEach((v,ci)=>{ if(v&&typeof v==='object') ws[XLSX.utils.encode_cell({r:ri,c:ci})]={t:'n',f:v.f}; }));
+    for(let i=2;i<=n+1;i++) ['G','H','I','J'].forEach(c=>{ if(ws[c+i]) ws[c+i].z='"$"#,##0.00'; });
+    ws['!cols']=[30,12,12,9,10,26,16,14,14,14,12].map(w=>({wch:w}));
+    const det=[['Persona','Mes de venta','Folio','Fecha','Plan','Archivos de pago / renta']];
+    L.forEach(x=>(x.detalle||[]).forEach(d=>det.push([x.nombre,x.mes_venta,String(d.folio),d.fecha,d.plan,d.archivos||d.renta])));
+    const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Revisión'); XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(det),'Ventas');
+    XLSX.writeFile(wb,`revision_comisiones_${t.mes}.xlsx`);
+  };
 }
 
 async function cargarReportesGlobal(archivos){
@@ -11049,7 +11418,7 @@ async function abrirNuevoAviso(){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v77';
+const VERSION_APP='v80';
 async function revisarVersion(){
   try{
     const url=location.href.split('#')[0].split('?')[0]+'?nc='+Date.now();
@@ -11106,6 +11475,7 @@ const ICONOS = {
   alerta:'<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
   caja:'<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M11 12v2h2v-2"/>',
   cobranza:'<path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/>',
+  calendario:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   tablero:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   misventas:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
   registro:'<path d="M4 4h16v16H4z"/><path d="M4 9h16M9 9v11"/><path d="m12 15 2 2 4-4"/>',
@@ -11116,11 +11486,11 @@ const ico = (k,cl='') => `<svg class="ic ${cl}" viewBox="0 0 24 24" aria-hidden=
 const ICONO_MOD = {asistencia_old:'doc', nomina_old:'doc', dispersion_old:'doc'};
 
 const GRUPOS = [
-  ['General',     ['inicio','guia','avisos']],
+  ['General',     ['inicio','calendario','guia','avisos']],
   ['Mi espacio',  ['checar','misventas','mificha','miasist','mispagos']],
   ['Personal',    ['plantilla','asistencia','asistencia_old','solicitudes','salidas']],
-  ['Operación',   ['tablero','registro','caja','ventas','auditoria','comisiones','accesos','tickets']],
-  ['Finanzas',    ['nomina','dispersion','fijos','gastos','ingresos','cobranza','balance']],
+  ['Operación',   ['tablero','registro','caja','ventas','auditoria','accesos','tickets']],
+  ['Finanzas',    ['nomina','comisiones','dispersion','fijos','gastos','ingresos','cobranza','balance']],
   ['Sistema',     ['usuarios','config']]
 ];
 
@@ -11402,6 +11772,7 @@ async function vistaInicio(){
 
   $('#ini-rec').onclick=vistaInicio;
   document.querySelectorAll('#main [data-ir]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); irA(b.dataset.ir); });
+  pintarAgendaInicio().catch(()=>{});
 }
 
 /* Arranque del diseño: tema antes de pintar, menú y vigilancia de #main */
