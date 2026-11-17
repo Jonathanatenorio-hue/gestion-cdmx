@@ -738,6 +738,14 @@ body:has(#campana) #main .head{padding-right:54px}
 .au-p div{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px}
 .au-cal{font-family:var(--fuente-t);font-size:20px;font-weight:700;padding:2px 10px;border-radius:10px}
 .au-cal.ok{color:var(--ok);background:var(--ok-l)} .au-cal.med{color:var(--warn);background:var(--warn-l)} .au-cal.mal{color:var(--bad);background:var(--bad-l)}
+.eq-ac{position:relative}
+.tile:has(.eq-ac),.dash:has(.eq-ac){overflow:visible}
+.eq-lista{display:none;position:absolute;z-index:30;left:0;right:0;top:calc(100% + 4px);max-height:300px;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.14);padding:4px}
+.eq-lista.on{display:block}
+.eq-lista button{display:flex;gap:8px;align-items:baseline;width:100%;text-align:left;border:none;background:none;padding:8px 10px;border-radius:7px;font-size:13.5px;color:var(--txt);cursor:pointer}
+.eq-lista button small{font-size:11px;color:var(--txt-3);min-width:70px}
+.eq-lista button.on,.eq-lista button:hover{background:var(--teal-l)}
+.eq-nada{padding:10px;font-size:12.5px;color:var(--txt-3)}
 </style>
 </head>
 <body>
@@ -10008,7 +10016,8 @@ async function abrirVentaReg(id){
     const deMarca=CAT.filter(x=>x.marca===ma), deModelo=deMarca.filter(x=>x.modelo===mo);
     const caps=unicos(deModelo.map(x=>x.capacidad)), deCap=caps.length?deModelo.filter(x=>(x.capacidad||'')===ca):deModelo;
     const colores=unicos(deCap.map(x=>x.color));
-    return `${selEq('equipo_marca','Marca',CAT.map(x=>x.marca),ma)}${selEq('equipo_modelo','Modelo',deMarca.map(x=>x.modelo),mo)}
+    return `${selEq('equipo_marca','Marca',CAT.map(x=>x.marca),ma)}
+      <div class="eq-ac"><label>Modelo</label><input id="vf-equipo_modelo" value="${esc(mo)}" placeholder="Escribe: 18 pro, a26, moto g…" autocomplete="off" ${dis} style="${ESTILO_CAMPO}"><div class="eq-lista" id="eq-lista"></div></div>
       ${mo&&!caps.length?'':selEq('equipo_capacidad','Capacidad',caps,ca)}
       ${colores.length||!deModelo.length?selEq('equipo_color','Color',colores,v.equipo_color||''):''}`;
   };
@@ -10106,9 +10115,31 @@ async function abrirVentaReg(id){
     $('#vf-ptoinfo').innerHTML=p?`<div class="vf-ptocard"><b>${esc(p.nombre)}</b><span>${esc(p.direccion)}</span>${p.referencia?`<small>${esc(p.referencia)}</small>`:''}
       <div>${p.sla?`<em>Entrega en ${esc(p.sla.toLowerCase())}</em>`:''}<a href="${esc(p.link||'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(p.direccion))}" target="_blank" rel="noopener">Ver en Maps</a></div></div>`:'';
   };
+  const MODELOS=unicos(CAT.map(x=>x.marca+'|'+x.modelo)).map(k=>{ const [marca,modelo]=k.split('|'); return {marca,modelo,q:(marca+' '+modelo).toLowerCase()}; });
   const engancharEquipo=()=>{
     if(!conCatalogo||!editable) return;
-    ['marca','modelo','capacidad'].forEach((k,i)=>{ const el=$('#vf-equipo_'+k); if(!el) return; el.onchange=()=>{
+    // Modelo: escribe y se filtra (cualquier parte del nombre); al elegir, se llena la marca
+    const inp=$('#vf-equipo_modelo'), lst=$('#eq-lista'); let act=-1, res=[];
+    const elegir=m=>{ v.equipo_marca=m.marca; v.equipo_modelo=m.modelo; v.equipo_capacidad=''; v.equipo_color='';
+      $('#vf-eqbox').innerHTML=equipoHTML(); engancharEquipo(); S.ventaSucia=true;
+      const c=$('#vf-equipo_capacidad')||$('#vf-equipo_color'); if(c&&c.tagName==='SELECT'){ if(c.options.length===2) c.selectedIndex=1; c.focus(); } };
+    const pintar=()=>{ const q=inp.value.toLowerCase().trim(), ma=$('#vf-equipo_marca').value;
+      const toks=q.split(/\s+/).filter(Boolean);
+      res=MODELOS.filter(m=>(!ma||m.marca===ma||!q)&&toks.every(t=>m.q.includes(t)));
+      if(!q&&ma) res=MODELOS.filter(m=>m.marca===ma);
+      res=res.sort((x,y)=>x.modelo.length-y.modelo.length||x.q.localeCompare(y.q)).slice(0,14); act=res.length?0:-1;
+      lst.innerHTML=res.length?res.map((m,i)=>`<button type="button" class="${i===act?'on':''}" data-i="${i}"><small>${esc(m.marca)}</small>${esc(m.modelo)}</button>`).join('')
+        :`<div class="eq-nada">No está en la lista de precios.</div>`;
+      lst.classList.toggle('on',!!q||!!ma);
+      lst.querySelectorAll('[data-i]').forEach(b=>b.onmousedown=e=>{ e.preventDefault(); elegir(res[Number(b.dataset.i)]); }); };
+    inp.oninput=()=>{ v.equipo_modelo=''; pintar(); };
+    inp.onfocus=pintar;
+    inp.onblur=()=>setTimeout(()=>lst.classList.remove('on'),150);
+    inp.onkeydown=e=>{ if(!lst.classList.contains('on')||!res.length) return;
+      if(e.key==='ArrowDown'||e.key==='ArrowUp'){ e.preventDefault(); act=(act+(e.key==='ArrowDown'?1:-1)+res.length)%res.length;
+        lst.querySelectorAll('[data-i]').forEach((b,i)=>b.classList.toggle('on',i===act)); lst.children[act]?.scrollIntoView({block:'nearest'}); }
+      else if(e.key==='Enter'){ e.preventDefault(); elegir(res[Math.max(act,0)]); } };
+    ['marca','capacidad'].forEach(k=>{ const i=k==='marca'?0:2; const el=$('#vf-equipo_'+k); if(!el) return; el.onchange=()=>{
       v.equipo_marca=$('#vf-equipo_marca').value; v.equipo_modelo=i>=1?$('#vf-equipo_modelo').value:''; v.equipo_capacidad=i>=2?$('#vf-equipo_capacidad').value:''; v.equipo_color='';
       if(i===0){ v.equipo_modelo=''; } $('#vf-eqbox').innerHTML=equipoHTML(); engancharEquipo(); S.ventaSucia=true;
     }; });
@@ -10151,7 +10182,10 @@ async function abrirVentaReg(id){
     if($('#vf-colsel')&&$('#vf-colsel').style.display!=='none'&&$('#vf-colsel').value&&$('#vf-colsel').value!=='__otra') o.colonia=$('#vf-colsel').value;
     o.punto_entrega_id=['hub','tienda'].includes(o.entrega_tipo)?$('#vf-punto').value:null;
     return o; };
-  const guardar=async(silencio)=>{ const {data,error}=await sb.rpc('guardar_venta_reg',{p:leer()});
+  const guardar=async(silencio)=>{
+    if(conCatalogo&&$('#vf-con_equipo')?.value==='true'){ const mo=($('#vf-equipo_modelo')?.value||'').trim();
+      if(mo&&!CAT.some(x=>x.modelo===mo&&x.marca===$('#vf-equipo_marca').value)){ toast('El modelo no está en la lista de precios: escríbelo y elígelo de las opciones.','bad'); $('#vf-equipo_modelo').focus(); return null; } }
+    const {data,error}=await sb.rpc('guardar_venta_reg',{p:leer()});
     if(error){ toast(error.message,'bad'); return null; } if(!silencio) toast('Guardado.','ok'); id=data; S.ventaSucia=false; return data; };
   const alListado=tab=>{ S.ventaSucia=false; S.vr=S.vr||{q:''}; S.vr.tab=tab; S.vr.q=''; vistaVentasReg(); };
 
@@ -12514,7 +12548,7 @@ async function bdPintarPapeles(c){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v83';
+const VERSION_APP='v84';
 window.addEventListener('beforeunload',e=>{ if(S&&S.ventaSucia){ e.preventDefault(); e.returnValue=''; } });
 async function revisarVersion(){
   try{
