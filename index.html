@@ -746,6 +746,45 @@ body:has(#campana) #main .head{padding-right:54px}
 .eq-lista button small{font-size:11px;color:var(--txt-3);min-width:70px}
 .eq-lista button.on,.eq-lista button:hover{background:var(--teal-l)}
 .eq-nada{padding:10px;font-size:12.5px;color:var(--txt-3)}
+.din-card{padding:20px}
+.din-top{display:grid;grid-template-columns:minmax(0,300px) 1fr;gap:22px;align-items:start}
+.din-img{width:100%;border-radius:14px;cursor:zoom-in;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.din-info h2{font-family:var(--fuente-t);font-size:24px;margin:8px 0 12px;letter-spacing:-.5px}
+.din-reglas{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.din-reglas div{background:var(--line-2);border-radius:10px;padding:10px 12px}
+.din-reglas span{display:block;font-size:11.5px;color:var(--txt-3)} .din-reglas b{font-size:13.5px}
+.din-yo{margin-top:14px;padding:14px;border-radius:12px;border:1px solid var(--line);background:var(--card)}
+.din-yo.gana{border-color:var(--ok);background:var(--ok-l)}
+.din-yo>div:first-child{display:flex;justify-content:space-between;align-items:baseline}
+.din-yo span{font-size:12px;color:var(--txt-2)} .din-yo b{font-family:var(--fuente-t);font-size:28px} .din-yo b small{font-size:14px;color:var(--txt-3)}
+.din-yo>small{display:block;font-size:12.5px;color:var(--txt-2);margin-top:6px}
+.din-bar{position:relative;height:10px;background:var(--line-2);border-radius:99px;overflow:hidden;margin-top:6px}
+.din-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--teal),var(--ok));border-radius:99px;transition:width .6s}
+.din-bar em{position:absolute;top:0;bottom:0;width:2px;background:var(--card)}
+.din-folios{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.din-folios span{font-size:11.5px;padding:3px 8px;border-radius:99px;background:var(--teal-l);color:var(--teal-ink)}
+.din-folios span.no{background:var(--line-2);color:var(--txt-3);text-decoration:line-through}
+.din-txt{margin-top:12px} .din-txt summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--txt-2)}
+.din-txt div{white-space:pre-wrap;font-size:13px;line-height:1.55;margin-top:8px;color:var(--txt-2)}
+.din-rank>div{display:grid;grid-template-columns:28px minmax(110px,190px) 1fr 56px 200px;gap:10px;align-items:center;padding:8px 4px;border-bottom:1px solid var(--line)}
+.din-rank>div .din-bar{margin:0}
+.din-rank>div.gana{background:var(--ok-l);border-radius:8px}
+.din-pos{font-weight:700;color:var(--txt-3);text-align:center} .din-rank b{font-size:13px}
+.din-n{font-family:var(--fuente-t);font-size:18px;font-weight:700;text-align:right} .din-n small{font-size:12px;color:var(--txt-3)}
+.din-st{font-size:12px;color:var(--txt-2)}
+.din-mini{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.din-m{display:flex;gap:12px;align-items:center;text-align:left;padding:10px}
+.din-m img{width:54px;height:72px;object-fit:cover;border-radius:8px}
+.din-m b{display:block;font-size:13.5px;margin:4px 0 2px} .din-m small{font-size:12px;color:var(--txt-3)}
+@media (max-width:760px){ .din-top{grid-template-columns:1fr} .din-img{max-width:320px;margin:0 auto;display:block}
+  .din-rank>div{grid-template-columns:24px 1fr 50px} .din-rank>div .din-bar{grid-column:2/4} .din-st{grid-column:2/4} }
+.din-niv{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.din-niv div{border:1px solid var(--line);border-radius:12px;padding:12px;background:linear-gradient(180deg,var(--card),var(--line-2))}
+.din-niv b{display:block;font-size:13.5px} .din-niv span{display:block;font-family:var(--fuente-t);font-size:18px;font-weight:700;margin:4px 0}
+.din-niv small{font-size:12px;color:var(--txt-2);line-height:1.4}
+.din-reqs{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.din-req{font-size:11.5px;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.din-req.ok{background:var(--ok-l);color:var(--ok)} .din-req.no{background:var(--bad-l);color:var(--bad)}
 </style>
 </head>
 <body>
@@ -1414,6 +1453,7 @@ const MODULOS = [
   {id:'comisiones', n:'03', t:'Comisiones',           lista:true, soloDir:true},
   {id:'ventas',     n:'04', t:'Ventas',                 lista:true, ver:'ventasreg'},
   {id:'base',       n:'04c', t:'Base de datos',          lista:true, ver:'base'},
+  {id:'dinamicas',  n:'04d', t:'Dinámicas',              lista:true, ver:'todos'},
   {id:'auditoria',  n:'04b', t:'Auditoría de ventas',  bloque:5, desc:'El corazón del control: cruza tu reporte interno contra Global y contra los dos archivos de pago de ExpertCell, el semanal del 50% y el mensual del remanente.', pts:['Cruce por folio y por teléfono, con asignación manual para lo que no empate','Detección de duplicados en el interno','Clasificación: pagada sin comisionar, comisionada sin pagar, solo interno, solo Global','Control del remanente mensual pendiente de cobro']},
   {id:'accesos',    n:'06', t:'Accesos a plataformas',bloque:10,desc:'Padrón de usuarios de AT&T, Bonsaif, Odoo, iVentas y el CRM de leads. Sin contraseñas: solo quién tiene qué y desde cuándo.', pts:['Alta y baja ligada al movimiento de personal','Alerta de accesos activos de gente que ya causó baja','Costo mensual por plataforma','Historial de solicitudes']},
   {id:'gastos',     n:'07', t:'Gastos',               lista:true, soloDir:true},
@@ -1522,7 +1562,7 @@ function irA(id){
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
   let m=MODULOS.find(x=>x.id===id);
   if(!m || !puedeVerModulo(m)){ m=MODULOS.find(x=>x.id==='checar'); id='checar'; vistaActual=id; }
-  const R={base:vistaBase, comisiones:vistaComisionesRev, calendario:vistaCalendario, cobranza:vistaCobranza, tablero:vistaTableroVentas, misventas:vistaTableroVentas, registro:vistaRegistroVentas, fijos:vistaPagosFijos, caja:vistaCaja, guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentasReg, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar,
+  const R={dinamicas:vistaDinamicas, base:vistaBase, comisiones:vistaComisionesRev, calendario:vistaCalendario, cobranza:vistaCobranza, tablero:vistaTableroVentas, misventas:vistaTableroVentas, registro:vistaRegistroVentas, fijos:vistaPagosFijos, caja:vistaCaja, guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentasReg, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar,
              mificha:vistaMiFicha, miasist:vistaMiAsistencia, mispagos:vistaMisPagos,
              solicitudes:vistaSolicitudesDatos, inicio:vistaInicio, avisos:vistaAvisos};
   $('#app').classList.remove('menu');
@@ -9895,7 +9935,7 @@ async function vistaVentasReg(){
   const n=k=>k==='sinreg'?SR.length:(k==='cierre'||k==='salvan'||k==='equipos')?'':(filtro[k]?filtro[k]().length:0);
   const atrasadas=L.filter(x=>x.estatus==='en_revision'&&x.minutos_en_revision>30).length;
   const mias=papel==='agente'?L:[];
-  const pend=mias.filter(x=>['borrador','regresada','asignada'].includes(x.estatus)||(x.estatus==='en_global'&&!x.con_evidencia));
+  const pend=mias.filter(x=>['borrador','regresada','asignada'].includes(x.estatus)||(x.estatus==='en_global'&&!x.con_evidencia&&!x.previa));
 
   $('#main').innerHTML=`
   <div class="head"><div><h1>Ventas</h1><p>${papel==='agente'?'Registra cada venta con su expediente completo. Lo que no se registra aquí no cuenta para tu meta ni para tu comisión.'
@@ -10037,6 +10077,7 @@ async function abrirVentaReg(id){
     <h1>${id?`Venta ${esc(v.folio||'#'+id)}`:'Registrar venta'}</h1>
     <p>${id?`<span class="p ${ETAPA_CLASE(v.etapa||'')}">${esc(v.etapa||'')}</span> · ${esc(v.agente||'')}${v.pt?' · '+esc(v.pt):''}`:'Llena todo y sube el expediente completo. Nada se pierde mientras capturas: al final eliges guardar o enviar.'}</p></div></div>
   ${v.motivo&&['regresada','rechazada','cancelada','asignada'].includes(v.estatus)?`<div class="note" style="margin-bottom:14px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">${v.estatus==='rechazada'?'Rechazada':v.estatus==='cancelada'?'Cancelada':'Regresada para corregir'}</b>${esc(v.motivo)}</div>`:''}
+  ${v.previa?`<div class="note" style="margin-bottom:14px"><b>Venta previa a la plataforma</b>Se hizo antes del 17 de noviembre: no requiere expediente. Se termina sola cuando Global la marque como terminada.</div>`:''}
   ${v.estatus==='asignada'?`<div class="note" style="margin-bottom:14px"><b>Registro tardío</b>Esta venta apareció en Global sin registro. ${new Date()>=new Date('2026-12-01T00:00:00')?'No cuenta para tu meta ni comisión hasta que subas el expediente y mesa de control la apruebe.':'Sube su expediente para dejarla completa.'}</div>`:''}
   <div class="dash" style="gap:14px" id="vf-form">
     ${id?lineaVentaHTML(v, docs.evidencia_entrega?.subido_en):''}
@@ -10336,16 +10377,17 @@ async function pintarListaPrecios(c){
 
 /* ---------- Ventas en Global sin registro ---------- */
 async function pintarSinRegistro(c,SR){
-  if(!SR.length){ c.innerHTML='<div class="enorden"><span class="ico">✓</span><b>Todo registrado</b>Cada venta de Global desde el 14 de noviembre tiene su registro.</div>'; return; }
+  if(!SR.length){ c.innerHTML='<div class="enorden"><span class="ico">✓</span><b>Todo registrado</b>Cada venta de Global desde el 17 de noviembre tiene su registro y todas las anteriores tienen agente.</div>'; return; }
   const {data:ag}=await sb.from('empleados').select('id,nombre_completo,puestos(clave)').eq('estatus','activo').order('nombre_completo');
   const agentes=(ag||[]).filter(e=>e.puestos?.clave==='EJEC'||e.puestos?.clave==='SUP');
-  c.innerHTML=`<div class="note" style="margin-bottom:12px"><b>Ventas que llegaron de Global sin que el agente las registrara</b>Asígnalas a su agente. Quedan como "registro tardío" y el agente debe subir el expediente.
+  c.innerHTML=`<div class="note" style="margin-bottom:12px"><b>Ventas que llegaron de Global sin que el agente las registrara</b>Asígnalas a su agente. Las hechas desde el 17 de noviembre quedan como "registro tardío" y el agente debe subir el expediente. Las anteriores ("Anterior · sin agente") solo toman el agente: no piden expediente.
     ${new Date()>=new Date('2026-12-01T00:00:00')?'Desde el 1 de diciembre no cuentan para meta ni comisión hasta que el expediente se apruebe.':'Hasta el 30 de noviembre cuentan al asignarlas; desde el 1 de diciembre ya no, hasta que el expediente se apruebe.'}</div><div id="sr-l"></div>`;
   tablaPaginada($('#sr-l'),SR,`<th>Folio</th><th>Fecha</th><th>DN</th><th>Plan</th><th>Origen</th><th>Asignar a</th><th></th>`,
     x=>`<tr><td class="mono">${esc(x.folio||'')}<div style="font-size:11px;color:var(--txt-3)">${esc(x.programacion||'')}</div></td><td style="font-size:12.5px">${fecha(x.fecha_venta)}</td>
       <td class="mono" style="font-size:12.5px">${esc(x.telefono||'')}</td><td style="font-size:12.5px">${esc((x.plan||'').replace(/^ATT /,''))}</td>
-      <td><span class="p ${x.origen==='terminada'?'p-ok':'p-teal'}">${x.origen==='terminada'?'Terminada':'En tránsito'}</span></td>
-      <td><select data-sel="${esc(x.folio)}" style="${ESTILO_CAMPO};min-width:180px"><option value="">Elegir agente…</option>${agentes.map(a=>`<option value="${a.id}">${esc(a.nombre_completo)}</option>`).join('')}</select></td>
+      <td><span class="p ${x.origen==='terminada'?'p-ok':x.origen==='sin_agente'?'p-warn':'p-teal'}">${x.origen==='terminada'?'Terminada':x.origen==='sin_agente'?'Anterior · sin agente':'En tránsito'}</span></td>
+      <td>${(()=>{ const sug=x.sugerido?agentes.find(a=>bdNorm(a.nombre_completo)===bdNorm(x.sugerido)):null;
+        return `<select data-sel="${esc(x.folio)}" style="${ESTILO_CAMPO};min-width:180px"><option value="">Elegir agente…</option>${agentes.map(a=>`<option value="${a.id}" ${sug&&sug.id===a.id?'selected':''}>${esc(a.nombre_completo)}</option>`).join('')}</select>${x.sugerido&&!sug?`<div style="font-size:11px;color:var(--txt-3)">Control interno: ${esc(x.sugerido)}</div>`:''}`; })()}</td>
       <td><button class="btn btn-p" data-asg="${esc(x.folio)}">Asignar</button></td></tr>`,
     {despues:el=>el.querySelectorAll('[data-asg]').forEach(b=>b.onclick=async()=>{
       const emp=Number(el.querySelector(`[data-sel="${CSS.escape(b.dataset.asg)}"]`).value); if(!emp) return toast('Elige el agente.','bad');
@@ -10448,7 +10490,7 @@ async function borrarExpedientes(B){
 /* ============================================================
    CAMPANA DE AVISOS — en tiempo real
    ============================================================ */
-const NOTIF_ICO={revision:'🔎',atraso:'⏰',regresada:'↩',rechazada:'✕',aprobada:'✓',asignada:'📎',en_global:'🚚',entregada:'📦',facturar:'🧾',facturada:'🧾',terminada:'🏆',cancelada:'✕'};
+const NOTIF_ICO={dinamica:'🏆',revision:'🔎',atraso:'⏰',regresada:'↩',rechazada:'✕',aprobada:'✓',asignada:'📎',en_global:'🚚',entregada:'📦',facturar:'🧾',facturada:'🧾',terminada:'🏆',cancelada:'✕'};
 S.notifs=[];
 async function iniciarAvisos(){
   if(!$('#campana')){
@@ -10502,6 +10544,7 @@ async function abrirAviso(n){
   if(!n) return;
   if(!n.leida_en){ n.leida_en=new Date().toISOString(); pintarContadorAvisos(); sb.rpc('marcar_avisos_leidos',{p_ids:[n.id]}); }
   if(n.ref_tipo==='venta'&&n.ref_id){ irA('ventas'); setTimeout(()=>abrirVentaReg(n.ref_id),50); }
+  if(n.ref_tipo==='dinamica'&&n.ref_id){ irA('dinamicas'); setTimeout(()=>abrirDinamica(n.ref_id),50); }
 }
 
 /* ============================================================
@@ -10640,7 +10683,7 @@ async function vistaComisionesRev(){
   </div>
   <div class="tw" style="margin-top:14px"><table><thead><tr><th>Persona</th><th>Mes de venta</th><th class="num">Ventas pagables</th><th>Tramo</th><th class="num">Base</th><th class="num">Comisión del mes</th><th class="num">Pagado antes</th><th class="num">A pagar</th><th class="num">Sin archivo</th></tr></thead>
   <tbody>${L.map((x,i)=>`<tr style="cursor:pointer" data-cr="${i}">
-    <td><b style="font-size:13px">${esc(nomCorto(x.nombre))}</b><div style="font-size:11px;color:var(--txt-3)">${x.esquema==='agente'?'Agente':'Supervisión'}</div></td>
+    <td><b style="font-size:13px">${esc(nomCorto(x.nombre))}</b><div style="font-size:11px;color:var(--txt-3)">${x.esquema==='agente'?'Agente':x.esquema==='dinamica'?'Dinámica':'Supervisión'}</div></td>
     <td style="font-size:12.5px">${esc(nomMes(x.mes_venta))}${x.arrastre?' <span class="p p-warn">arrastre</span>':''}</td>
     <td class="num">${x.ventas}</td><td style="font-size:12px">${esc(x.tramo||'')}</td>
     <td class="num">${x.base!=null?money(x.base):'—'}</td><td class="num">${money(x.comision_mes)}</td>
@@ -10657,7 +10700,7 @@ async function vistaComisionesRev(){
     const {error}=await sb.rpc('reabrir_revision_comisiones',{p_mes:t.mes}); if(error) return toast(error.message,'bad'); vistaComisionesRev(); };
   $('#cr-exp').onclick=()=>{
     const f=[['Persona','Esquema','Mes de venta','Arrastre','Ventas pagables','Tramo','Base (renta sin impuestos)','Comisión del mes','Pagado antes','A pagar','Ventas sin archivo aún']];
-    L.forEach((x,i)=>{ const n=i+2; f.push([x.nombre,x.esquema==='agente'?'Agente':'Supervisión',x.mes_venta,x.arrastre?'Sí':'No',x.ventas,x.tramo,x.base!=null?Number(x.base):null,Number(x.comision_mes),Number(x.pagado_antes),{f:`H${n}-I${n}`},x.pendientes_de_archivo]); });
+    L.forEach((x,i)=>{ const n=i+2; f.push([x.nombre,x.esquema==='agente'?'Agente':x.esquema==='dinamica'?'Dinámica':'Supervisión',x.mes_venta,x.arrastre?'Sí':'No',x.ventas,x.tramo,x.base!=null?Number(x.base):null,Number(x.comision_mes),Number(x.pagado_antes),{f:`H${n}-I${n}`},x.pendientes_de_archivo]); });
     const n=L.length+1; f.push(['TOTAL','','','',{f:`SUM(E2:E${n})`},'',{f:`SUM(G2:G${n})`},{f:`SUM(H2:H${n})`},{f:`SUM(I2:I${n})`},{f:`SUM(J2:J${n})`},{f:`SUM(K2:K${n})`}]);
     const ws=XLSX.utils.aoa_to_sheet(f.map(r=>r.map(v=>v&&typeof v==='object'?null:v)));
     f.forEach((r,ri)=>r.forEach((v,ci)=>{ if(v&&typeof v==='object') ws[XLSX.utils.encode_cell({r:ri,c:ci})]={t:'n',f:v.f}; }));
@@ -12534,6 +12577,146 @@ async function bdPintarPapeles(c){
   });
 }
 
+
+/* ============================================================
+   DINÁMICAS — publicar, medir en vivo y pagar con comisiones
+   ============================================================ */
+const nomMesD=k=>{ const t=new Date(k+'-15T12:00:00').toLocaleDateString('es-MX',{month:'long',year:'numeric'}); return t.charAt(0).toUpperCase()+t.slice(1); };
+const DIN_METRICA={ventas_registradas:'Ventas subidas completas por el agente (deja de contar si mesa la rechaza o cancela)',ventas_aprobadas:'Ventas aprobadas por mesa de control',ventas_terminadas:'Ventas terminadas en Global'};
+const DIN_EST={borrador:['Borrador',''],publicada:['Activa','p-ok'],cerrada:['Cerrada','p-teal'],cancelada:['Cancelada','p-bad']};
+const dinRango=d=>`${new Date(d.desde+'T12:00:00').toLocaleDateString('es-MX',{day:'numeric',month:'short'})} al ${new Date(d.hasta+'T12:00:00').toLocaleDateString('es-MX',{day:'numeric',month:'short'})}`;
+async function vistaDinamicas(){
+  $('#main').innerHTML='<div class="empty">Cargando…</div>';
+  const {data,error}=await sb.from('incentivos').select('id,nombre,desde,hasta,metrica,meta,premio,premio_tipo,pago_mes,estatus,imagen,tipo').order('desde',{ascending:false});
+  if(error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 159.</span></div>`; return; }
+  const L=data||[], hoy=hoyMexico();
+  const act=L.filter(d=>d.estatus==='publicada'), otras=L.filter(d=>d.estatus!=='publicada');
+  $('#main').innerHTML=`<div class="head"><div><h1>Dinámicas</h1><p>${S.direccion?'Publica las dinámicas y mide en vivo quién va ganando. Los premios se pagan con la revisión de comisiones del mes.':'Las dinámicas activas y cómo vas. Tu avance se actualiza solo con cada venta que subes.'}</p></div>
+    ${S.direccion?'<button class="btn btn-p" id="din-nueva">Nueva dinámica</button>':''}</div>
+    <div id="din-l">${act.length?'':'<div class="empty" style="margin-bottom:16px">No hay dinámicas activas en este momento.</div>'}</div>
+    ${otras.length?`<div class="tv-h" style="margin-top:18px"><b>Anteriores y borradores</b></div><div class="din-mini">${otras.map(d=>`<button class="tile din-m" data-din="${d.id}" style="transform:none">
+      ${d.imagen?`<img src="${d.imagen}" alt="">`:''}<div><span class="p ${DIN_EST[d.estatus][1]}">${DIN_EST[d.estatus][0]}</span><b>${esc(d.nombre)}</b><small>${dinRango(d)} · ${d.tipo==='niveles'?'por niveles':'meta '+d.meta+' · '+money(d.premio)}</small></div></button>`).join('')}</div>`:''}`;
+  if($('#din-nueva')) $('#din-nueva').onclick=()=>editarDinamica(null);
+  document.querySelectorAll('[data-din]').forEach(b=>b.onclick=()=>abrirDinamica(Number(b.dataset.din)));
+  const el=$('#din-l');
+  for(const d of act){ const box=document.createElement('div'); el.appendChild(box); await pintarDinamica(box,d.id); }
+}
+async function abrirDinamica(id){
+  $('#main').innerHTML=`<button class="tv-volver" id="din-v">← Dinámicas</button><div id="din-1" style="margin-top:10px"></div>`;
+  $('#din-v').onclick=()=>vistaDinamicas();
+  await pintarDinamica($('#din-1'),id);
+}
+async function pintarDinamica(el,id){
+  const [rd,ra]=await Promise.all([sb.from('incentivos').select('*').eq('id',id).single(),sb.rpc('incentivo_avance',{p_id:id})]);
+  if(rd.error){ el.innerHTML=`<div class="empty">${esc(rd.error.message)}</div>`; return; }
+  const d=rd.data, A=ra.data||{personas:[]}, P=A.personas||[], jefe=S.direccion||['supervisor','coordinador'].includes(S.perfil?.rol);
+  const yo=P.find(p=>p.id===S.perfil?.empleado_id);
+  const hoy=hoyMexico(), dias=Math.max(0,Math.round((new Date(d.hasta+'T12:00:00')-new Date(hoy+'T12:00:00'))/864e5));
+  const barra=(n,m)=>`<div class="din-bar"><i style="width:${Math.min(100,n/m*100)}%"></i>${Array.from({length:m-1},(_,i)=>`<em style="left:${(i+1)/m*100}%"></em>`).join('')}</div>`;
+  const premioTxt=d.premio_tipo==='fijo'?`${money(d.premio)} al llegar a ${d.meta}`:`${money(d.premio)} por venta al llegar a ${d.meta}`;
+  if(d.tipo==='niveles') return pintarDinamicaNiveles(el,d,A,jefe,yo,dias);
+  el.innerHTML=`<div class="tile din-card" style="cursor:default;transform:none">
+    <div class="din-top">
+      ${d.imagen?`<img class="din-img" src="${d.imagen}" alt="${esc(d.nombre)}" id="din-img-${id}">`:''}
+      <div class="din-info">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="p ${DIN_EST[d.estatus][1]}">${DIN_EST[d.estatus][0]}</span>
+          <small style="color:var(--txt-3)">${dinRango(d)}${d.estatus==='publicada'?` · ${dias===0?'último día':dias===1?'queda 1 día':'quedan '+dias+' días'}`:''}</small></div>
+        <h2>${esc(d.nombre)}</h2>
+        <div class="din-reglas"><div><span>Meta</span><b>${d.meta} ventas</b></div><div><span>Premio</span><b>${premioTxt}</b></div><div><span>Se paga</span><b>Con las comisiones de ${esc(nomMesD(d.pago_mes))}</b></div></div>
+        <div style="font-size:12.5px;color:var(--txt-2);margin-top:8px"><b>Qué cuenta:</b> ${esc(DIN_METRICA[d.metrica])}, con fecha del ${dinRango(d)}. Pueden ganar todos los que lleguen.</div>
+        ${yo&&!jefe?`<div class="din-yo ${yo.gana?'gana':''}"><div><span>Tu avance</span><b>${yo.cuentan} <small>de ${d.meta}</small></b></div>${barra(yo.cuentan,d.meta)}
+          <small>${yo.gana?'¡Llegaste a la meta! Cuida que todas pasen mesa de control.':`Te ${d.meta-yo.cuentan===1?'falta 1 venta':'faltan '+(d.meta-yo.cuentan)+' ventas'}.`}${yo.cuentan>yo.confirmadas?` ${yo.cuentan-yo.confirmadas} en revisión de mesa.`:''}</small>
+          ${yo.ventas.length?`<div class="din-folios">${yo.ventas.map(v=>`<span class="${v.cuenta?'':'no'}">${esc(v.folio)} · ${esc(({en_revision:'en revisión',regresada:'regresada: corrígela',aprobada:'aprobada',en_global:'en ruta',facturada:'terminada'})[v.estatus]||v.estatus)}</span>`).join('')}</div>`:''}</div>`:''}
+        ${d.texto?`<details class="din-txt"><summary>Ver el anuncio completo</summary><div>${esc(d.texto)}</div></details>`:''}
+        ${S.direccion?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          ${d.estatus!=='cerrada'&&d.estatus!=='cancelada'?`<button class="btn" data-ed="${id}">Editar</button>`:''}
+          ${d.estatus==='borrador'?`<button class="btn btn-p" data-pub="${id}">Publicar y avisar a los agentes</button>`:''}
+          ${d.estatus==='publicada'?`<button class="btn btn-p" data-cer="${id}">Cerrar y confirmar ganadores</button><button class="btn" style="color:var(--bad)" data-can="${id}">Cancelar</button>`:''}</div>`:''}
+      </div>
+    </div>
+    ${jefe&&d.estatus!=='borrador'?`<div class="tv-h" style="margin-top:16px"><b>${d.estatus==='cerrada'?'Resultado':'Cómo van'}</b><span>${A.ganadores} ${A.ganadores===1?'llegó':'llegaron'} a la meta</span></div>
+      <div class="din-rank">${P.map((p,i)=>`<div class="${p.gana?'gana':''}"><span class="din-pos">${i+1}</span><b>${esc(nomCorto(p.nombre))}</b>${barra(p.cuentan,d.meta)}
+        <span class="din-n">${p.cuentan}<small>/${d.meta}</small></span><small class="din-st">${p.gana?'🏆 '+money(p.premio):d.meta-p.cuentan<=2&&p.cuentan>0?'a '+(d.meta-p.cuentan)+' de la meta':p.cuentan?'':'sin ventas'}${p.cuentan>p.confirmadas?` · ${p.cuentan-p.confirmadas} en revisión`:''}</small></div>`).join('')||'<div class="empty">Sin participantes.</div>'}</div>`:''}
+  </div>`;
+  const img=el.querySelector('.din-img'); if(img) img.onclick=()=>{ const w=window.open(); if(w){ w.document.write(`<title>${esc(d.nombre)}</title><body style="margin:0;background:#111;display:flex;justify-content:center"><img src="${d.imagen}" style="max-width:100%;height:auto">`); } };
+  el.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>editarDinamica(id));
+  el.querySelectorAll('[data-pub]').forEach(b=>b.onclick=async()=>{ if(!confirm('¿Publicar? A cada agente le llega el aviso.')) return;
+    const {data,error}=await sb.rpc('publicar_incentivo',{p_id:id}); if(error) return toast(error.message,'bad'); toast(`Publicada. Se avisó a ${data} agentes.`,'ok'); vistaDinamicas(); });
+  el.querySelectorAll('[data-cer]').forEach(b=>b.onclick=async()=>{ if(!confirm('¿Cerrar la dinámica? Se congelan los ganadores con lo que llevan hoy y su premio entra a la revisión de comisiones.')) return;
+    const {data,error}=await sb.rpc('cerrar_incentivo',{p_id:id}); if(error) return toast(error.message,'bad'); toast(`Cerrada: ${data} ganador${data===1?'':'es'}.`,'ok'); vistaDinamicas(); });
+  el.querySelectorAll('[data-can]').forEach(b=>b.onclick=async()=>{ if(!confirm('¿Cancelar la dinámica? Nadie cobra el premio.')) return;
+    const {error}=await sb.rpc('cancelar_incentivo',{p_id:id}); if(error) return toast(error.message,'bad'); vistaDinamicas(); });
+}
+async function editarDinamica(id){
+  let d={desde:hoyMexico(),hasta:hoyMexico(),metrica:'ventas_registradas',meta:6,premio:400,premio_tipo:'fijo',pago_mes:hoyMexico().slice(0,7)};
+  if(id){ const {data}=await sb.from('incentivos').select('*').eq('id',id).single(); if(data) d=data; }
+  let imagen=null;
+  const meses=[0,1,2].map(i=>{ const x=new Date(hoyMexico()+'T12:00:00'); x.setDate(1); x.setMonth(x.getMonth()+i); return x.toISOString().slice(0,7); });
+  $('#main').innerHTML=`<button class="tv-volver" id="din-v">← Dinámicas</button>
+  <div class="head"><div><h1>${id?'Editar dinámica':'Nueva dinámica'}</h1><p>Se guarda como borrador; al publicarla les llega el aviso a los agentes.</p></div></div>
+  <div class="tile w12" style="cursor:default;transform:none"><div class="bd-f2">
+    <div style="grid-column:1/-1"><label>Nombre</label><input id="dn-nom" value="${esc(d.nombre||'')}" placeholder="Ej. 6 ventas = $400 extra" style="${ESTILO_CAMPO}"></div>
+    <div><label>Desde</label><input type="date" id="dn-de" value="${d.desde}" style="${ESTILO_CAMPO}"></div>
+    <div><label>Hasta</label><input type="date" id="dn-ha" value="${d.hasta}" style="${ESTILO_CAMPO}"></div>
+    <div style="grid-column:1/-1"><label>Qué cuenta</label><select id="dn-me" style="${ESTILO_CAMPO}">${Object.entries(DIN_METRICA).map(([k,l])=>`<option value="${k}" ${d.metrica===k?'selected':''}>${esc(l)}</option>`).join('')}</select></div>
+    <div><label>Meta (ventas)</label><input type="number" min="1" id="dn-meta" value="${d.meta}" style="${ESTILO_CAMPO}"></div>
+    <div><label>Premio ($)</label><input type="number" min="0" id="dn-pr" value="${d.premio}" style="${ESTILO_CAMPO}"></div>
+    <div><label>Tipo de premio</label><select id="dn-pt" style="${ESTILO_CAMPO}"><option value="fijo" ${d.premio_tipo==='fijo'?'selected':''}>Fijo al llegar a la meta</option><option value="por_venta" ${d.premio_tipo==='por_venta'?'selected':''}>Por cada venta, al llegar a la meta</option></select></div>
+    <div><label>Se paga con las comisiones de</label><select id="dn-pm" style="${ESTILO_CAMPO}">${[...new Set([d.pago_mes,...meses])].map(m=>`<option value="${m}" ${d.pago_mes===m?'selected':''}>${esc(nomMesD(m))}</option>`).join('')}</select></div>
+    <div style="grid-column:1/-1"><label>Anuncio</label><textarea id="dn-tx" rows="10" style="${ESTILO_CAMPO};resize:vertical" placeholder="Pega aquí el texto de la dinámica, con emojis.">${esc(d.texto||'')}</textarea></div>
+    <div style="grid-column:1/-1"><label>Imagen</label><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <img id="dn-prev" src="${d.imagen||''}" style="max-height:140px;border-radius:10px;${d.imagen?'':'display:none'}"><label class="btn" style="margin:0">${d.imagen?'Cambiar imagen':'Subir imagen'}<input type="file" accept="image/*" id="dn-img" style="display:none"></label></div></div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:14px"><button class="btn" id="dn-g">Guardar borrador</button>${!id||d.estatus==='borrador'?'<button class="btn btn-p" id="dn-gp">Guardar y publicar</button>':''}</div></div>`;
+  $('#din-v').onclick=()=>vistaDinamicas();
+  $('#dn-img').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; const blob=await comprimirFoto(f);
+    imagen=await new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(blob); }); $('#dn-prev').src=imagen; $('#dn-prev').style.display=''; };
+  const guardar=async pub=>{
+    const p={id,nombre:$('#dn-nom').value,desde:$('#dn-de').value,hasta:$('#dn-ha').value,metrica:$('#dn-me').value,meta:$('#dn-meta').value,premio:$('#dn-pr').value,
+      premio_tipo:$('#dn-pt').value,pago_mes:$('#dn-pm').value,texto:$('#dn-tx').value,imagen:imagen||''};
+    const {data,error}=await sb.rpc('guardar_incentivo',{p}); if(error) return toast(error.message,'bad');
+    if(pub){ const r=await sb.rpc('publicar_incentivo',{p_id:data}); if(r.error) return toast(r.error.message,'bad'); toast(`Publicada. Se avisó a ${r.data} agentes.`,'ok'); }
+    else toast('Guardada.','ok');
+    vistaDinamicas(); };
+  $('#dn-g').onclick=()=>guardar(false); if($('#dn-gp')) $('#dn-gp').onclick=()=>guardar(true);
+}
+
+
+function pintarDinamicaNiveles(el,d,A,jefe,yo,dias){
+  const id=d.id, P=A.personas||[], N=(d.niveles||[]).slice().sort((a,b)=>b.desde-a.desde), REQ=d.requisitos||[];
+  const minimo=Math.min(...N.map(n=>n.desde));
+  const reqChip=r=>`<span class="din-req ${r.cumple?'ok':'no'}" title="${esc(r.nombre)}">${r.cumple?'✓':'✗'} ${r.tipo==='asistencia'?(r.valor==null?'Asistencia: sin datos':`Asistencia ${r.valor}%`):`${esc(r.nombre.replace(/^Mínimo 16 activaciones (en |del )?/i,'').replace(/^1 al 23 de /,'').replace(/^./,c=>c.toUpperCase()))} ${r.valor}/${r.meta}`}</span>`;
+  const sig=p=>{ const n=N.slice().reverse().find(n=>p.cuentan<n.desde); return n?`Te ${n.desde-p.cuentan===1?'falta 1 activación':'faltan '+(n.desde-p.cuentan)+' activaciones'} para ${esc(n.nombre)}.`:''; };
+  el.innerHTML=`<div class="tile din-card" style="cursor:default;transform:none">
+    <div class="din-top">
+      ${d.imagen?`<img class="din-img" src="${d.imagen}" alt="${esc(d.nombre)}">`:''}
+      <div class="din-info">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="p ${DIN_EST[d.estatus][1]}">${DIN_EST[d.estatus][0]}</span>
+          <small style="color:var(--txt-3)">${dinRango(d)}${d.estatus==='publicada'?` · ${dias===0?'último día':dias===1?'queda 1 día':'quedan '+dias+' días'}`:''}</small></div>
+        <h2>${esc(d.nombre)}</h2>
+        <div class="din-niv">${N.map(n=>`<div><b>${esc(n.nombre)}</b><span>${n.hasta?`${n.desde} a ${n.hasta}`:`${n.desde} o más`} activaciones</span><small>${esc(n.premio)}</small></div>`).join('')}</div>
+        <div style="font-size:12.5px;color:var(--txt-2);margin-top:10px"><b>Qué cuenta:</b> activaciones válidas (ventas terminadas en Global con tu nombre) del ${dinRango(d)}. Las que están en tránsito todavía no cuentan.<br><b>Requisitos para cualquier nivel:</b> ${REQ.map(r=>esc(r.nombre)).join(' · ')}.</div>
+        ${yo&&!jefe?`<div class="din-yo ${yo.gana?'gana':''}"><div><span>Tus activaciones</span><b>${yo.cuentan}${yo.transito?` <small>+ ${yo.transito} en tránsito</small>`:''}</b></div>
+          <div class="din-bar"><i style="width:${Math.min(100,yo.cuentan/Math.max(...N.map(n=>n.desde))*100)}%"></i>${N.map(n=>`<em style="left:${n.desde/Math.max(...N.map(n=>n.desde))*100}%"></em>`).join('')}</div>
+          <small>${yo.gana?`¡Hoy vas en <b>${esc(yo.nivel)}</b>! Mantén los requisitos hasta el ${new Date(d.hasta+'T12:00:00').toLocaleDateString('es-MX',{day:'numeric',month:'long'})}.`:yo.nivel_por_ventas?`Por activaciones vas en ${esc(yo.nivel_por_ventas)}, pero te falta cumplir un requisito.`:sig(yo)}</small>
+          <div class="din-reqs">${(yo.requisitos||[]).map(reqChip).join('')}</div></div>`:''}
+        ${d.texto?`<details class="din-txt"><summary>Ver el anuncio completo</summary><div>${esc(d.texto)}</div></details>`:''}
+        ${S.direccion?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          ${d.estatus==='publicada'?`<button class="btn btn-p" data-cer="${id}">Cerrar y confirmar ganadores</button><button class="btn" style="color:var(--bad)" data-can="${id}">Cancelar</button>`:''}</div>`:''}
+      </div>
+    </div>
+    ${jefe?`<div class="tv-h" style="margin-top:16px"><b>${d.estatus==='cerrada'?'Resultado':'Cómo van'}</b><span>${A.ganadores} ${A.ganadores===1?'va':'van'} ganando un nivel</span></div>
+      <div class="tw"><table><thead><tr><th>Agente</th><th class="num">Activaciones</th><th class="num">En tránsito</th><th>Requisitos</th><th>Nivel hoy</th></tr></thead><tbody>
+      ${P.map(p=>`<tr ${p.gana?'style="background:var(--ok-l)"':''}><td><b style="font-size:13px">${esc(nomCorto(p.nombre))}</b></td><td class="num"><b>${p.cuentan}</b></td><td class="num">${p.transito||0}</td>
+        <td><div class="din-reqs">${(p.requisitos||[]).map(reqChip).join('')}</div></td>
+        <td style="font-size:12.5px">${p.gana?'🏆 '+esc(p.nivel):p.nivel_por_ventas?`<span style="color:var(--warn)">${esc(p.nivel_por_ventas)} · falta requisito</span>`:p.cuentan?`a ${minimo-p.cuentan} del Nivel 2`:'—'}</td></tr>`).join('')}</tbody></table></div>`:''}
+  </div>`;
+  const img=el.querySelector('.din-img'); if(img) img.onclick=()=>{ const w=window.open(); if(w){ w.document.write(`<title>${esc(d.nombre)}</title><body style="margin:0;background:#111;display:flex;justify-content:center"><img src="${d.imagen}" style="max-width:100%;height:auto">`); } };
+  el.querySelectorAll('[data-cer]').forEach(b=>b.onclick=async()=>{ if(!confirm('¿Cerrar la dinámica? Se congelan los ganadores con lo que llevan hoy (activaciones y asistencia).')) return;
+    const {data,error}=await sb.rpc('cerrar_incentivo',{p_id:id}); if(error) return toast(error.message,'bad'); toast(`Cerrada: ${data} ganador${data===1?'':'es'}.`,'ok'); vistaDinamicas(); });
+  el.querySelectorAll('[data-can]').forEach(b=>b.onclick=async()=>{ if(!confirm('¿Cancelar la dinámica?')) return;
+    const {error}=await sb.rpc('cancelar_incentivo',{p_id:id}); if(error) return toast(error.message,'bad'); vistaDinamicas(); });
+}
 /* ============================================================
    ARRANQUE
    ============================================================ */
@@ -12548,7 +12731,7 @@ async function bdPintarPapeles(c){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v84';
+const VERSION_APP='v86';
 window.addEventListener('beforeunload',e=>{ if(S&&S.ventaSucia){ e.preventDefault(); e.returnValue=''; } });
 async function revisarVersion(){
   try{
@@ -12606,6 +12789,7 @@ const ICONOS = {
   alerta:'<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
   caja:'<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M11 12v2h2v-2"/>',
   cobranza:'<path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/>',
+  dinamicas:'<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
   base:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
   calendario:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   tablero:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
@@ -12621,7 +12805,7 @@ const GRUPOS = [
   ['General',     ['inicio','calendario','guia','avisos']],
   ['Mi espacio',  ['checar','misventas','mificha','miasist','mispagos']],
   ['Personal',    ['plantilla','asistencia','asistencia_old','solicitudes','salidas']],
-  ['Operación',   ['tablero','registro','caja','ventas','base','auditoria','accesos','tickets']],
+  ['Operación',   ['tablero','registro','caja','ventas','base','dinamicas','auditoria','accesos','tickets']],
   ['Finanzas',    ['nomina','comisiones','dispersion','fijos','gastos','ingresos','cobranza','balance']],
   ['Sistema',     ['usuarios','config']]
 ];
