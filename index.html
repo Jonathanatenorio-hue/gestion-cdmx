@@ -659,6 +659,85 @@ body:has(#campana) #main .head{padding-right:54px}
   #app.on{--mw:72px}
   #app.on.ancho{--mw:232px}
 }
+/* Base de datos */
+.bd-pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:color-mix(in srgb,var(--c) 12%,transparent);color:var(--c);white-space:nowrap}
+.bd-pill::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--c)}
+.bd-prog{height:6px;border-radius:99px;background:var(--line-2);margin-top:10px;overflow:hidden}
+.bd-prog i{display:block;height:100%;background:var(--teal);border-radius:99px;transition:width .5s}
+.bd-prog.ok i{background:var(--ok)}
+.bd-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+.bd-grid>.tile{grid-column:auto}
+.bd-vacio{display:flex;flex-direction:column;align-items:center;text-align:center;padding:40px 24px;gap:10px}
+.bd-vacio b{font-size:17px} .bd-vacio p{margin:0;max-width:440px;font-size:13.5px;color:var(--txt-2);line-height:1.5}
+.bd-vacio .btn{margin-top:8px;padding:12px 26px;font-size:15px}
+.bd-ico{width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:var(--teal-l);color:var(--teal)}
+.bd-ico.ok{background:var(--ok-l);color:var(--ok)} .bd-ico svg.ic{width:24px;height:24px}
+.bd-ficha{padding:22px 24px}
+.bd-fh{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px}
+.bd-fh small{font-size:12px;color:var(--txt-3);font-weight:500}
+.bd-fh h2{margin:2px 0 6px;font-family:var(--fuente-t);font-size:22px;letter-spacing:-.5px}
+.bd-dn{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bd-dn b{font-family:var(--fuente-t);font-size:28px;letter-spacing:.5px;font-variant-numeric:tabular-nums}
+.bd-dn .btn{padding:6px 12px;font-size:12.5px}
+.bd-datos{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.bd-dato{background:var(--surface-2,var(--line-2));border-radius:10px;padding:10px 12px}
+.bd-dato span{display:block;font-size:11.5px;color:var(--txt-3);margin-bottom:3px} .bd-dato b{font-size:13.5px;font-weight:600}
+.bd-dir{font-size:12.5px;color:var(--txt-2);margin-bottom:12px}
+.bd-nego{background:var(--copper-l,var(--warn-l));border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:14px;line-height:1.5}
+#bd-extra{display:flex;flex-direction:column;gap:12px}#bd-extra:empty{display:none}
+.bd-tip{border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:12px}
+.bd-gl{display:block;font-size:12px;font-weight:600;color:var(--txt-2);margin-bottom:6px}
+.bd-chips{display:flex;flex-wrap:wrap;gap:6px}
+.bd-chip{border:1px solid var(--line);background:var(--card);color:var(--txt);border-radius:999px;padding:7px 13px;font-size:13px;cursor:pointer;transition:all .15s}
+.bd-chip:hover{border-color:var(--teal)}
+.bd-chip.on.contacto{background:var(--teal);border-color:var(--teal);color:#fff}
+.bd-chip.on.no_contacto{background:var(--txt-2);border-color:var(--txt-2);color:var(--card)}
+.bd-f2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.bd-f3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px 14px}
+.bd-f2 label,.bd-f3 label,.bd-ficha>label{display:block;font-size:12px;font-weight:500;color:var(--txt-2);margin-bottom:5px}
+.bd-seg{display:flex;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
+.bd-seg button{flex:1;border:none;background:var(--card);padding:9px;cursor:pointer;color:var(--txt-2);font-size:13px}
+.bd-seg button.on{background:var(--teal);color:#fff}
+.bd-prev{margin-top:12px;padding:10px 12px;border-radius:10px;font-size:13px;background:var(--line-2);color:var(--txt-2)}
+.bd-prev.ok{background:var(--ok-l);color:var(--ok-ink)} .bd-prev.cicla{background:var(--teal-l);color:var(--teal-ink)}
+.bd-hist{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+.bd-hist summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--txt-2)}
+.bd-h{display:grid;grid-template-columns:120px 1fr;gap:2px 12px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:12.5px}
+.bd-h span{color:var(--txt-3)} .bd-h small{grid-column:2;color:var(--txt-2)}
+.bd-ag{display:grid;grid-template-columns:64px 1fr;gap:0 10px;width:100%;text-align:left;border:none;border-left:3px solid var(--line);background:none;padding:8px 10px;margin-bottom:4px;cursor:pointer;border-radius:0 8px 8px 0;color:var(--txt)}
+.bd-ag:hover{background:var(--line-2)} .bd-ag span{grid-row:span 2;font-weight:600;font-variant-numeric:tabular-nums;font-size:13px}
+.bd-ag b{font-size:13px;font-weight:600} .bd-ag small{font-size:11.5px;color:var(--txt-3)}
+.bd-ag.venc{border-left-color:var(--bad);background:var(--bad-l)} .bd-ag.hecha{opacity:.5;border-left-color:var(--ok)}
+.bd-lnk{border:none;background:none;color:var(--teal);cursor:pointer;font-size:12.5px;padding:2px 6px;text-decoration:underline}
+.note .bd-lnk{display:block;padding:3px 0;color:var(--bad);text-align:left}
+.bd-barra{display:flex;height:18px;border-radius:6px;overflow:hidden;gap:2px;background:var(--card)}
+.bd-barra i{background:var(--c);min-width:3px}
+.bd-ley{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:12px;font-size:12.5px;color:var(--txt-2)}
+.bd-ley span{display:flex;align-items:center;gap:6px} .bd-ley i{width:9px;height:9px;border-radius:3px}
+.bd-ley b{color:var(--txt);font-variant-numeric:tabular-nums}
+.bd-mins{display:flex;flex-wrap:wrap;gap:8px}
+.bd-min{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer}
+.bd-min small{color:var(--txt-3)}
+@media (max-width:900px){ .bd-grid{grid-template-columns:1fr} .bd-dn b{font-size:23px} .bd-ficha{padding:16px} }
+.vf-ptocard{display:flex;flex-direction:column;gap:4px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--line-2);font-size:13px}
+.vf-ptocard span{color:var(--txt-2)} .vf-ptocard small{color:var(--txt-3)} .vf-ptocard div{display:flex;gap:14px;align-items:center;margin-top:4px}
+.vf-ptocard em{font-style:normal;font-size:12px;color:var(--teal-ink);background:var(--teal-l);padding:2px 8px;border-radius:99px}
+.bd-chip.on.improcedente{background:var(--bad);border-color:var(--bad);color:#fff}
+.emb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.emb-f{display:grid;grid-template-columns:minmax(120px,1.3fr) 1fr 44px 40px;gap:8px;align-items:center;padding:5px 0 5px calc(var(--n)*14px);font-size:13px}
+.emb-f span{color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.emb-f b{text-align:right;font-variant-numeric:tabular-nums} .emb-f small{text-align:right;color:var(--txt-3);font-variant-numeric:tabular-nums}
+.emb-b{height:8px;background:var(--line-2);border-radius:99px;overflow:hidden}
+.emb-b i{display:block;height:100%;background:var(--teal);border-radius:99px}
+.emb-b i.ok{background:var(--ok)} .emb-b i.mal{background:var(--bad)} .emb-b i.gris{background:var(--txt-3)}
+.emb-s{font-size:11.5px;font-weight:600;color:var(--txt-2);margin:12px 0 2px;text-transform:uppercase;letter-spacing:.4px}
+.emb-v{color:var(--txt-3)}
+.au-h{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.au-h small{display:block;font-size:12px;color:var(--txt-3);margin-top:2px}
+.au-p{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 14px;margin-top:12px}
+.au-p div{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px}
+.au-cal{font-family:var(--fuente-t);font-size:20px;font-weight:700;padding:2px 10px;border-radius:10px}
+.au-cal.ok{color:var(--ok);background:var(--ok-l)} .au-cal.med{color:var(--warn);background:var(--warn-l)} .au-cal.mal{color:var(--bad);background:var(--bad-l)}
 </style>
 </head>
 <body>
@@ -1326,6 +1405,7 @@ const MODULOS = [
   {id:'nomina',     n:'02', t:'Nómina',               lista:true, soloDir:true},
   {id:'comisiones', n:'03', t:'Comisiones',           lista:true, soloDir:true},
   {id:'ventas',     n:'04', t:'Ventas',                 lista:true, ver:'ventasreg'},
+  {id:'base',       n:'04c', t:'Base de datos',          lista:true, ver:'base'},
   {id:'auditoria',  n:'04b', t:'Auditoría de ventas',  bloque:5, desc:'El corazón del control: cruza tu reporte interno contra Global y contra los dos archivos de pago de ExpertCell, el semanal del 50% y el mensual del remanente.', pts:['Cruce por folio y por teléfono, con asignación manual para lo que no empate','Detección de duplicados en el interno','Clasificación: pagada sin comisionar, comisionada sin pagar, solo interno, solo Global','Control del remanente mensual pendiente de cobro']},
   {id:'accesos',    n:'06', t:'Accesos a plataformas',bloque:10,desc:'Padrón de usuarios de AT&T, Bonsaif, Odoo, iVentas y el CRM de leads. Sin contraseñas: solo quién tiene qué y desde cuándo.', pts:['Alta y baja ligada al movimiento de personal','Alerta de accesos activos de gente que ya causó baja','Costo mensual por plataforma','Historial de solicitudes']},
   {id:'gastos',     n:'07', t:'Gastos',               lista:true, soloDir:true},
@@ -1402,6 +1482,7 @@ async function iniciar(){
   $('#u-ava').textContent=iniciales(perfil.nombre)||'·';
   try{ const {data:pc}=await sb.rpc('mi_papel_caja'); S.cajaPapel=pc||null; }catch(e){ S.cajaPapel=null; }
   try{ const {data:pv}=await sb.rpc('mi_papel_ventas'); S.papelVentas=pv||null; }catch(e){ S.papelVentas=null; }
+  S.papelBase=undefined; await papelBase(); setTimeout(()=>{ try{ iniciarRecordatoriosBase(); }catch(e){} },1500);
   setTimeout(()=>iniciarAvisos().catch(()=>{}),300);
   pintarNav();
   pintarAyudas();
@@ -1421,6 +1502,8 @@ async function iniciar(){
    ============================================================ */
 let vistaActual='plantilla';
 function irA(id){
+  if(S.ventaSucia && !confirm('Tienes una venta capturada sin guardar. Si sales se pierde lo que llevas.\n\n¿Salir de todos modos?')) return;
+  S.ventaSucia=false;
   if(vistaActual==='asistencia' && Object.keys(S.pendientes||{}).length){
     const n=Object.keys(S.pendientes).length;
     if(!confirm(`Tienes ${n} celda${n===1?'':'s'} de asistencia sin guardar. Si sales se pierden. Continuar?`)) return;
@@ -1431,7 +1514,7 @@ function irA(id){
   $('#nav').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.ir===id));
   let m=MODULOS.find(x=>x.id===id);
   if(!m || !puedeVerModulo(m)){ m=MODULOS.find(x=>x.id==='checar'); id='checar'; vistaActual=id; }
-  const R={comisiones:vistaComisionesRev, calendario:vistaCalendario, cobranza:vistaCobranza, tablero:vistaTableroVentas, misventas:vistaTableroVentas, registro:vistaRegistroVentas, fijos:vistaPagosFijos, caja:vistaCaja, guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentasReg, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar,
+  const R={base:vistaBase, comisiones:vistaComisionesRev, calendario:vistaCalendario, cobranza:vistaCobranza, tablero:vistaTableroVentas, misventas:vistaTableroVentas, registro:vistaRegistroVentas, fijos:vistaPagosFijos, caja:vistaCaja, guia:vistaGuia, plantilla:vistaPlantilla, ingresos:vistaIngresos, balance:vistaBalance, gastos:vistaGastos, config:vistaConfig, ventas:vistaVentasReg, usuarios:vistaUsuarios, asistencia:vistaAsistencia, nomina:vistaNomina, dispersion:vistaDispersion, salidas:vistaSalidas, checar:vistaChecar,
              mificha:vistaMiFicha, miasist:vistaMiAsistencia, mispagos:vistaMisPagos,
              solicitudes:vistaSolicitudesDatos, inicio:vistaInicio, avisos:vistaAvisos};
   $('#app').classList.remove('menu');
@@ -9755,11 +9838,12 @@ const DOCS_VENTA=[
   ['evidencia_entrega','Evidencia de entrega','pdfimg']
 ];
 const CHECK_MESA=[
+  ['folio','El folio registrado coincide con el del contrato firmado'],
   ['contrato','Contrato completo y firmado'],
   ['pago','Pago inicial: el comprobante coincide con el monto (o no lleva pago)'],
   ['ine','INE vigente y legible, coincide con el cliente'],
   ['direccion','Dirección completa (calle, número, colonia, CP, referencias) y teléfono de contacto'],
-  ['plan_equipo','Plan, plazo y equipo exactos (modelo, color, capacidad y tipo de SIM)'],
+  ['plan_equipo','Plan, plazo y equipo exactos (marca, modelo, capacidad, color y tipo de SIM)'],
   ['renovacion','Si es renovación: la línea es viable por fecha de última cuota (si no aplica, márcalo)']
 ];
 const TIPO_VENTA={linea_nueva:'Línea nueva',portabilidad:'Portabilidad',renovacion:'Renovación'};
@@ -9781,7 +9865,7 @@ async function vistaVentasReg(){
     jefe:     [['todas','Ventas de mi equipo']],
     mesa:     [['revisar','Por revisar'],['capturar','Por capturar en Global'],['logistica','En logística'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas']],
     factura:  [['facturar','Por facturar'],['todas','Todas']],
-    direccion:[['revisar','Por revisar'],['capturar','Por capturar en Global'],['logistica','En logística'],['facturar','Por facturar'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['cierre','Cierre de expedientes']]
+    direccion:[['revisar','Por revisar'],['capturar','Por capturar en Global'],['logistica','En logística'],['facturar','Por facturar'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['cierre','Cierre de expedientes'],['equipos','Lista de precios']]
   }[papel];
   const t=S.vr||(S.vr={tab:tabs[0][0],q:''});
   if(!tabs.some(x=>x[0]===t.tab)) t.tab=tabs[0][0];
@@ -9800,7 +9884,7 @@ async function vistaVentasReg(){
     logistica:()=>L.filter(x=>x.estatus==='en_global'),
     facturar:()=>L.filter(x=>x.estatus==='en_global'&&x.con_evidencia)
   };
-  const n=k=>k==='sinreg'?SR.length:(k==='cierre'||k==='salvan')?'':(filtro[k]?filtro[k]().length:0);
+  const n=k=>k==='sinreg'?SR.length:(k==='cierre'||k==='salvan'||k==='equipos')?'':(filtro[k]?filtro[k]().length:0);
   const atrasadas=L.filter(x=>x.estatus==='en_revision'&&x.minutos_en_revision>30).length;
   const mias=papel==='agente'?L:[];
   const pend=mias.filter(x=>['borrador','regresada','asignada'].includes(x.estatus)||(x.estatus==='en_global'&&!x.con_evidencia));
@@ -9820,6 +9904,7 @@ async function vistaVentasReg(){
   if(t.tab==='sinreg') pintarSinRegistro(c,SR);
   else if(t.tab==='cierre') pintarCierreExpedientes(c);
   else if(t.tab==='salvan') pintarSalvanFalta(c);
+  else if(t.tab==='equipos') pintarListaPrecios(c);
   else {
     const filas=filtro[t.tab]();
     c.innerHTML=`<input type="search" id="vr-q" value="${esc(t.q)}" placeholder="Buscar folio, DN, cliente o agente" style="${ESTILO_CAMPO};margin-bottom:10px"><div id="vr-lista"></div>`;
@@ -9849,7 +9934,7 @@ function pasosVenta(v, evidFecha){
   const P=[
     {l:'Registrada', s:v.registro_tardio?'Registro tardío':'', t:v.creado_en, ok:!!v.id},
     {l:'Enviada a revisión', t:v.enviado_en, ok:!!v.enviado_en&&!['borrador','asignada'].includes(est)},
-    {l:'Aprobada por mesa de control', t:v.revisado_en, ok:['aprobada','en_global','facturada'].includes(est),
+    {l:'Aprobada por mesa de control', s:['aprobada','en_global','facturada'].includes(v.estatus)?'Ya cuenta como venta por entregar':'', t:v.revisado_en, ok:['aprobada','en_global','facturada'].includes(est),
        mal:['regresada','rechazada'].includes(est)?(est==='rechazada'?'Rechazada':'Regresada')+(v.motivo?': '+v.motivo:''):''},
     {l:'Capturada en Global', s:v.pt||'', t:v.capturada_en, ok:['en_global','facturada'].includes(est)&&!!v.pt},
     {l:'Entregada', s:!entregada&&v.envio_estatus?v.envio_estatus:'', t:v.envio_entregado_en, ok:entregada},
@@ -9863,7 +9948,7 @@ function pasosVenta(v, evidFecha){
 }
 function lineaVentaHTML(v, evidFecha){
   const {P,actual}=pasosVenta(v, evidFecha);
-  return `<div class="tile w12 vt-wrap" style="cursor:default;transform:none"><div class="tv-h"><b>Línea del tiempo</b><span>${actual<0?'<b style="color:var(--ok)">Terminada: ya cuenta para todos</b>':'Cuenta para meta y comisión cuando llega al último paso'}</span></div>
+  return `<div class="tile w12 vt-wrap" style="cursor:default;transform:none"><div class="tv-h"><b>Línea del tiempo</b><span>${actual<0?'<b style="color:var(--ok)">Terminada: ya cuenta para todos</b>':'Desde que mesa de control la aprueba cuenta como venta por entregar; para comisión cuenta al quedar terminada'}</span></div>
     <ol class="vt">${P.map((p,i)=>`<li class="${p.mal?'mal':p.ok?'ok':i===actual?'ahora':''} ${p.fin?'fin':''}">
       <i>${p.mal?'!':p.ok?'✓':i+1}</i><div><b>${esc(p.l)}</b>${p.mal?`<small class="err">${esc(p.mal)}</small>`:p.s?`<small>${esc(p.s)}</small>`:''}${p.ok&&p.t?`<small>${fh(p.t)}</small>`:i===actual&&!p.mal?'<small class="ya">Aquí va</small>':''}</div></li>`).join('')}</ol></div>`;
 }
@@ -9871,16 +9956,20 @@ function lineaVentaHTML(v, evidFecha){
 /* ---------- Detalle / formulario de una venta ---------- */
 async function abrirVentaReg(id){
   $('#main').innerHTML='<div class="empty">Cargando…</div>';
+  S.ventaSucia=false;
   const papel=await papelVentas();
-  const [rv,rd,rb,rp,re]=await Promise.all([
+  const [rv,rd,rb,rp,re,rc,rpe]=await Promise.all([
     id?sb.from('v_ventas_registro').select('*').eq('id',id).single():{data:null},
     id?sb.from('ventas_registro_docs').select('*').eq('venta_id',id).is('borrado_en',null):{data:[]},
     id?sb.from('ventas_registro_bitacora').select('*').eq('venta_id',id).order('en'):{data:[]},
     sb.from('planes').select('id,nombre').eq('activo',true).order('orden'),
-    ['mesa','direccion'].includes(papel)?sb.from('empleados').select('id,nombre_completo').eq('estatus','activo').order('nombre_completo'):{data:[]}
+    ['mesa','direccion'].includes(papel)?sb.from('empleados').select('id,nombre_completo').eq('estatus','activo').order('nombre_completo'):{data:[]},
+    sb.from('catalogo_equipos').select('marca,modelo,capacidad,color').eq('activo',true).order('marca').order('modelo').limit(5000),
+    sb.from('puntos_entrega').select('*').eq('activo',true).order('region').order('nombre')
   ]);
   const err=[rv,rd,rp].find(x=>x.error);
   if(err){ $('#main').innerHTML=`<div class="empty"><b>No se pudo abrir</b>${esc(err.error.message)}</div>`; return; }
+  const CAT=rc.error?[]:(rc.data||[]), PE=rpe.error?[]:(rpe.data||[]);
   const v=rv.data||{estatus:'borrador',con_equipo:true,pago_inicial:false,entrega_tipo:'dhl',tipo_sim:'fisica'};
   const verifHTML=id?await cajaVerificacionVenta(v).catch(()=>''):'';
   const docs=Object.fromEntries((rd.data||[]).map(d=>[d.tipo,d]));
@@ -9888,30 +9977,59 @@ async function abrirVentaReg(id){
   const esDueno=!id||v.empleado_id===yo;
   const editable=['borrador','regresada','asignada'].includes(v.estatus)&&(esDueno||['mesa','direccion'].includes(papel));
   const mesa=['mesa','direccion'].includes(papel);
+  const dis=editable?'':'disabled';
   const val=k=>esc(v[k]??'');
-  const campo=(k,l,ph='',extra='')=>`<div><label>${l}</label><input id="vf-${k}" value="${val(k)}" placeholder="${ph}" ${editable?'':'disabled'} style="${ESTILO_CAMPO}" ${extra}></div>`;
+  const campo=(k,l,ph='',extra='')=>`<div><label>${l}</label><input id="vf-${k}" value="${val(k)}" placeholder="${ph}" ${dis} style="${ESTILO_CAMPO}" ${extra}></div>`;
   const opc=(k,arr)=>arr.map(([a,b])=>`<option value="${a}" ${String(v[k]??'')===String(a)?'selected':''}>${b}</option>`).join('');
-  const sec=(t,h)=>`<div class="tile w12" style="cursor:default;transform:none"><div class="tv-h"><b>${t}</b></div>${h}</div>`;
+  const sec=(t,h,cls='')=>`<div class="tile w12 ${cls}" style="cursor:default;transform:none"><div class="tv-h"><b>${t}</b></div>${h}</div>`;
   const g2='display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px';
-  const docSlot=([k,l,tipo])=>{
-    if(k==='comprobante_pago'&&!v.pago_inicial) return '';
-    if(k==='evidencia_entrega'&&!['en_global','facturada'].includes(v.estatus)) return '';
+  const ACEPTA={pdf:'application/pdf',img:'image/*',pdfimg:'application/pdf,image/*'};
+  const slotHTML=([k,l,tipo])=>{
     const d=docs[k];
     const puedeSubir=k==='evidencia_entrega'?(v.estatus==='en_global'&&(esDueno||mesa)):editable;
-    const acepta=tipo==='pdf'?'application/pdf':tipo==='img'?'image/*':'application/pdf,image/*';
-    return `<div class="doc-slot ${d?'ok':''}">
-      <div><b>${l}</b><small>${tipo==='pdf'?'PDF':tipo==='img'?'Imagen':'PDF o imagen'}${d?' · '+esc(d.nombre||'')+' · '+fh(d.subido_en):' · obligatorio'}</small></div>
+    return `<div><b>${l}</b><small>${tipo==='pdf'?'PDF':tipo==='img'?'Imagen':'PDF o imagen'}${d?' · '+esc(d.nombre||'')+' · '+fh(d.subido_en):k==='comprobante_pago'?' · obligatorio si lleva pago':' · obligatorio'}</small></div>
       <div style="display:flex;gap:6px">${d?`<button class="btn" data-ver="${esc(d.path)}">Ver</button>`:''}
-        ${puedeSubir?`<label class="btn ${d?'':'btn-p'}" style="margin:0">${d?'Cambiar':'Subir'}<input type="file" accept="${acepta}" data-subir="${k}" data-tipo="${tipo}" style="display:none"></label>`:''}</div></div>`;
+        ${puedeSubir?`<label class="btn ${d?'':'btn-p'}" style="margin:0">${d?'Cambiar':'Subir'}<input type="file" accept="${ACEPTA[tipo]}" data-subir="${k}" data-tipo="${tipo}" style="display:none"></label>`:''}</div>`;
   };
+  const docSlot=D=>{
+    const [k]=D;
+    if(k==='evidencia_entrega'&&!['en_global','facturada'].includes(v.estatus)) return '';
+    return `<div class="doc-slot ${docs[k]?'ok':''} ${k==='comprobante_pago'?'vf-pago':''}" data-slot="${k}">${slotHTML(D)}</div>`;
+  };
+
+  // Catálogo de equipos: marca → modelo → capacidad → color
+  const unicos=a=>[...new Set(a.filter(Boolean))];
+  const conCatalogo=CAT.length>0;
+  const selEq=(k,l,lista,actual)=>{ const L=unicos(lista); if(actual&&!L.includes(actual)) L.unshift(actual);
+    return `<div><label>${l}</label><select id="vf-${k}" ${dis} style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${L.map(x=>`<option ${x===actual?'selected':''}>${esc(x)}</option>`).join('')}</select></div>`; };
+  const equipoHTML=()=>{
+    if(!conCatalogo) return `${campo('equipo_marca','Marca','Ej. Apple')}${campo('equipo_modelo','Modelo','Ej. iPhone 17 Pro Max')}${campo('equipo_capacidad','Capacidad','Ej. 256 GB')}${campo('equipo_color','Color','Ej. Plata')}`;
+    const ma=v.equipo_marca||'', mo=v.equipo_modelo||'', ca=v.equipo_capacidad||'';
+    const deMarca=CAT.filter(x=>x.marca===ma), deModelo=deMarca.filter(x=>x.modelo===mo);
+    const caps=unicos(deModelo.map(x=>x.capacidad)), deCap=caps.length?deModelo.filter(x=>(x.capacidad||'')===ca):deModelo;
+    const colores=unicos(deCap.map(x=>x.color));
+    return `${selEq('equipo_marca','Marca',CAT.map(x=>x.marca),ma)}${selEq('equipo_modelo','Modelo',deMarca.map(x=>x.modelo),mo)}
+      ${mo&&!caps.length?'':selEq('equipo_capacidad','Capacidad',caps,ca)}
+      ${colores.length||!deModelo.length?selEq('equipo_color','Color',colores,v.equipo_color||''):''}`;
+  };
+
+  // Puntos de entrega
+  const puntoOpts=tipo=>{ const L=PE.filter(p=>p.tipo===tipo);
+    if(tipo==='hub') return L.map(p=>`<option value="${p.id}" ${v.punto_entrega_id===p.id?'selected':''}>${esc(p.nombre)}</option>`).join('');
+    const regs=unicos(L.map(p=>p.region));
+    return regs.map(r=>`<optgroup label="${esc(r.replace(/^\d+\.\s*/,''))}">${L.filter(p=>p.region===r).map(p=>`<option value="${p.id}" ${v.punto_entrega_id===p.id?'selected':''}>${esc(p.nombre.replace(/^EXP\s+/,''))} · ${esc(p.plaza||'')}</option>`).join('')}</optgroup>`).join(''); };
+  const MAPAS=[['Puebla','https://www.google.com/maps/d/edit?mid=15fELzg9nNDg0sgmRziynTMNFk4vgbg0&usp=sharing'],['Monterrey','https://www.google.com/maps/d/viewer?hl=es-419&mid=1dEdFgaOlOagtU-cI3sUHhNSSXKOoAWQ'],
+    ['Tijuana','https://www.google.com/maps/d/edit?mid=15tUHXAex6RYhD-NQR5ZDhr79ZyCkjHI&usp=sharing'],['Veracruz','https://www.google.com/maps/d/edit?mid=1X3u_5b1wDwAB9XmsVPCsIcMZUl1ccAg&usp=sharing'],
+    ['México y Toluca','https://www.google.com/maps/d/viewer?hl=es-419&mid=1OiCGKK9cVUBdLutmbPNapevr1yO9DCs'],['Guadalajara','https://www.google.com/maps/d/viewer?mid=1Tsd84_dsXyMLGm4xgCl2NtvyQ8dRAw0']];
+  const ent=v.entrega_tipo==='mensajero'?'mensajero':v.entrega_tipo||'dhl';
 
   $('#main').innerHTML=`
   <div class="head"><div><button class="tv-volver" id="vf-volver">← Ventas</button>
     <h1>${id?`Venta ${esc(v.folio||'#'+id)}`:'Registrar venta'}</h1>
-    <p>${id?`<span class="p ${ETAPA_CLASE(v.etapa||'')}">${esc(v.etapa||'')}</span> · ${esc(v.agente||'')}${v.pt?' · '+esc(v.pt):''}`:'Llena todo y sube el expediente completo. Sin expediente no se puede enviar.'}</p></div></div>
+    <p>${id?`<span class="p ${ETAPA_CLASE(v.etapa||'')}">${esc(v.etapa||'')}</span> · ${esc(v.agente||'')}${v.pt?' · '+esc(v.pt):''}`:'Llena todo y sube el expediente completo. Nada se pierde mientras capturas: al final eliges guardar o enviar.'}</p></div></div>
   ${v.motivo&&['regresada','rechazada','cancelada','asignada'].includes(v.estatus)?`<div class="note" style="margin-bottom:14px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">${v.estatus==='rechazada'?'Rechazada':v.estatus==='cancelada'?'Cancelada':'Regresada para corregir'}</b>${esc(v.motivo)}</div>`:''}
   ${v.estatus==='asignada'?`<div class="note" style="margin-bottom:14px"><b>Registro tardío</b>Esta venta apareció en Global sin registro. ${new Date()>=new Date('2026-12-01T00:00:00')?'No cuenta para tu meta ni comisión hasta que subas el expediente y mesa de control la apruebe.':'Sube su expediente para dejarla completa.'}</div>`:''}
-  <div class="dash" style="gap:14px">
+  <div class="dash" style="gap:14px" id="vf-form">
     ${id?lineaVentaHTML(v, docs.evidencia_entrega?.subido_en):''}
     ${verifHTML}
     ${mesa&&editable?sec('Agente',`<select id="vf-empleado_id" style="${ESTILO_CAMPO}">${(re.data||[]).map(e=>`<option value="${e.id}" ${(v.empleado_id||yo)===e.id?'selected':''}>${esc(e.nombre_completo)}</option>`).join('')}</select>`):''}
@@ -9919,30 +10037,40 @@ async function abrirVentaReg(id){
       ${campo('folio','Folio del contrato','Ej. 4091405416')}
       ${campo('dn','DN (10 dígitos)','5512345678','inputmode="numeric" maxlength="12"')}
       ${campo('cliente','Cliente','Nombre completo')}
-      <div><label>Tipo de venta</label><select id="vf-tipo_venta" ${editable?'':'disabled'} style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${opc('tipo_venta',Object.entries(TIPO_VENTA))}</select></div>
-      <div><label>Plan</label><select id="vf-plan_id" ${editable?'':'disabled'} style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${opc('plan_id',(rp.data||[]).map(p=>[p.id,p.nombre]))}</select></div>
-      <div><label>Plazo</label><select id="vf-plazo" ${editable?'':'disabled'} style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${opc('plazo',[[12,'12 meses'],[18,'18 meses'],[24,'24 meses'],[36,'36 meses']])}</select></div>
+      <div><label>Tipo de venta</label><select id="vf-tipo_venta" ${dis} style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${opc('tipo_venta',Object.entries(TIPO_VENTA))}</select></div>
+      <div><label>Plan</label><select id="vf-plan_id" ${dis} style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${opc('plan_id',(rp.data||[]).map(p=>[p.id,p.nombre]))}</select></div>
+      <div><label>Plazo</label><select id="vf-plazo" ${dis} style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${opc('plazo',[[24,'24 meses'],[30,'30 meses'],[36,'36 meses'],[0,'Sin plazo (solo SIM)']])}</select></div>
     </div>`)}
     ${sec('Equipo',`<div style="${g2}">
-      <div><label>¿Lleva equipo?</label><select id="vf-con_equipo" ${editable?'':'disabled'} style="${ESTILO_CAMPO}">${opc('con_equipo',[[true,'Sí, con equipo'],[false,'No, solo SIM']])}</select></div>
-      <div><label>Tipo de SIM</label><select id="vf-tipo_sim" ${editable?'':'disabled'} style="${ESTILO_CAMPO}">${opc('tipo_sim',[['fisica','Física'],['esim','eSIM (virtual)']])}</select></div>
-      <div class="vf-eq">${campo('equipo_marca','Marca','Ej. Apple')}</div>
-      <div class="vf-eq">${campo('equipo_modelo','Modelo','Ej. iPhone 18 Pro Max')}</div>
-      <div class="vf-eq">${campo('equipo_color','Color','Ej. Borgoña')}</div>
-      <div class="vf-eq">${campo('equipo_capacidad','Capacidad','Ej. 256 GB')}</div>
-    </div>`)}
+      <div><label>¿Lleva equipo?</label><select id="vf-con_equipo" ${dis} style="${ESTILO_CAMPO}">${opc('con_equipo',[[true,'Sí, con equipo'],[false,'No, solo SIM']])}</select></div>
+      <div><label>Tipo de SIM</label><select id="vf-tipo_sim" ${dis} style="${ESTILO_CAMPO}">${opc('tipo_sim',[['fisica','Física'],['esim','eSIM (virtual)']])}</select></div>
+    </div><div class="vf-eq" style="margin-top:12px"><div id="vf-eqbox" style="${g2}">${equipoHTML()}</div></div>
+    ${!conCatalogo&&editable?'<div class="vf-eq" style="font-size:12px;color:var(--txt-3);margin-top:8px">Aún no hay lista de precios cargada: escribe el equipo exacto.</div>':''}`)}
     ${sec('Pago inicial',`<div style="${g2}">
-      <div><label>¿Lleva pago inicial?</label><select id="vf-pago_inicial" ${editable?'':'disabled'} style="${ESTILO_CAMPO}">${opc('pago_inicial',[[false,'No'],[true,'Sí']])}</select></div>
-      <div class="vf-pago">${campo('pago_inicial_monto','Monto','$','inputmode="decimal"')}</div></div>`)}
+      <div><label>¿Lleva pago inicial?</label><select id="vf-pago_inicial" ${dis} style="${ESTILO_CAMPO}">${opc('pago_inicial',[[false,'No'],[true,'Sí']])}</select></div>
+      <div class="vf-pago">${campo('pago_inicial_monto','Monto','$','inputmode="decimal"')}</div></div>
+      <div class="vf-pago" style="font-size:12px;color:var(--txt-3);margin-top:8px">Sube el comprobante en el expediente, abajo.</div>`)}
     ${sec('Entrega',`<div style="${g2}">
-      <div><label>Forma de entrega</label><select id="vf-entrega_tipo" ${editable?'':'disabled'} style="${ESTILO_CAMPO}">${opc('entrega_tipo',[['dhl','DHL'],['mensajero','Mensajero']])}</select></div>
-      ${campo('calle','Calle')}${campo('numero_ext','Número exterior')}${campo('numero_int','Número interior','Opcional')}
-      ${campo('colonia','Colonia')}${campo('cp','Código postal','5 dígitos','inputmode="numeric" maxlength="5"')}
-      ${campo('municipio','Municipio o alcaldía')}${campo('estado_dir','Estado')}
+      <div><label>Forma de entrega</label><select id="vf-entrega_tipo" ${dis} style="${ESTILO_CAMPO}">${[['dhl','DHL'],['mensajero','Mensajería interna'],['hub','Recoge en hub'],['tienda','Recoge en tienda']].map(([a,b])=>`<option value="${a}" ${ent===a?'selected':''}>${b}</option>`).join('')}</select></div>
       ${campo('telefono_contacto','Teléfono de contacto','10 dígitos','inputmode="numeric" maxlength="12"')}
-    </div><div style="margin-top:12px">${campo('referencias','Referencias','Entre calles, color de fachada…')}</div>`)}
+    </div>
+    <div class="vf-dom" style="margin-top:12px">
+      <div class="vf-msj note" style="margin-bottom:12px"><b>Cobertura de mensajería interna</b>El domicilio debe estar a máximo 20 minutos de una tienda AT&T. Revisa el mapa de la región:
+        ${MAPAS.map(([n,u])=>`<a href="${u}" target="_blank" rel="noopener" style="margin-right:10px">${n}</a>`).join('')}</div>
+      <div style="${g2}">
+        <div><label>Código postal</label><input id="vf-cp" value="${val('cp')}" placeholder="5 dígitos" inputmode="numeric" maxlength="5" ${dis} style="${ESTILO_CAMPO}"><small id="vf-cpmsg" style="font-size:11.5px;color:var(--txt-3)"></small></div>
+        <div><label>Colonia</label><select id="vf-colsel" ${dis} style="${ESTILO_CAMPO}"><option value="">${v.colonia?esc(v.colonia):'Primero el código postal'}</option></select>
+          <input id="vf-colonia" value="${val('colonia')}" placeholder="Escribe la colonia" ${dis} style="${ESTILO_CAMPO};margin-top:6px;display:none"></div>
+        ${campo('municipio','Municipio o alcaldía','Se llena con el CP')}${campo('estado_dir','Estado','Se llena con el CP')}
+        ${campo('calle','Calle')}${campo('numero_ext','Número exterior')}${campo('numero_int','Número interior','Opcional')}
+      </div><div style="margin-top:12px">${campo('referencias','Referencias','Entre calles, color de fachada…')}</div>
+    </div>
+    <div class="vf-pto" style="margin-top:12px">
+      <div><label id="vf-ptol">Elige</label><select id="vf-punto" ${dis} style="${ESTILO_CAMPO}"></select></div>
+      <div id="vf-ptoinfo" style="margin-top:10px"></div>
+    </div>`)}
     ${sec('Expediente',`<div class="doc-grid">${DOCS_VENTA.map(docSlot).join('')}</div>
-      ${editable?'<div style="font-size:12px;color:var(--txt-3);margin-top:8px">Máximo 15 MB por archivo. Los documentos se guardan en privado: solo los ven el agente, mesa de control, facturación y dirección.</div>':''}`)}
+      ${editable?'<div style="font-size:12px;color:var(--txt-3);margin-top:8px">Máximo 15 MB por archivo. Al subir el primer documento la venta se guarda como borrador para no perder nada. Los documentos son privados: solo los ven el agente, mesa de control, facturación y dirección.</div>':''}`)}
     ${v.estatus==='en_revision'&&mesa?sec('Revisión de mesa de control',`
       ${v.minutos_en_revision!=null?`<div style="font-size:12.5px;margin-bottom:10px;color:${v.minutos_en_revision>30?'var(--bad)':'var(--txt-2)'}">Lleva <b>${v.minutos_en_revision} min</b> esperando revisión (máximo 30).</div>`:''}
       ${CHECK_MESA.map(([k,l])=>`<label style="display:flex;gap:10px;align-items:flex-start;margin:8px 0;font-weight:500"><input type="checkbox" data-chk="${k}" style="width:auto;margin-top:3px">${l}</label>`).join('')}
@@ -9955,42 +10083,101 @@ async function abrirVentaReg(id){
     ${id&&(rb.data||[]).length?sec('Historial',`<div class="vr-hist">${(rb.data||[]).map(b=>`<div><span>${fh(b.en)}</span><b>${esc(b.accion)}</b>${b.motivo?` · ${esc(b.motivo)}`:''}</div>`).join('')}</div>`):''}
   </div>
   <div class="vr-barra">
-    ${editable?`${id&&v.estatus==='borrador'?'<button class="btn" id="vf-borrar" style="color:var(--bad)">Borrar borrador</button>':''}<span style="flex:1"></span>
-      <button class="btn" id="vf-guardar">Guardar borrador</button><button class="btn btn-p" id="vf-enviar">Enviar a revisión</button>`:''}
+    ${papel==='direccion'&&id&&!v.terminada_global?'<button class="btn" id="vf-eliminar" style="color:var(--bad)">Eliminar venta</button>':''}
+    ${editable?`${id&&v.estatus==='borrador'&&papel!=='direccion'?'<button class="btn" id="vf-borrar" style="color:var(--bad)">Borrar borrador</button>':''}<span style="flex:1"></span>
+      <button class="btn" id="vf-guardar">Guardar borrador</button><button class="btn btn-p" id="vf-enviar">Enviar a revisión</button>`:'<span style="flex:1"></span>'}
     ${mesa&&id&&!['facturada','cancelada','rechazada','borrador'].includes(v.estatus)?'<button class="btn" id="vf-cancelar" style="color:var(--bad)">Venta caída</button>':''}
   </div>`;
 
-  const sinc=()=>{ const eq=$('#vf-con_equipo')?.value==='true', pg=$('#vf-pago_inicial')?.value==='true';
+  /* ---- comportamiento del formulario (sin recargar la página) ---- */
+  const sinc=()=>{ const eq=$('#vf-con_equipo')?.value==='true', pg=$('#vf-pago_inicial')?.value==='true', en=$('#vf-entrega_tipo')?.value;
     document.querySelectorAll('.vf-eq').forEach(e=>e.style.display=eq?'':'none');
-    document.querySelectorAll('.vf-pago').forEach(e=>e.style.display=pg?'':'none'); };
-  sinc(); ['vf-con_equipo','vf-pago_inicial'].forEach(k=>$('#'+k)&&($('#'+k).onchange=()=>{ sinc(); if(k==='vf-pago_inicial'&&editable) guardar(true).then(i=>i&&abrirVentaReg(i)); }));
-  $('#vf-volver').onclick=()=>vistaVentasReg();
+    document.querySelectorAll('.vf-pago').forEach(e=>e.style.display=pg?'':'none');
+    const pl=$('#vf-plazo'); if(pl){ const o0=pl.querySelector('option[value="0"]'); o0.hidden=eq; o0.disabled=eq; if(eq&&pl.value==='0') pl.value=''; }
+    document.querySelectorAll('.vf-dom').forEach(e=>e.style.display=['dhl','mensajero'].includes(en)?'':'none');
+    document.querySelectorAll('.vf-msj').forEach(e=>e.style.display=en==='mensajero'?'':'none');
+    document.querySelectorAll('.vf-pto').forEach(e=>e.style.display=['hub','tienda'].includes(en)?'':'none');
+  };
+  const pintarPunto=()=>{ const en=$('#vf-entrega_tipo').value; if(!['hub','tienda'].includes(en)) return;
+    const s=$('#vf-punto'), prev=s.value||v.punto_entrega_id;
+    if(s.dataset.tipo!==en){ s.innerHTML=`<option value="">Elegir ${en==='hub'?'hub':'tienda'}…</option>${puntoOpts(en)}`; s.dataset.tipo=en; if(prev&&[...s.options].some(o=>o.value==String(prev))) s.value=String(prev); }
+    $('#vf-ptol').textContent=en==='hub'?'Hub donde recoge':'Tienda donde recoge';
+    const p=PE.find(x=>String(x.id)===s.value);
+    $('#vf-ptoinfo').innerHTML=p?`<div class="vf-ptocard"><b>${esc(p.nombre)}</b><span>${esc(p.direccion)}</span>${p.referencia?`<small>${esc(p.referencia)}</small>`:''}
+      <div>${p.sla?`<em>Entrega en ${esc(p.sla.toLowerCase())}</em>`:''}<a href="${esc(p.link||'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(p.direccion))}" target="_blank" rel="noopener">Ver en Maps</a></div></div>`:'';
+  };
+  const engancharEquipo=()=>{
+    if(!conCatalogo||!editable) return;
+    ['marca','modelo','capacidad'].forEach((k,i)=>{ const el=$('#vf-equipo_'+k); if(!el) return; el.onchange=()=>{
+      v.equipo_marca=$('#vf-equipo_marca').value; v.equipo_modelo=i>=1?$('#vf-equipo_modelo').value:''; v.equipo_capacidad=i>=2?$('#vf-equipo_capacidad').value:''; v.equipo_color='';
+      if(i===0){ v.equipo_modelo=''; } $('#vf-eqbox').innerHTML=equipoHTML(); engancharEquipo(); S.ventaSucia=true;
+    }; });
+  };
+  // CP → colonias, municipio y estado
+  let cpMod=null;
+  const buscarCP=async()=>{
+    const cp=$('#vf-cp').value.replace(/\D/g,''), msg=$('#vf-cpmsg'), sel=$('#vf-colsel'), txt=$('#vf-colonia');
+    if(cp.length!==5){ msg.textContent=''; return; }
+    msg.textContent='Buscando…';
+    try{
+      cpMod=cpMod||await import('https://cdn.jsdelivr.net/npm/@webrek/mx-cp@0.2.0/dist/index.js');
+      const r=await cpMod.buscaCP(cp);
+      if(!r){ msg.textContent='No encontramos ese CP: revisa o escribe la colonia.'; sel.style.display='none'; txt.style.display=''; return; }
+      $('#vf-municipio').value=r.municipio.toUpperCase(); $('#vf-estado_dir').value=r.estado.toUpperCase();
+      const cols=r.asentamientos.map(a=>a.nombre.toUpperCase()), act=($('#vf-colonia').value||v.colonia||'').toUpperCase();
+      sel.innerHTML=`<option value="">Elegir colonia…</option>${cols.map(c=>`<option ${c===act?'selected':''}>${esc(c)}</option>`).join('')}<option value="__otra">Otra (escribirla)</option>`;
+      if(act&&!cols.includes(act)){ sel.value='__otra'; txt.style.display=''; } else { txt.style.display='none'; if(cols.length===1&&!act){ sel.selectedIndex=1; txt.value=cols[0]; } }
+      sel.style.display=''; msg.textContent=`${r.municipio}, ${r.estado}`;
+    }catch(e){ msg.textContent='No se pudo consultar el CP; escribe colonia, municipio y estado.'; sel.style.display='none'; txt.style.display=''; }
+  };
+  if(editable){
+    $('#vf-cp').addEventListener('input',()=>{ if($('#vf-cp').value.replace(/\D/g,'').length===5) buscarCP(); });
+    $('#vf-colsel').onchange=e=>{ const o=e.target.value; if(o==='__otra'){ $('#vf-colonia').style.display=''; $('#vf-colonia').value=''; $('#vf-colonia').focus(); } else { $('#vf-colonia').style.display='none'; $('#vf-colonia').value=o; } };
+    if(v.cp) buscarCP();
+  } else { $('#vf-colsel').style.display='none'; $('#vf-colonia').style.display=''; }
+  sinc(); pintarPunto(); engancharEquipo();
+  ['vf-con_equipo','vf-pago_inicial','vf-entrega_tipo'].forEach(k=>$('#'+k)&&$('#'+k).addEventListener('change',()=>{ sinc(); pintarPunto(); }));
+  $('#vf-punto').onchange=pintarPunto;
+  // Cambios sin guardar
+  if(editable) $('#vf-form').addEventListener('input',e=>{ if(e.target.type!=='file'&&!e.target.dataset.chk&&e.target.id!=='vf-motivo'&&e.target.id!=='vf-pt') S.ventaSucia=true; });
+  if(editable) $('#vf-form').addEventListener('change',e=>{ if(e.target.type!=='file'&&!e.target.dataset.chk) S.ventaSucia=true; });
+  $('#vf-volver').onclick=()=>{ if(S.ventaSucia&&!confirm('Tienes datos capturados sin guardar. Si sales se pierden.\n\n¿Salir de todos modos?')) return; S.ventaSucia=false; vistaVentasReg(); };
   engancharVerificacion(id);
 
   const leer=()=>{ const o={id:id||null};
     ['folio','dn','cliente','tipo_venta','plan_id','plazo','con_equipo','tipo_sim','equipo_marca','equipo_modelo','equipo_color','equipo_capacidad',
      'pago_inicial','pago_inicial_monto','entrega_tipo','calle','numero_ext','numero_int','colonia','cp','municipio','estado_dir','referencias','telefono_contacto','empleado_id']
       .forEach(k=>{ const el=$('#vf-'+k); if(el) o[k]=el.value; });
+    if($('#vf-colsel')&&$('#vf-colsel').style.display!=='none'&&$('#vf-colsel').value&&$('#vf-colsel').value!=='__otra') o.colonia=$('#vf-colsel').value;
+    o.punto_entrega_id=['hub','tienda'].includes(o.entrega_tipo)?$('#vf-punto').value:null;
     return o; };
   const guardar=async(silencio)=>{ const {data,error}=await sb.rpc('guardar_venta_reg',{p:leer()});
-    if(error){ toast(error.message,'bad'); return null; } if(!silencio) toast('Guardado.','ok'); id=data; return data; };
+    if(error){ toast(error.message,'bad'); return null; } if(!silencio) toast('Guardado.','ok'); id=data; S.ventaSucia=false; return data; };
+  const alListado=tab=>{ S.ventaSucia=false; S.vr=S.vr||{q:''}; S.vr.tab=tab; S.vr.q=''; vistaVentasReg(); };
 
-  if($('#vf-guardar')) $('#vf-guardar').onclick=async()=>{ const i=await guardar(); if(i) abrirVentaReg(i); };
+  if($('#vf-guardar')) $('#vf-guardar').onclick=async()=>{ const b=$('#vf-guardar'); b.classList.add('cargando'); const i=await guardar(true); b.classList.remove('cargando');
+    if(i){ toast('Borrador guardado. Lo encuentras arriba de tu lista.','ok'); alListado(papel==='agente'?'mias':'todas'); } };
   if($('#vf-enviar')) $('#vf-enviar').onclick=async()=>{
-    const i=await guardar(true); if(!i) return;
-    const {data,error}=await sb.rpc('enviar_venta_reg',{p_id:i});
+    const b=$('#vf-enviar'); b.classList.add('cargando');
+    const i=await guardar(true); if(!i){ b.classList.remove('cargando'); return; }
+    const {data,error}=await sb.rpc('enviar_venta_reg',{p_id:i}); b.classList.remove('cargando');
     if(error) return toast(error.message,'bad');
-    if(data.ok){ toast('Enviada a mesa de control.','ok'); S.vr&&(S.vr.tab=papel==='agente'?'mias':'revisar'); return vistaVentasReg(); }
+    if(data.ok){ toast('Enviada a mesa de control. Ya aparece en tu lista como "En revisión".','ok'); return alListado(papel==='agente'?'mias':'revisar'); }
     const nom=Object.fromEntries(DOCS_VENTA.map(d=>[d[0],d[1]]));
     const msg=data.duplicado?data.duplicado:[ (data.faltan_datos||[]).length?'Falta: '+data.faltan_datos.join(', '):'', (data.faltan_docs||[]).length?'Faltan documentos: '+data.faltan_docs.map(d=>nom[d]||d).join(', '):'' ].filter(Boolean).join('. ');
-    toast(msg,'bad'); abrirVentaReg(i); };
+    toast(msg+' (Lo capturado quedó guardado como borrador.)','bad'); };
   if($('#vf-borrar')) $('#vf-borrar').onclick=async()=>{ if(!confirm('¿Borrar este borrador y sus documentos?')) return;
     const {data,error}=await sb.rpc('borrar_borrador_reg',{p_id:id}); if(error) return toast(error.message,'bad');
-    if((data||[]).length) await sb.storage.from('expedientes').remove(data); toast('Borrador eliminado.','ok'); vistaVentasReg(); };
+    if((data||[]).length) await sb.storage.from('expedientes').remove(data); toast('Borrador eliminado.','ok'); alListado(papel==='agente'?'mias':'todas'); };
+  if($('#vf-eliminar')) $('#vf-eliminar').onclick=async()=>{
+    const m=prompt(`Se eliminará la venta ${v.folio||'#'+id} con todo su expediente y su historial. No se puede deshacer.\n\n¿Por qué se elimina? (ej. registro de prueba)`); if(!m) return;
+    const {data,error}=await sb.rpc('eliminar_venta_reg',{p_id:id,p_motivo:m}); if(error) return toast(error.message,'bad');
+    if((data||[]).length) await sb.storage.from('expedientes').remove(data).catch(()=>{});
+    toast('Venta eliminada.','ok'); alListado('todas'); };
 
   const revisar=async acc=>{ const chk=Object.fromEntries([...document.querySelectorAll('[data-chk]')].map(c=>[c.dataset.chk,c.checked]));
     const {error}=await sb.rpc('revisar_venta_reg',{p_id:id,p_accion:acc,p_motivo:$('#vf-motivo').value||null,p_checklist:chk});
-    if(error) return toast(error.message,'bad'); toast({aprobar:'Aprobada.',regresar:'Regresada al agente.',rechazar:'Rechazada.'}[acc],'ok'); vistaVentasReg(); };
+    if(error) return toast(error.message,'bad'); toast({aprobar:'Aprobada. Ya cuenta como venta por entregar.',regresar:'Regresada al agente.',rechazar:'Rechazada.'}[acc],'ok'); vistaVentasReg(); };
   if($('#vf-aprobar')) $('#vf-aprobar').onclick=()=>revisar('aprobar');
   if($('#vf-regresar')) $('#vf-regresar').onclick=()=>revisar('regresar');
   if($('#vf-rechazar')) $('#vf-rechazar').onclick=()=>revisar('rechazar');
@@ -10001,31 +10188,116 @@ async function abrirVentaReg(id){
   if($('#vf-cancelar')) $('#vf-cancelar').onclick=async()=>{ const m=prompt('¿Por qué se cayó la venta?'); if(!m) return;
     const {error}=await sb.rpc('cancelar_venta_reg',{p_id:id,p_motivo:m}); if(error) return toast(error.message,'bad'); toast('Cancelada.','ok'); vistaVentasReg(); };
 
-  document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=async()=>{
-    const w=window.open('','_blank');
-    const {data,error}=await sb.storage.from('expedientes').createSignedUrl(b.dataset.ver,300);
-    if(error){ w&&w.close(); return toast(error.message,'bad'); } if(w) w.location=data.signedUrl; else location.href=data.signedUrl; });
-  document.querySelectorAll('[data-subir]').forEach(inp=>inp.onchange=async()=>{
-    const f=inp.files[0]; if(!f) return;
-    const tipo=inp.dataset.tipo, k=inp.dataset.subir, pdf=f.type==='application/pdf', img=/^image\//.test(f.type);
-    if(tipo==='pdf'&&!pdf) return toast('Ese documento debe ser PDF.','bad');
-    if(tipo==='img'&&!img) return toast('Sube una imagen (captura de pantalla).','bad');
-    if(!pdf&&!img) return toast('Solo PDF o imagen.','bad');
-    if(f.size>15*1024*1024) return toast('El archivo pesa más de 15 MB.','bad');
-    const lbl=inp.closest('label'); lbl.classList.add('cargando');
-    try{
-      let vid=id; if(!vid&&editable){ vid=await guardar(true); if(!vid) throw new Error('Primero guarda la venta.'); }
-      else if(editable) await guardar(true);
-      const blob=img?await comprimirFoto(f):f, ext=img?'jpg':'pdf';
-      const ruta=`${vid}/${k}_${Date.now()}.${ext}`;
-      const up=await sb.storage.from('expedientes').upload(ruta,blob,{contentType:img?'image/jpeg':'application/pdf'});
-      if(up.error) throw new Error(up.error.message);
-      const {error}=await sb.rpc('agregar_doc_venta',{p_id:vid,p_tipo:k,p_path:ruta,p_nombre:f.name,p_bytes:blob.size});
-      if(error){ await sb.storage.from('expedientes').remove([ruta]); throw new Error(error.message); }
-      if(docs[k]) sb.storage.from('expedientes').remove([docs[k].path]).catch(()=>{});
-      toast('Documento cargado.','ok'); abrirVentaReg(vid);
-    }catch(e){ toast(e.message,'bad'); lbl.classList.remove('cargando'); }
-  });
+  // Documentos: se suben y solo se actualiza su recuadro, sin recargar
+  const engancharDocs=raiz=>{
+    raiz.querySelectorAll('[data-ver]').forEach(b=>b.onclick=async()=>{
+      const w=window.open('','_blank');
+      const {data,error}=await sb.storage.from('expedientes').createSignedUrl(b.dataset.ver,300);
+      if(error){ w&&w.close(); return toast(error.message,'bad'); } if(w) w.location=data.signedUrl; else location.href=data.signedUrl; });
+    raiz.querySelectorAll('[data-subir]').forEach(inp=>inp.onchange=async()=>{
+      const f=inp.files[0]; if(!f) return;
+      const tipo=inp.dataset.tipo, k=inp.dataset.subir, pdf=f.type==='application/pdf', img=/^image\//.test(f.type);
+      if(tipo==='pdf'&&!pdf) return toast('Ese documento debe ser PDF.','bad');
+      if(tipo==='img'&&!img) return toast('Sube una imagen (captura de pantalla).','bad');
+      if(!pdf&&!img) return toast('Solo PDF o imagen.','bad');
+      if(f.size>15*1024*1024) return toast('El archivo pesa más de 15 MB.','bad');
+      const lbl=inp.closest('label'); lbl.classList.add('cargando');
+      try{
+        let vid=id;
+        if(editable){ const sucia=S.ventaSucia; vid=await guardar(true); if(!vid) throw new Error('No se pudo guardar el borrador.'); S.ventaSucia=false; void sucia; }
+        const blob=img?await comprimirFoto(f):f, ext=img?'jpg':'pdf';
+        const ruta=`${vid}/${k}_${Date.now()}.${ext}`;
+        const up=await sb.storage.from('expedientes').upload(ruta,blob,{contentType:img?'image/jpeg':'application/pdf'});
+        if(up.error) throw new Error(up.error.message);
+        const {error}=await sb.rpc('agregar_doc_venta',{p_id:vid,p_tipo:k,p_path:ruta,p_nombre:f.name,p_bytes:blob.size});
+        if(error){ await sb.storage.from('expedientes').remove([ruta]); throw new Error(error.message); }
+        if(docs[k]) sb.storage.from('expedientes').remove([docs[k].path]).catch(()=>{});
+        docs[k]={tipo:k,path:ruta,nombre:f.name,subido_en:new Date().toISOString()};
+        const slot=document.querySelector(`[data-slot="${k}"]`); const D=DOCS_VENTA.find(d=>d[0]===k);
+        slot.classList.add('ok'); slot.innerHTML=slotHTML(D); engancharDocs(slot);
+        toast('Documento cargado.','ok');
+        if(k==='evidencia_entrega') abrirVentaReg(vid);
+      }catch(e){ toast(e.message,'bad'); lbl.classList.remove('cargando'); }
+    });
+  };
+  engancharDocs(document);
+}
+
+
+/* ---------- Lista de precios → catálogo de equipos ---------- */
+const MARCAS_EQ=[[/iphone|ipad|apple/i,'APPLE'],[/galaxy|samsung/i,'SAMSUNG'],[/moto|motorola|razr/i,'MOTOROLA'],[/redmi|xiaomi|poco/i,'XIAOMI'],[/honor/i,'HONOR'],
+  [/oppo|reno/i,'OPPO'],[/zte|blade|nubia/i,'ZTE'],[/huawei|nova/i,'HUAWEI'],[/pixel|google/i,'GOOGLE'],[/vivo/i,'VIVO'],[/realme/i,'REALME'],[/tcl/i,'TCL'],[/alcatel/i,'ALCATEL'],[/nokia/i,'NOKIA']];
+async function pintarListaPrecios(c){
+  const {data,error}=await sb.from('catalogo_equipos').select('*').eq('activo',true).order('marca').order('modelo').limit(5000);
+  if(error){ c.innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 157.</span></div>`; return; }
+  const L=data||[], marcas=[...new Set(L.map(x=>x.marca))], modelos=new Set(L.map(x=>x.marca+'|'+x.modelo)).size;
+  c.innerHTML=`<div class="kpis">
+      <div class="kpi t"><span>Lista vigente</span><b style="font-size:20px">${esc(L[0]?.lista||'Sin lista')}</b><small>${L[0]?'cargada '+fh(L[0].cargado_en):'sube la primera'}</small></div>
+      <div class="kpi"><span>Marcas</span><b>${marcas.length}</b></div><div class="kpi"><span>Modelos</span><b>${modelos}</b></div><div class="kpi"><span>Combinaciones</span><b>${L.length}</b><small>modelo · capacidad · color</small></div></div>
+    <div class="tile w12" style="cursor:default;transform:none;margin:14px 0"><div class="tv-h"><b>Subir lista de precios nueva</b><span>Reemplaza la vigente. Los agentes eligen el equipo de aquí.</span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+        <div><label>Nombre de la lista</label><input id="lp-nom" value="Lista ${esc(new Date().toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}))}" style="${ESTILO_CAMPO}"></div>
+        <div><label>Archivo (Excel o CSV)</label><input type="file" id="lp-f" accept=".xlsx,.xls,.csv" style="${ESTILO_CAMPO}"></div></div>
+      <div id="lp-map" style="margin-top:12px"></div></div>
+    <div id="lp-l"></div>`;
+  tablaPaginada($('#lp-l'),L,'<th>Marca</th><th>Modelo</th><th>Capacidad</th><th>Color</th><th class="num">Precio</th>',
+    x=>`<tr><td>${esc(x.marca)}</td><td><b style="font-size:13px">${esc(x.modelo)}</b></td><td>${esc(x.capacidad||'—')}</td><td>${esc(x.color||'—')}</td><td class="num">${x.precio!=null?money(x.precio):'—'}</td></tr>`,
+    {vacio:'Todavía no hay lista de precios. Mientras tanto, los agentes escriben el equipo a mano.'});
+  $('#lp-f').onchange=async e=>{
+    const f=e.target.files[0]; if(!f) return;
+    let aoa; try{ aoa=await bdLeerArchivo(f); }catch(err){ return toast('No se pudo leer: '+err.message,'bad'); }
+    const hi=Math.max(0,aoa.findIndex(r=>r.filter(v=>/modelo|equipo|marca|precio|capacidad|color|memoria|almacenamiento|sku/i.test(String(v??''))).length>=2));
+    const cab=(aoa[hi]||[]).map(x=>String(x??'')), datos=aoa.slice(hi+1);
+    const g={marca:bdAdivina(cab,/marca|fabricante/),modelo:bdAdivina(cab,/modelo|equipo|descripcion|producto/),capacidad:bdAdivina(cab,/capacidad|memoria|almacenamiento|gb/),
+      color:bdAdivina(cab,/color/),precio:bdAdivina(cab,/precio|contado|costo|pvp/),nombre:bdAdivina(cab,/nombre completo|descripcion completa/)};
+    if(g.nombre>=0&&g.modelo===g.nombre) g.modelo=bdAdivina(cab,/^modelo$/);
+    const colPlanes=cab.map((h,i)=>/\d+\s*mes/i.test(h)?i:-1).filter(i=>i>=0);
+    const opc=s=>`<option value="-1">— (no viene)</option>${cab.map((h,i)=>`<option value="${i}" ${i===s?'selected':''}>${esc(h)}</option>`).join('')}`;
+    $('#lp-map').innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px">
+      ${[['marca','Marca'],['modelo','Modelo *'],['capacidad','Capacidad'],['color','Color(es)'],['nombre','Nombre completo (de aquí sale el color)'],['precio','Precio de contado']].map(([k,l])=>`<div><label>${l}</label><select data-lp="${k}" style="${ESTILO_CAMPO}">${opc(g[k])}</select></div>`).join('')}</div>
+      ${colPlanes.length?`<label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px"><input type="checkbox" id="lp-solo" checked style="width:auto">Solo equipos con precio en algún plan (${colPlanes.length} columnas de plazos); los que vienen en 0 o NA no se pueden vender</label>`:''}
+      <div style="font-size:12px;color:var(--txt-3);margin-top:8px">Si no viene la marca, se deduce del modelo (iPhone → Apple, Galaxy → Samsung…). Si la capacidad viene dentro del modelo ("128GB"), se separa sola. Varios colores en una celda ("Negro / Azul") se separan.</div>
+      <div id="lp-prev" style="margin-top:12px"></div>`;
+    const armar=()=>{
+      const ix=Object.fromEntries([...document.querySelectorAll('[data-lp]')].map(s=>[s.dataset.lp,Number(s.value)]));
+      if(ix.modelo<0) return [];
+      const out=[];
+      const solo=$('#lp-solo')?.checked, nrm=x=>String(x??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+      datos.forEach(r=>{
+        if(solo&&!colPlanes.some(i=>Number(r[i])>0)) return;
+        let mo=String(r[ix.modelo]??'').replace(/\s+/g,' ').trim(); if(!mo||/^total/i.test(mo)) return;
+        const moOrig=mo;
+        let cap=ix.capacidad>=0?String(r[ix.capacidad]??'').trim():'';
+        const m=mo.match(/\b(\d+)\s*(GB|TB)\b/i); if(m){ if(!cap) cap=m[1]+' '+m[2].toUpperCase(); mo=mo.replace(m[0],'').replace(/\s+/g,' ').trim(); }
+        if(!cap&&ix.nombre>=0){ const m2=String(r[ix.nombre]??'').match(/\b(\d+)\s*(GB|TB)\b/i); if(m2) cap=m2[1]+' '+m2[2].toUpperCase(); }
+        if(/^\d+$/.test(cap)) cap+=' GB';
+        let ma=ix.marca>=0?String(r[ix.marca]??'').trim():'';
+        if(!ma){ const f=MARCAS_EQ.find(([re])=>re.test(mo)); ma=f?f[1]:''; }
+        if(ma&&mo.toUpperCase().startsWith(ma.toUpperCase()+' ')) mo=mo.slice(ma.length+1);
+        const pr=ix.precio>=0?Number(String(r[ix.precio]??'').replace(/[^\d.]/g,''))||null:null;
+        let cols=ix.color>=0?String(r[ix.color]??'').split(/\/|,|;|\by\b|\n/i).map(x=>x.trim()).filter(Boolean):[];
+        if(!cols.length&&ix.nombre>=0){ // color = palabras finales del nombre completo que no son del modelo
+          const full=String(r[ix.nombre]??'').trim().replace(/\s+(AT&T|ATT)\s*$/i,'').split(/\s+/);
+          const mt=new Set(nrm(moOrig).replace(/GB/g,' GB').split(/\s+/)), mk=new Set(nrm(ma).split(/\s+/)), cl=[];
+          for(let k=full.length-1;k>=0;k--){ const t=nrm(full[k]); if(mt.has(t)||/^\d/.test(t)||/GB|TB/.test(t)||mk.has(t)) break; cl.unshift(full[k].toUpperCase()); }
+          if(cl.length) cols=[cl.join(' ')];
+        }
+        (cols.length?cols:[null]).forEach(co=>out.push({marca:ma,modelo:mo,capacidad:cap||null,color:co,precio:pr}));
+      });
+      return out;
+    };
+    const prev=()=>{ const F=armar(), sinMarca=F.filter(x=>!x.marca).length;
+      $('#lp-prev').innerHTML=F.length?`<div class="tw" style="max-height:260px;overflow:auto"><table><thead><tr><th>Marca</th><th>Modelo</th><th>Capacidad</th><th>Color</th><th class="num">Precio</th></tr></thead>
+        <tbody>${F.slice(0,12).map(x=>`<tr><td>${x.marca?esc(x.marca):'<span class="p p-bad">sin marca</span>'}</td><td>${esc(x.modelo)}</td><td>${esc(x.capacidad||'—')}</td><td>${esc(x.color||'—')}</td><td class="num">${x.precio?money(x.precio):'—'}</td></tr>`).join('')}</tbody></table></div>
+        <p style="font-size:13px;margin:10px 0"><b>${F.length}</b> combinaciones${sinMarca?` · <b style="color:var(--bad)">${sinMarca} sin marca</b> (no se cargan; agrega la columna de marca)`:''}.</p>
+        <button class="btn btn-p" id="lp-go">Reemplazar la lista vigente</button>`:'<div class="empty">Indica la columna del modelo.</div>';
+      if($('#lp-go')) $('#lp-go').onclick=async()=>{
+        if(!confirm('La lista nueva reemplaza a la vigente. Las ventas ya registradas no cambian. ¿Continuar?')) return;
+        const {data:r,error:e2}=await sb.rpc('cargar_catalogo_equipos',{p_filas:F.filter(x=>x.marca),p_lista:$('#lp-nom').value});
+        if(e2) return toast(e2.message,'bad'); toast(`Lista cargada: ${r.marcas} marcas, ${r.modelos} modelos.`,'ok'); pintarListaPrecios(c); };
+    };
+    document.querySelectorAll('[data-lp]').forEach(s=>s.onchange=prev); if($('#lp-solo')) $('#lp-solo').onchange=prev; prev();
+  };
 }
 
 /* ---------- Ventas en Global sin registro ---------- */
@@ -10580,6 +10852,7 @@ const esAgente = () => (S.perfil?.rol === 'agente');
 function puedeVerModulo(m){
   if(m.ver==='caja')  return !!S.cajaPapel;
   if(m.ver==='ventasreg') return !!S.papelVentas;
+  if(m.ver==='base') return !!S.papelBase;
   if(m.ver==='ventasjefe') return S.direccion || ['supervisor','coordinador'].includes(S.perfil?.rol);
   if(m.ver==='agente') return S.perfil?.rol==='agente';
   if(m.soloDir)       return S.direccion;
@@ -11404,6 +11677,829 @@ async function abrirNuevoAviso(){
   };
 }
 
+
+/* ============================================================
+   BASE DE DATOS — minería, base fresca, agenda y cartera
+   ============================================================ */
+const BD_EST={por_consultar:['Por consultar','#8C9CC9'],por_revalidar:['Por revalidar','#D9A520'],actualizada:['Actualizado · cicla solo','#2648D4'],
+  fresco:['Fresco','#1A8048'],en_gestion:['En gestión','#0EA5B7'],agendado:['Agendado','#D97706'],vendida:['Vendido','#7C3AED'],
+  cerrada:['Cerrado','#9AA1AD'],no_util:['No útil','#C0352A'],masivos:['Mensajes masivos','#DB6FA8']};
+const BD_RES=[['ok','Encontrado'],['no_existe','No existe'],['prepago','Prepago'],['cancelada','Cancelada'],['portada','Se fue a otra compañía'],['sin_datos','AVS sin datos']];
+const BD_OBJ=['Precio','Equipo que quiere','Lo va a pensar','Consulta con familia','No tiene tiempo','Desconfía de la llamada','Otra'];
+const bdPill=e=>`<span class="bd-pill" style="--c:${(BD_EST[e]||[])[1]||'#888'}">${esc((BD_EST[e]||[e])[0])}</span>`;
+const bdF=d=>d?new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}):'—';
+const bdHace=t=>{ if(!t) return '—'; const m=Math.round((Date.now()-new Date(t))/60000); return m<1?'ahora':m<60?`hace ${m} min`:m<1440?`hace ${Math.round(m/60)} h`:`hace ${Math.round(m/1440)} d`; };
+const bdNum=n=>Number(n||0).toLocaleString('es-MX');
+const bdSel=`padding:7px 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card);color:var(--txt)`;
+function bdTrabajable(conEq,uc,ef){
+  const mas1=f=>{ if(!f) return null; const d=new Date(f+'T12:00:00'); d.setFullYear(d.getFullYear()+1); return d.toISOString().slice(0,10); };
+  const dia1=f=>{ if(!f) return null; const d=new Date(f+'T12:00:00'); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); };
+  if(conEq){ const a=dia1(uc), b=mas1(ef); if(!a) return null; return b&&b>a?b:a; }
+  return mas1(ef);
+}
+/* Fecha de Excel o texto (dd/mm/aaaa, aaaa-mm-dd) a aaaa-mm-dd */
+function bdFecha(v){
+  if(v==null||v==='') return null;
+  if(typeof v==='number'){ const d=new Date(Math.round((v-25569)*86400000)); return d.toISOString().slice(0,10); }
+  if(v instanceof Date) return v.toISOString().slice(0,10);
+  const s=String(v).trim(); let m;
+  if((m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  if((m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/))) return `${m[3].length===2?'20'+m[3]:m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  const d=new Date(s); return isNaN(d)?null:d.toISOString().slice(0,10);
+}
+/* Fecha y hora (Excel o texto) a ISO, tomando la hora de México */
+function bdFechaHora(v,hora){
+  if(v==null||v==='') return null;
+  let f, h='00:00:00';
+  if(typeof v==='number'){ const ms=Math.round((v-25569)*86400000), d=new Date(ms); f=d.toISOString().slice(0,10); h=d.toISOString().slice(11,19); }
+  else { const s=String(v).trim(); f=bdFecha(s); const m=s.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(a\.?\s?m\.?|p\.?\s?m\.?)?/i);
+    if(m){ let hh=Number(m[1]); if(m[4]&&/p/i.test(m[4])&&hh<12) hh+=12; if(m[4]&&/a/i.test(m[4])&&hh===12) hh=0; h=`${String(hh).padStart(2,'0')}:${m[2]}:${m[3]||'00'}`; } }
+  if(hora!=null&&hora!==''){ if(typeof hora==='number'){ const s=Math.round(hora*86400)%86400; h=[s/3600|0,(s%3600)/60|0,s%60].map(x=>String(x).padStart(2,'0')).join(':'); }
+    else { const m=String(hora).match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/); if(m) h=`${m[1].padStart(2,'0')}:${m[2]}:${m[3]||'00'}`; } }
+  if(!f) return null;
+  return `${f}T${h}-06:00`;
+}
+const bdSeg=v=>{ if(v==null||v==='') return null; if(typeof v==='number') return v<1?Math.round(v*86400):Math.round(v);
+  const s=String(v).trim(); if(/^\d+(\.\d+)?$/.test(s)) return Math.round(Number(s)); const p=s.split(':').map(Number); if(p.some(isNaN)) return null;
+  return p.length===3?p[0]*3600+p[1]*60+p[2]:p[0]*60+p[1]; };
+/* Leer Excel o CSV y regresar filas (arreglos) */
+async function bdLeerArchivo(f){
+  const buf=new Uint8Array(await f.arrayBuffer());
+  let wb;
+  if(/\.csv$|\.txt$/i.test(f.name)){
+    let txt; try{ txt=new TextDecoder('utf-8',{fatal:true}).decode(buf); }catch(e){ txt=new TextDecoder('latin1').decode(buf); }
+    wb=XLSX.read(txt,{type:'string',raw:true});
+  } else wb=XLSX.read(buf,{type:'array',raw:true});
+  const aoa=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:null,raw:true});
+  return aoa.filter(r=>r&&r.some(v=>v!=null&&String(v).trim()!==''));
+}
+const bdNorm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+function bdAdivina(cab,re,excluir=[]){ return cab.findIndex((h,i)=>!excluir.includes(i)&&re.test(bdNorm(h))); }
+
+async function papelBase(){
+  if(S.papelBase===undefined){ try{ const {data}=await sb.rpc('mi_papel_base'); S.papelBase=data||null; }catch(e){ S.papelBase=null; } }
+  return S.papelBase;
+}
+async function bdTipificaciones(){
+  if(!S.bdTips){ const {data}=await sb.from('base_tipificaciones').select('*').eq('activa',true).order('orden'); S.bdTips=data||[]; }
+  return S.bdTips;
+}
+async function bdPlanes(){
+  if(!S.bdPlanes){ const {data}=await sb.from('planes').select('nombre').eq('activo',true).order('orden'); S.bdPlanes=(data||[]).map(x=>x.nombre); }
+  return S.bdPlanes;
+}
+function bdCopiar(dn){
+  const ok=()=>toast(`Número ${dn} copiado. Pégalo en Bonsaif.`,'ok');
+  if(navigator.clipboard) navigator.clipboard.writeText(dn).then(ok).catch(()=>prompt('Copia el número:',dn));
+  else prompt('Copia el número:',dn);
+}
+
+async function vistaBase(){
+  $('#main').innerHTML='<div class="empty">Cargando…</div>';
+  const papel=await papelBase();
+  if(!papel){ $('#main').innerHTML='<div class="empty"><b>Sin acceso</b>Tu puesto no trabaja la base de datos. Si es un error, pide a dirección que te asigne un papel.</div>'; return; }
+  const tabs={
+    agente:   [['lead','Mi día'],['cartera','Mi cartera'],['mensajes','Mensajes'],['capturas','Capturas'],['embudo','Mi embudo']],
+    minero:   [['mineria','Consultar en AVS']],
+    jefe:     [['supervision','Supervisión del día'],['embudo','Embudo'],['resumen','Resumen'],['auditoria','Reporte de Bonsaif']],
+    admin:    [['resumen','Resumen'],['supervision','Supervisión del día'],['embudo','Embudo'],['cargar','Cargar extracción'],['mineros','Mineros y pago'],['auditoria','Reporte de Bonsaif'],['registros','Registros'],['odoo','Migrar Odoo']],
+    direccion:[['resumen','Resumen'],['supervision','Supervisión del día'],['embudo','Embudo'],['cargar','Cargar extracción'],['mineros','Mineros y pago'],['auditoria','Reporte de Bonsaif'],['registros','Registros'],['odoo','Migrar Odoo'],['papeles','Quién hace qué']]
+  }[papel];
+  const t=S.bd||(S.bd={tab:tabs[0][0]});
+  if(!tabs.some(x=>x[0]===t.tab)) t.tab=tabs[0][0];
+  const sub={agente:'Primero tus seguimientos, luego tus leads del día: números frescos que nadie más está trabajando. Marca en Bonsaif y tipifica aquí.',
+    minero:'Consulta cada número en AVS y captura lo que encuentres.',
+    jefe:'Avance de tu equipo, validaciones del día y el embudo de cada agente.',
+    admin:'Extracción, minería, base fresca del día, agenda y auditoría de llamadas en un solo lugar.',
+    direccion:'Extracción, minería, base fresca del día, agenda y auditoría de llamadas en un solo lugar.'}[papel];
+  $('#main').innerHTML=`<div class="head"><div><h1>Base de datos</h1><p>${sub}</p></div></div>
+    ${tabs.length>1?`<div class="tabs">${tabs.map(([k,l])=>`<button class="tab ${t.tab===k?'on':''}" data-bdt="${k}">${l}</button>`).join('')}</div>`:''}
+    <div id="bd-c" style="margin-top:14px"><div class="empty">Cargando…</div></div>`;
+  document.querySelectorAll('[data-bdt]').forEach(b=>b.onclick=()=>{ t.tab=b.dataset.bdt; vistaBase(); });
+  const c=$('#bd-c');
+  const f={lead:bdPintarLead,cartera:bdPintarCartera,mensajes:bdPintarMensajes,capturas:bdPintarCapturas,embudo:bdPintarEmbudo,supervision:bdPintarSupervision,mineria:bdPintarMineria,resumen:bdPintarResumen,cargar:bdPintarCargar,
+           mineros:bdPintarMineros,auditoria:bdPintarAuditoria,registros:bdPintarRegistros,odoo:bdPintarOdoo,papeles:bdPintarPapeles}[t.tab];
+  try{ await f(c,papel); }catch(e){ c.innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(e.message||e)}<br><span style="font-size:12.5px">Si dice que no existe, corre los SQL 156 a 158.</span></div>`; }
+}
+
+/* ---------------- AGENTE: mi día ---------------- */
+async function bdPintarLead(c){
+  const [rd,rl]=await Promise.all([sb.rpc('base_mi_dia'),sb.rpc('base_mis_leads')]);
+  if(rd.error) throw rd.error; if(rl.error) throw rl.error;
+  const d=rd.data, L=rl.data||[], venc=d.vencida||[], g=d.gestiones||{};
+  const tamSig=d.bloques===0?d.bloque_inicial:d.bloque_extra;
+  const puedeMas=d.bloques<d.max_bloques;
+  const bloqueo=venc.length?`Primero gestiona tus seguimientos: tienes ${venc.length} pendiente${venc.length===1?'':'s'} de agenda.`
+    :(d.bloques>0&&d.pendientes>0)?`Tipifica tus ${d.pendientes} lead${d.pendientes===1?'':'s'} para pedir ${tamSig} más.`
+    :!puedeMas?`Ya recibiste tus ${d.max_bloques} bloques de hoy. Trabaja tu cartera y tus seguimientos.`:'';
+  const tipHoy=d.leads_hoy-(L.filter(x=>!x.arrastrado).length);
+  c.innerHTML=`
+  <div class="kpis">
+    <div class="kpi t"><span>Leads de hoy</span><b>${tipHoy} <small style="display:inline;font-size:14px;color:var(--txt-3)">/ ${d.leads_hoy} tipificados</small></b><div class="bd-prog"><i style="width:${d.leads_hoy?tipHoy/d.leads_hoy*100:0}%"></i></div><small>bloque ${d.bloques} de ${d.max_bloques}</small></div>
+    <div class="kpi"><span>Gestiones de hoy</span><b>${g.total||0}</b><small>${g.contacto||0} con contacto · ${g.ventas||0} venta${g.ventas===1?'':'s'}</small></div>
+    <div class="kpi" style="cursor:pointer" data-bdir="cartera"><span>Mi cartera</span><b>${d.cartera||0}</b><small>seguimientos y agendas</small></div>
+    <div class="kpi" style="cursor:pointer" data-bdir="mensajes"><span>Mensajes esperando respuesta</span><b>${d.mensajes||0}</b><small>marca si contestaron</small></div>
+  </div>
+  ${d.capturas?`<div class="note" style="margin-bottom:12px;background:var(--warn-l);border-color:var(--warn)"><b>Te pedimos ${d.capturas} captura${d.capturas===1?'':'s'} de mensajes enviados</b><button class="bd-lnk" data-bdir="capturas" style="display:inline;padding:0">Subirlas ahora</button></div>`:''}
+  ${d.arrastrados?`<div class="note" style="margin-bottom:12px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">${d.arrastrados} lead${d.arrastrados===1?'':'s'} de días anteriores sin tipificar</b>Tu supervisor los está viendo. Gestiónalos primero: están arriba de tu lista.</div>`:''}
+  ${venc.length?`<div class="note" style="margin-bottom:12px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">Seguimientos pendientes · primero estos</b><br>
+     ${venc.map(x=>`<button class="bd-lnk" data-bdab="${x.id}">${esc(x.cliente||x.dn)} · ${esc(x.dn)} · ${esc(fh(x.agendado_para))}</button>`).join('')}</div>`:''}
+  <div class="bd-grid">
+    <div>
+      <div class="bar" style="margin-bottom:10px"><b style="font-size:14px">Mis leads por tipificar · ${L.length}</b>
+        <button class="btn btn-p" id="bd-bloque" style="margin-left:auto" ${bloqueo?'disabled':''} title="${esc(bloqueo)}">${d.bloques===0?`Recibir mis ${tamSig} leads del día`:`Pedir ${tamSig} más`}</button></div>
+      ${bloqueo&&!L.length?`<div class="note">${esc(bloqueo)}</div>`:''}
+      <div id="bd-ll"></div>
+    </div>
+    <div class="tile" style="cursor:default;transform:none"><div class="tv-h"><b>Agenda de hoy</b><span>${(d.agenda_hoy||[]).length}</span></div>
+      ${(d.agenda_hoy||[]).length?(d.agenda_hoy).map(x=>`<button class="bd-ag ${x.hecha?'hecha':new Date(x.agendado_para)<=new Date()?'venc':''}" data-bdab="${x.id}">
+        <span>${new Date(x.agendado_para).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}</span><b>${esc(x.cliente||x.dn)}</b><small>${esc(x.dn)}${x.hecha?' · gestionado':''}</small></button>`).join('')
+        :'<div class="empty" style="padding:18px">Sin pendientes agendados para hoy.</div>'}
+    </div>
+  </div>`;
+  tablaPaginada($('#bd-ll'),L,'<th>Cliente</th><th>Plan</th><th>Equipo</th><th>Renovable desde</th><th></th>',
+    x=>`<tr style="cursor:pointer" data-bdab="${x.id}"><td><b style="font-size:13px">${esc(x.cliente||'—')}</b>${x.arrastrado?' <span class="p p-bad">de ayer</span>':''}<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.dn)}</div></td>
+      <td style="font-size:12.5px">${esc(x.plan_actual||'—')}</td><td style="font-size:12px">${x.con_equipo===false?'Sin equipo':esc(x.equipo||'—')}</td>
+      <td style="font-size:12.5px;white-space:nowrap">${bdF(x.fecha_trabajable)}</td><td><button class="btn" style="padding:4px 10px;font-size:12px">Gestionar</button></td></tr>`,
+    {por:20,vacio:d.bloques===0?'Pide tus leads del día con el botón de arriba.':'Tipificaste todos tus leads.',despues:el=>el.querySelectorAll('[data-bdab]').forEach(tr=>tr.onclick=()=>bdAbrirLead(Number(tr.dataset.bdab)))});
+  c.querySelectorAll('[data-bdab]').forEach(b=>b.onclick=()=>bdAbrirLead(Number(b.dataset.bdab)));
+  c.querySelectorAll('[data-bdir]').forEach(b=>b.onclick=()=>{ S.bd.tab=b.dataset.bdir; vistaBase(); });
+  $('#bd-bloque').onclick=async()=>{ const b=$('#bd-bloque'); b.disabled=true; b.classList.add('cargando');
+    const {data,error}=await sb.rpc('base_pedir_bloque'); b.classList.remove('cargando');
+    if(error){ b.disabled=false; return toast(error.message,'bad'); }
+    toast(`Listo: ${data.leads} leads nuevos (bloque ${data.bloque}).`,'ok'); bdPintarLead(c); };
+}
+
+async function bdAbrirLead(id){
+  const c=$('#bd-c'); c.innerHTML='<div class="empty">Cargando…</div>';
+  const {data:f,error}=await sb.rpc('base_ficha',{p_id:id});
+  if(error){ c.innerHTML=`<div class="empty"><b>No se pudo abrir</b>${esc(error.message)}</div>`; return; }
+  c.innerHTML=`<button class="btn" id="bd-volver" style="margin-bottom:12px">‹ Volver</button><div id="bd-lead"></div>`;
+  $('#bd-volver').onclick=()=>vistaBase();
+  const soloVer=!['en_gestion','agendado'].includes(f.estatus)||(f.agente_id!==S.perfil?.empleado_id&&!['admin','direccion'].includes(S.papelBase));
+  await bdPintarFicha($('#bd-lead'),f,()=>vistaBase(),soloVer);
+}
+
+const BD_GRUPOS=[['contacto','Contacto con quien decide'],['improcedente','Improcedente · el impedimento gana (revisa AVS)'],['no_contacto','No contactado']];
+async function bdPintarFicha(el,f,alTerminar,soloVer=false){
+  const [tipsAll,planes]=await Promise.all([bdTipificaciones(),bdPlanes()]);
+  const ctx=f.estatus==='en_gestion'?'nuevo':'cartera';
+  const tips=tipsAll.filter(x=>x.contexto==='todos'||x.contexto===ctx);
+  const dir=[f.calle,f.colonia,f.cp,f.ciudad,f.estado_rep].filter(Boolean).join(', ');
+  const fi=f.ficha||{};
+  const dato=(l,v)=>`<div class="bd-dato"><span>${l}</span><b>${v||'—'}</b></div>`;
+  const wa=`https://wa.me/52${f.dn}`;
+  el.innerHTML=`<div class="tile bd-ficha" style="cursor:default;transform:none">
+    <div class="bd-fh"><div><small>${f.respuesta==='positiva'?'Respondió tu mensaje · llámale ya':ctx==='nuevo'?'Lead del día':'De tu cartera'}</small><h2>${esc(f.cliente||'Cliente sin nombre')}</h2>
+      <div class="bd-dn"><b>${esc(f.dn.replace(/(\d{2})(\d{4})(\d{4})/,'$1 $2 $3'))}</b><button class="btn" id="bd-copia">Copiar número</button><a class="btn" href="${wa}" target="_blank" rel="noopener">WhatsApp</a></div></div>
+      ${bdPill(f.estatus)}</div>
+    <div class="bd-datos">
+      ${dato('Plan actual',esc(f.plan_actual))}
+      ${dato('Equipo',f.con_equipo===false?'Sin equipo':esc(f.equipo))}
+      ${dato(f.con_equipo===false?'Fecha efectiva':'Última cuota',bdF(f.con_equipo===false?f.fecha_efectiva:f.fecha_ultima_cuota))}
+      ${dato('Se puede renovar desde',bdF(f.fecha_trabajable))}
+      ${dato('Plazo actual',f.plazo?f.plazo+' meses':'')}
+      ${dato('Validado en AVS',f.consultado_en?bdHace(f.consultado_en):'')}
+    </div>
+    ${dir?`<div class="bd-dir">${esc(dir)}</div>`:''}
+    ${fi.etapa?`<div class="bd-nego"><b>Negociación</b> ${esc(fi.etapa)}${fi.plan_ofrecido?' · ofrecido: '+esc(fi.plan_ofrecido):''}${fi.precio?' · $'+esc(fi.precio):''}${fi.objecion?' · objeción: '+esc(fi.objecion):''}${fi.proximo_paso?'<br>Próximo paso: '+esc(fi.proximo_paso):''}</div>`:''}
+    ${soloVer?'':`<div class="bd-tip">
+      <div style="font-size:12.5px;color:var(--txt-2)">Antes de tipificar revisa AVS: si hay un impedimento, es <b>Improcedente</b> aunque hayas hablado con el cliente.</div>
+      ${BD_GRUPOS.map(([g,l])=>{ const T=tips.filter(x=>x.grupo===g); return T.length?`<div><span class="bd-gl">${l}</span><div class="bd-chips">${T.map(x=>`<button class="bd-chip ${g==='contacto'?'contacto':'no_contacto'} ${g}" data-tip="${x.clave}">${esc(x.nombre.replace(/^(Improcedente|Buzón|No contactado) · /,''))}</button>`).join('')}</div></div>`:''; }).join('')}
+      <div id="bd-extra"></div>
+      <textarea id="bd-nota" rows="2" placeholder="Nota (opcional): lo que te dijo, nombre y teléfono del titular si es tercero…" style="${ESTILO_CAMPO};resize:vertical"></textarea>
+      <button class="btn btn-p" id="bd-guardar" disabled>Elige cómo te fue</button>
+    </div>`}
+    <details class="bd-hist" ${f.historial?.length&&f.historial.length<=4?'open':''}><summary>Historial · ${f.historial?.length||0}</summary>
+      ${(f.historial||[]).map(h=>`<div class="bd-h"><span>${esc(fh(h.en))}</span><b>${esc(h.tip||'')}</b><small>${esc(nomCorto(h.agente||''))}${h.nota?' · '+esc(h.nota):''}${h.agendado_para?' · agendado '+esc(fh(h.agendado_para)):''}${h.auditoria&&h.auditoria!=='ok'?` · <em class="p p-bad">${h.auditoria==='sin_llamada'?'sin llamada en Bonsaif':'llamada muy corta'}</em>`:''}</small></div>`).join('')||'<div style="padding:10px 0;color:var(--txt-3);font-size:12.5px">Primera vez que se trabaja este número.</div>'}
+    </details>
+  </div>`;
+  $('#bd-copia').onclick=()=>bdCopiar(f.dn);
+  if(soloVer) return;
+  let sel=null;
+  const iso=d=>{ const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
+  const manana=()=>{ const d=new Date(); d.setDate(d.getDate()+1); return iso(d); };
+  const corteDe=(uc,dc)=>{ if(!uc||!dc) return null; const u=new Date(uc+'T12:00:00'); for(let i=0;i<3;i++){ const m=new Date(u.getFullYear(),u.getMonth()+i,1); const ult=new Date(m.getFullYear(),m.getMonth()+1,0).getDate(); const c=new Date(m.getFullYear(),m.getMonth(),Math.min(dc,ult),12); if(c>u) return c; } return null; };
+  el.querySelectorAll('[data-tip]').forEach(b=>b.onclick=()=>{
+    sel=tips.find(x=>x.clave===b.dataset.tip);
+    el.querySelectorAll('[data-tip]').forEach(x=>x.classList.toggle('on',x===b));
+    const ex=$('#bd-extra'); let h='';
+    if(sel.pide==='fecha'||sel.pide==='fecha_opcional')
+      h+=`<div class="bd-f2"><div><label>${sel.accion==='sin_ine'?'¿Cuándo tendrá su INE? (volver a llamar)':sel.pide==='fecha_opcional'?'Volver a llamar (opcional)':'Volver a llamar'}</label><input type="datetime-local" id="bd-ag" min="${iso(new Date())}" ${sel.pide==='fecha'?`value="${manana()}"`:''} style="${ESTILO_CAMPO}"></div>
+        ${sel.pide==='fecha_opcional'?'<div style="align-self:end;font-size:12.5px;color:var(--txt-2)">Si lo dejas vacío, se agenda el siguiente día laborable. Si ya pasaron 5 días sin contacto, se da por perdido.</div>':''}</div>`;
+    if(sel.accion==='seguimiento') h+=`<div class="bd-f2">
+        <div><label>Etapa</label><select id="bd-etapa" style="${ESTILO_CAMPO}"><option value="">Elige…</option>${['Interesado','Negociando','Listo para cerrar'].map(x=>`<option ${fi.etapa===x?'selected':''}>${x}</option>`).join('')}</select></div>
+        <div><label>Plan ofrecido</label><input id="bd-plan" list="bd-planes" value="${esc(fi.plan_ofrecido||'')}" style="${ESTILO_CAMPO}"></div>
+        <div><label>Precio ofrecido</label><input id="bd-precio" inputmode="decimal" value="${esc(fi.precio||'')}" style="${ESTILO_CAMPO}"></div>
+        <div><label>Objeción principal</label><select id="bd-obj" style="${ESTILO_CAMPO}"><option value="">—</option>${BD_OBJ.map(x=>`<option ${fi.objecion===x?'selected':''}>${x}</option>`).join('')}</select></div>
+        <div style="grid-column:1/-1"><label>Lo que negociaste / próximo paso</label><input id="bd-paso" value="${esc(fi.proximo_paso||'')}" placeholder="Ej. revisó la oferta del A26, lo consulta con su esposa" style="${ESTILO_CAMPO}"></div>
+        <datalist id="bd-planes">${planes.map(p=>`<option value="${esc(p)}">`).join('')}</datalist></div>`;
+    if(sel.pide==='aceleracion') h+=`<div class="bd-f2"><div><label>Fecha de última cuota</label><input type="date" id="bd-uc" style="${ESTILO_CAMPO}"></div>
+        <div><label>Día de corte</label><input type="number" id="bd-corte" min="1" max="31" placeholder="Ej. 13" style="${ESTILO_CAMPO}"></div>
+        <div id="bd-acel" style="align-self:end;font-size:12.5px;color:var(--txt-2)">Se agenda el primer corte después de su última cuota.</div></div>`;
+    if(sel.pide==='fecha_efectiva') h+=`<div class="bd-f2"><div><label>Fecha efectiva (activación) en AVS</label><input type="date" id="bd-ef" style="${ESTILO_CAMPO}"></div>
+        <div id="bd-efv" style="align-self:end;font-size:12.5px;color:var(--txt-2)">Se te agenda una semana antes de que cumpla el año.</div></div>`;
+    if(sel.mensaje) h+=`<div class="note" style="margin:0"><b>Este lead lleva WhatsApp</b>Manda un mensaje personalizado a su perfil antes de guardar. <a href="${wa}" target="_blank" rel="noopener">Abrir WhatsApp</a>
+        <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-weight:500"><input type="checkbox" id="bd-wa" style="width:auto">Ya le envié el mensaje</label>
+        <div style="font-size:12px;color:var(--txt-3);margin-top:4px">El supervisor revisa al azar mensajes enviados cada día.</div></div>`;
+    if(sel.clave==='nc_buzon_plan_bajo') h+=`<div style="font-size:12.5px;color:var(--txt-2)">Plan bajo: no se manda WhatsApp para no saturar tu cuenta.</div>`;
+    if(sel.accion==='bloquear') h+=`<div style="font-size:12.5px;color:var(--bad)">Este número ya no vuelve a la base.</div>`;
+    ex.innerHTML=h;
+    if($('#bd-uc')){ const pv=()=>{ const c=corteDe($('#bd-uc').value,Number($('#bd-corte').value)); $('#bd-acel').innerHTML=c?`Se agenda el <b>${c.toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'})}</b>, cuando ya puede renovar.`:'Se agenda el primer corte después de su última cuota.'; }; $('#bd-uc').oninput=pv; $('#bd-corte').oninput=pv; }
+    if($('#bd-ef')) $('#bd-ef').oninput=()=>{ const v=$('#bd-ef').value; if(!v) return; const d=new Date(v+'T12:00:00'); d.setFullYear(d.getFullYear()+1); d.setDate(d.getDate()-7); $('#bd-efv').innerHTML=`Se te agenda el <b>${d.toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'})}</b>, una semana antes de cumplir el año.`; };
+    const g=$('#bd-guardar'); g.disabled=false; g.textContent='Guardar · '+sel.nombre;
+  });
+  $('#bd-guardar').onclick=async()=>{
+    if(!sel) return;
+    const v=id=>($('#'+id)?.value||'').trim();
+    if(sel.mensaje&&!$('#bd-wa').checked) return toast('Primero manda el WhatsApp y marca que ya lo enviaste.','bad');
+    const p={tipificacion:sel.clave, nota:v('bd-nota')};
+    if($('#bd-ag')&&v('bd-ag')) p.agendar=new Date(v('bd-ag')).toISOString();
+    if($('#bd-uc')){ p.fecha_ultima_cuota=v('bd-uc'); p.dia_corte=v('bd-corte'); }
+    if($('#bd-ef')) p.fecha_efectiva=v('bd-ef');
+    if($('#bd-etapa')) p.ficha={etapa:v('bd-etapa'),plan_ofrecido:v('bd-plan'),precio:v('bd-precio'),objecion:v('bd-obj'),proximo_paso:v('bd-paso')};
+    if(sel.accion==='venta'&&!confirm('¿La venta está cerrada? Regístrala en Ventas con su expediente el mismo día.')) return;
+    const b=$('#bd-guardar'); b.disabled=true; b.classList.add('cargando');
+    const {data,error}=await sb.rpc('base_tipificar',{p_id:f.id,p});
+    b.classList.remove('cargando');
+    if(error){ b.disabled=false; toast(error.message,'bad'); return; }
+    toast({vendida:'¡Venta! Regístrala en Ventas con su expediente.',agendado:'Guardado y agendado en tu cartera.',mensaje:'Guardado. Queda esperando respuesta en "Mensajes".',
+      no_util:'Improcedente: ya no vuelve a la base.',cerrada:'Guardado.'}[data?.quedo]||'Guardado.','ok');
+    if(sel.accion==='venta') setTimeout(()=>{ if(confirm('¿Quieres ir a registrar la venta ahora?')) irA('ventas'); },200);
+    alTerminar&&alTerminar();
+  };
+}
+
+async function bdPintarCartera(c){
+  const {data,error}=await sb.rpc('base_mi_cartera'); if(error) throw error;
+  const L=data||[], ahora=new Date();
+  const fil=S.bd.cf||'todos';
+  const venc=L.filter(x=>new Date(x.agendado_para)<=ahora), hoy=L.filter(x=>new Date(x.agendado_para).toDateString()===ahora.toDateString());
+  const lista={todos:L,vencidos:venc,hoy}[fil]||L;
+  const ET={negociacion:'Negociación',aceleracion:'Aceleración',improcedente:'Vuelve (antigüedad / INE)'};
+  c.innerHTML=`<div class="bar"><div class="tabs" style="margin:0;border:none;background:none;padding:0">
+      ${[['todos','Todos',L.length],['hoy','Hoy',hoy.length],['vencidos','Vencidos',venc.length]].map(([k,l,n])=>`<button class="tab ${fil===k?'on':''}" data-cf="${k}">${l} · ${n}</button>`).join('')}</div>
+      <span style="margin-left:auto;font-size:12.5px;color:var(--txt-3)">Cada cliente es solo tuyo mientras lo sigas gestionando.</span></div>
+    <div id="bd-cl"></div>`;
+  c.querySelectorAll('[data-cf]').forEach(b=>b.onclick=()=>{ S.bd.cf=b.dataset.cf; bdPintarCartera(c); });
+  tablaPaginada($('#bd-cl'),lista,'<th>Cliente</th><th>Próximo contacto</th><th>Tipo</th><th>Último resultado</th><th>Negociación</th><th>Tuyo hasta</th>',
+    x=>{ const v=new Date(x.agendado_para)<=ahora, fi=x.ficha||{};
+      return `<tr style="cursor:pointer" data-bdab="${x.id}"><td><b style="font-size:13px">${esc(x.cliente||'—')}</b>${x.respuesta==='positiva'?' <span class="p p-ok">respondió</span>':''}<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.dn)} · ${esc(x.plan_actual||'')}</div></td>
+      <td style="white-space:nowrap">${v?'<span class="p p-bad">Ya toca</span> ':''}${esc(fh(x.agendado_para))}</td><td style="font-size:12px">${esc(ET[x.etapa]||'—')}</td><td style="font-size:12.5px">${esc(x.tip||'')}</td>
+      <td style="font-size:12px">${fi.etapa?esc(fi.etapa)+(fi.plan_ofrecido?' · '+esc(fi.plan_ofrecido):'')+(fi.objecion?'<div style="color:var(--txt-3)">'+esc(fi.objecion)+'</div>':''):'—'}</td>
+      <td style="font-size:12px;white-space:nowrap">${esc(bdF(x.custodia_hasta))}</td></tr>`; },
+    {vacio:'Tu cartera está vacía. Los clientes que dejes agendados aparecen aquí.',despues:el=>el.querySelectorAll('[data-bdab]').forEach(tr=>tr.onclick=()=>bdAbrirLead(Number(tr.dataset.bdab)))});
+}
+
+async function bdPintarMensajes(c){
+  const {data,error}=await sb.rpc('base_mis_mensajes'); if(error) throw error;
+  const L=data||[];
+  c.innerHTML=`<div class="note" style="margin-bottom:12px"><b>Mensajes esperando respuesta</b>Cuando el cliente conteste tu WhatsApp, márcalo aquí. Si es positiva, regresa a tu agenda para llamarle ya; si es negativa, se cierra. Sin respuesta en 7 días, se cierra solo.</div><div id="bd-ml"></div>`;
+  tablaPaginada($('#bd-ml'),L,'<th>Cliente</th><th>Enviado</th><th>Se cierra</th><th></th>',
+    x=>`<tr><td><b style="font-size:13px">${esc(x.cliente||'—')}</b><div style="font-size:11.5px;color:var(--txt-3)">${esc(x.dn)} · ${esc(x.plan_actual||'')}</div></td>
+      <td style="font-size:12.5px;white-space:nowrap">${esc(fh(x.mensaje_en))}</td><td style="font-size:12.5px;white-space:nowrap">${esc(bdF(x.vence))}</td>
+      <td style="white-space:nowrap"><a class="btn" style="padding:4px 9px;font-size:12px" href="https://wa.me/52${esc(x.dn)}" target="_blank" rel="noopener">Ver chat</a>
+        <button class="btn" style="padding:4px 9px;font-size:12px;color:var(--ok)" data-resp="positiva" data-id="${x.id}">Respondió: interesado</button>
+        <button class="btn" style="padding:4px 9px;font-size:12px;color:var(--bad)" data-resp="negativa" data-id="${x.id}">Respondió: no</button></td></tr>`,
+    {vacio:'No tienes mensajes esperando respuesta.',despues:el=>el.querySelectorAll('[data-resp]').forEach(b=>b.onclick=async()=>{
+      const {error:e}=await sb.rpc('base_registrar_respuesta',{p_id:Number(b.dataset.id),p_respuesta:b.dataset.resp}); if(e) return toast(e.message,'bad');
+      toast(b.dataset.resp==='positiva'?'Pasó a tu agenda: llámale ahora.':'Cerrado.','ok'); bdPintarMensajes(c); })});
+}
+
+async function bdPintarCapturas(c){
+  const {data,error}=await sb.rpc('base_mis_capturas'); if(error) throw error;
+  const L=data||[];
+  c.innerHTML=`<div class="note" style="margin-bottom:12px"><b>Capturas de mensajes enviados</b>El sistema eligió al azar algunos mensajes que marcaste como enviados. Sube la captura de pantalla de cada uno (el chat de WhatsApp con el mensaje).</div><div id="bd-cap"></div>`;
+  tablaPaginada($('#bd-cap'),L,'<th>Cliente</th><th>Mensaje del</th><th>Estatus</th><th></th>',
+    x=>`<tr><td><b style="font-size:13px">${esc(x.cliente||'—')}</b><div style="font-size:11.5px;color:var(--txt-3)">${esc(x.dn)}</div></td><td style="font-size:12.5px">${esc(fh(x.mensaje_en))}</td>
+      <td>${x.estatus==='no_cumple'?'<span class="p p-bad">Rechazada: súbela de nuevo</span>':'<span class="p p-warn">Pendiente</span>'}</td>
+      <td><label class="btn btn-p" style="margin:0;padding:5px 12px;font-size:12px">Subir captura<input type="file" accept="image/*" data-cap="${x.id}" style="display:none"></label></td></tr>`,
+    {vacio:'No tienes capturas pendientes.',despues:el=>el.querySelectorAll('[data-cap]').forEach(inp=>inp.onchange=async()=>{
+      const f=inp.files[0]; if(!f) return; if(!/^image\//.test(f.type)) return toast('Sube una imagen.','bad');
+      const lbl=inp.closest('label'); lbl.classList.add('cargando');
+      try{ const blob=await comprimirFoto(f), ruta=`${S.perfil.empleado_id}/${inp.dataset.cap}_${Date.now()}.jpg`;
+        const up=await sb.storage.from('base_evidencias').upload(ruta,blob,{contentType:'image/jpeg'}); if(up.error) throw new Error(up.error.message);
+        const {error:e}=await sb.rpc('base_subir_captura',{p_id:Number(inp.dataset.cap),p_path:ruta}); if(e) throw new Error(e.message);
+        toast('Captura subida.','ok'); bdPintarCapturas(c);
+      }catch(e){ toast(e.message,'bad'); lbl.classList.remove('cargando'); } })});
+}
+
+/* Recordatorios de agenda mientras la plataforma está abierta */
+function iniciarRecordatoriosBase(){
+  if(S.papelBase!=='agente'||S.relojBase) return;
+  S.bdAvisados=new Set();
+  const rev=async()=>{
+    const {data}=await sb.rpc('base_mi_cartera'); if(!data) return;
+    const ahora=Date.now();
+    data.filter(x=>{ const t=new Date(x.agendado_para).getTime(); return t<=ahora+5*60000&&t>ahora-30*60000&&!S.bdAvisados.has(x.id+'|'+x.agendado_para); }).forEach(x=>{
+      S.bdAvisados.add(x.id+'|'+x.agendado_para);
+      const msg=`Toca llamar a ${x.cliente||x.dn} (${x.dn})`;
+      if(document.hidden&&'Notification' in window&&Notification.permission==='granted'){ try{ new Notification('Agenda',{body:msg,tag:'bd-'+x.id}); }catch(e){} }
+      else toast(msg,'ok');
+    });
+  };
+  rev(); S.relojBase=setInterval(rev,60000);
+}
+
+/* ---------------- MINERO ---------------- */
+async function bdPintarMineria(c){
+  const [rm,rs,planes]=await Promise.all([sb.rpc('base_mi_mineria'),sb.rpc('base_siguiente_minero'),bdPlanes()]);
+  if(rm.error) throw rm.error; if(rs.error) throw rs.error;
+  const m=rm.data, s=rs.data, sem=m.semana||{consultas:0,pago:0}, hoy=s.hoy??m.hoy, cuota=m.cuota;
+  c.innerHTML=`<div class="kpis">
+    <div class="kpi t"><span>Consultados hoy</span><b>${bdNum(hoy)} <small style="display:inline;font-size:14px;color:var(--txt-3)">/ ${bdNum(cuota)}</small></b><div class="bd-prog ${hoy>=cuota?'ok':''}"><i style="width:${Math.min(100,cuota?hoy/cuota*100:0)}%"></i></div></div>
+    <div class="kpi"><span>Esta semana</span><b>${money(sem.pago||0)}</b><small>${bdNum(sem.consultas)} consultas × ${money(m.tarifa)}</small></div>
+  </div>
+  ${s.extra?'<div class="note" style="margin:12px 0;background:var(--warn-l);border-color:var(--warn)"><b>Ya cumpliste tu cuota, pero falta base para mañana</b>Sigue consultando: cada registro extra también se paga.</div>':''}
+  <div id="bd-min" style="margin-top:14px"></div>`;
+  const el=$('#bd-min');
+  if(s.cuota_cumplida){ el.innerHTML=`<div class="tile bd-vacio" style="cursor:default;transform:none"><div class="bd-ico ok">${ico('base')}</div><b>Cuota del día cumplida</b><p>Consultaste ${bdNum(hoy)} registros y ya está la base de mañana. Buen trabajo.</p></div>`; return; }
+  if(s.vacio||!s.registro){ el.innerHTML=`<div class="tile bd-vacio" style="cursor:default;transform:none"><div class="bd-ico">${ico('base')}</div><b>No hay registros por consultar</b><p>Avísale a administración para que cargue la extracción.</p></div>`; return; }
+  const r=s.registro, reval=r.estatus==='por_revalidar';
+  el.innerHTML=`<div class="tile bd-ficha" style="cursor:default;transform:none">
+    <div class="bd-fh"><div><small>${reval?'Revalidación':'Registro nuevo'}</small><h2>${esc(r.cliente||'Cliente sin nombre')}</h2>
+      <div class="bd-dn"><b>${esc(r.dn.replace(/(\d{2})(\d{4})(\d{4})/,'$1 $2 $3'))}</b><button class="btn" id="bd-copia">Copiar número</button></div></div></div>
+    ${reval&&r.plan_actual?`<div class="bd-nego"><b>Antes</b> ${esc(r.plan_actual)} · ${r.con_equipo?esc(r.equipo||'con equipo')+' · cuota '+bdF(r.fecha_ultima_cuota):'sin equipo · efectiva '+bdF(r.fecha_efectiva)}. Confirma lo que hoy diga AVS.</div>`:''}
+    <label style="margin-top:6px">¿Qué encontraste en AVS?</label>
+    <div class="bd-chips" id="bd-res">${BD_RES.map(([k,l],i)=>`<button class="bd-chip ${i?'no_contacto':'contacto'} ${i?'':'on'}" data-res="${k}">${l}</button>`).join('')}</div>
+    <div id="bd-ok">
+      <div class="bd-f2">
+        <div><label>Plan actual</label><input id="mn-plan" list="mn-planes" value="${esc(r.plan_actual||'')}" style="${ESTILO_CAMPO}"></div>
+        <div><label>¿Tiene equipo?</label><div class="bd-seg" id="mn-eq"><button data-eq="1" class="${r.con_equipo!==false?'on':''}">Con equipo</button><button data-eq="0" class="${r.con_equipo===false?'on':''}">Sin equipo</button></div></div>
+        <div class="mn-coneq"><label>Modelo del equipo</label><input id="mn-equipo" value="${esc(r.equipo||'')}" placeholder="Ej. SAMSUNG GALAXY A15 128GB" style="${ESTILO_CAMPO}"></div>
+        <div class="mn-coneq"><label>Fecha de última cuota</label><input type="date" id="mn-uc" value="${esc(r.fecha_ultima_cuota||'')}" style="${ESTILO_CAMPO}"></div>
+        <div><label>Fecha efectiva <span class="mn-opc" style="color:var(--txt-3)">(opcional con equipo)</span></label><input type="date" id="mn-ef" value="${esc(r.fecha_efectiva||'')}" style="${ESTILO_CAMPO}"></div>
+        <div class="mn-coneq"><label>Plazo</label><select id="mn-plazo" style="${ESTILO_CAMPO}"><option value="">—</option>${[24,30,36].map(p=>`<option ${r.plazo===p?'selected':''}>${p}</option>`).join('')}</select></div>
+      </div>
+      <datalist id="mn-planes">${planes.map(p=>`<option value="${esc(p)}">`).join('')}</datalist>
+    </div>
+    <button class="btn btn-p" id="mn-guardar" style="margin-top:12px">Guardar y siguiente</button>
+  </div>`;
+  $('#bd-copia').onclick=()=>bdCopiar(r.dn);
+  let res='ok', eq=r.con_equipo!==false;
+  const sinc=()=>{ $('#bd-ok').style.display=res==='ok'?'':'none'; document.querySelectorAll('.mn-coneq').forEach(x=>x.style.display=eq?'':'none'); $('.mn-opc').style.display=eq?'':'none'; };
+  c.querySelectorAll('[data-res]').forEach(b=>b.onclick=()=>{ res=b.dataset.res; c.querySelectorAll('[data-res]').forEach(x=>x.classList.toggle('on',x===b)); sinc(); });
+  c.querySelectorAll('[data-eq]').forEach(b=>b.onclick=()=>{ eq=b.dataset.eq==='1'; c.querySelectorAll('[data-eq]').forEach(x=>x.classList.toggle('on',x===b)); sinc(); });
+  sinc();
+  const guardar=async()=>{
+    const b=$('#mn-guardar'); if(b.disabled) return; b.disabled=true; b.classList.add('cargando');
+    const p=res==='ok'?{resultado:'ok',plan_actual:$('#mn-plan').value,con_equipo:eq,equipo:eq?$('#mn-equipo').value:null,
+      fecha_ultima_cuota:eq?$('#mn-uc').value:null,fecha_efectiva:$('#mn-ef').value||null,plazo:eq?$('#mn-plazo').value:null}:{resultado:res};
+    const {error}=await sb.rpc('base_guardar_consulta',{p_id:r.id,p});
+    if(error){ toast(error.message,'bad'); b.disabled=false; b.classList.remove('cargando'); return; }
+    toast('Guardado.','ok'); bdPintarMineria(c);
+  };
+  $('#mn-guardar').onclick=guardar;
+  el.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); guardar(); } }));
+  $('#mn-plan').focus();
+}
+
+/* ---------------- EMBUDO ---------------- */
+async function bdPintarEmbudo(c,papel){
+  const t=S.bd; const hoy=hoyMexico();
+  const rango=k=>{ const d=new Date(hoy+'T12:00:00'), f=x=>x.toISOString().slice(0,10);
+    if(k==='hoy') return [hoy,hoy];
+    if(k==='ayer'){ d.setDate(d.getDate()-1); return [f(d),f(d)]; }
+    if(k==='semana'){ const i=new Date(d); i.setDate(d.getDate()-((d.getDay()+6)%7)); return [f(i),hoy]; }
+    if(k==='mes') return [hoy.slice(0,8)+'01',hoy];
+    return [t.ed||hoy,t.eh||hoy]; };
+  t.ep=t.ep||'hoy'; const [desde,hasta]=rango(t.ep);
+  const jefe=papel!=='agente';
+  const [re,ra]=await Promise.all([sb.rpc('base_embudo',{p_desde:desde,p_hasta:hasta,p_agente:t.ea||null}),
+    jefe?sb.rpc('base_supervision',{p_dia:hoy}):{data:null}]);
+  if(re.error) throw re.error;
+  const E=re.data||{}, AG=(ra.data?.agentes)||[];
+  const pc=(n,d)=>d?Math.round(n/d*100):0;
+  const fila=(l,n,base,nivel=0,tono='')=>`<div class="emb-f" style="--n:${nivel}"><span>${l}</span><div class="emb-b"><i class="${tono}" style="width:${pc(n,base)}%"></i></div><b>${bdNum(n)}</b><small>${base?pc(n,base)+'%':''}</small></div>`;
+  const motivos=(o,base,nivel)=>Object.entries(o||{}).sort((a,b)=>b[1]-a[1]).map(([k,v])=>fila(esc(String(k).replace(/^(No le interesa|Improcedente|Perdido) · /,'')),v,base,nivel,'gris')).join('');
+  c.innerHTML=`<div class="bar">
+    <div class="tabs" style="margin:0;border:none;background:none;padding:0">${[['hoy','Hoy'],['ayer','Ayer'],['semana','Esta semana'],['mes','Este mes'],['rango','Rango']].map(([k,l])=>`<button class="tab ${t.ep===k?'on':''}" data-ep="${k}">${l}</button>`).join('')}</div>
+    ${t.ep==='rango'?`<input type="date" id="em-d" value="${desde}" style="${bdSel}"><input type="date" id="em-h" value="${hasta}" style="${bdSel}">`:''}
+    ${jefe?`<select id="em-a" style="${bdSel};margin-left:auto"><option value="">Todos los agentes</option>${AG.map(a=>`<option value="${a.id}" ${String(t.ea||'')===String(a.id)?'selected':''}>${esc(nomCorto(a.nombre))}</option>`).join('')}</select>`:''}
+  </div>
+  <p style="font-size:12.5px;color:var(--txt-3);margin:0 0 12px">Cuenta los leads por el día en que se dieron. Se actualiza solo: si un lead de hoy se vende mañana, cuenta para hoy.</p>
+  ${!E.leads?'<div class="empty">No hay leads en ese periodo.</div>':`
+  <div class="kpis">
+    <div class="kpi t"><span>Leads</span><b>${bdNum(E.leads)}</b><small>${E.sin_tipificar?bdNum(E.sin_tipificar)+' sin tipificar':'todos tipificados'}</small></div>
+    <div class="kpi"><span>Contacto</span><b>${pc(E.contacto,E.leads)}%</b><small>${bdNum(E.contacto)} leads</small></div>
+    <div class="kpi"><span>Mensajes enviados</span><b>${bdNum(E.nc_mensaje)}</b><small>${pc(E.m_respondieron,E.nc_mensaje)}% respondió</small></div>
+    <div class="kpi"><span>Ventas</span><b>${bdNum(E.ventas)}</b><small>${E.leads?(E.leads/Math.max(E.ventas,1)).toFixed(0)+' leads por venta':''}</small></div>
+  </div>
+  <div class="emb-grid">
+    <div class="tile" style="cursor:default;transform:none"><div class="tv-h"><b>Cómo terminaron</b><span>% de los leads</span></div>
+      ${fila('Contacto',E.contacto,E.leads,0)}${fila('No contacto',E.no_contacto,E.leads,0)}${fila('Improcedente (no viable)',E.improcedente,E.leads,0,'gris')}${E.sin_tipificar?fila('Sin tipificar',E.sin_tipificar,E.leads,0,'mal'):''}
+      <div class="emb-s">Improcedentes por motivo</div>${motivos(E.improcedente_motivos,E.improcedente,1)||'<small class="emb-v">—</small>'}</div>
+    <div class="tile" style="cursor:default;transform:none"><div class="tv-h"><b>Contacto</b><span>${bdNum(E.contacto)} leads</span></div>
+      ${fila('Venta',E.c_venta,E.contacto,0,'ok')}${fila('En negociación',E.c_negociacion,E.contacto,0)}${fila('Aceleración agendada',E.c_aceleracion,E.contacto,0)}
+      ${fila('Tercero sin decisión',E.c_sin_decision,E.contacto,0,'gris')}${fila('Perdido',E.c_perdido,E.contacto,0,'mal')}
+      <div class="emb-s">Por qué se perdieron</div>${motivos(E.c_perdido_motivos,E.c_perdido,1)||'<small class="emb-v">—</small>'}</div>
+    <div class="tile" style="cursor:default;transform:none"><div class="tv-h"><b>No contacto</b><span>${bdNum(E.no_contacto)} leads</span></div>
+      ${fila('Plan bajo (no viable)',E.nc_plan_bajo,E.no_contacto,0,'gris')}${fila('Viable sin WhatsApp',E.nc_sin_wa,E.no_contacto,0)}${fila('Viable con mensaje',E.nc_mensaje,E.no_contacto,0)}
+      <div class="emb-s">De los mensajes enviados</div>
+      ${fila('Respondieron',E.m_respondieron,E.nc_mensaje,1)}${fila('Positiva',E.m_positiva,E.m_respondieron,2,'ok')}${fila('Negativa',E.m_negativa,E.m_respondieron,2,'mal')}${fila('Esperando respuesta',E.m_esperando,E.nc_mensaje,1,'gris')}
+      <div class="emb-s">De las respuestas positivas</div>
+      ${fila('Venta',E.p_venta,E.m_positiva,1,'ok')}${fila('En negociación',E.p_negociacion,E.m_positiva,1)}${fila('Perdido',E.p_perdido,E.m_positiva,1,'mal')}${motivos(E.p_perdido_motivos,E.p_perdido,2)}</div>
+  </div>
+  ${jefe&&(E.por_agente||[]).length>1?`<div class="tv-h" style="margin-top:16px"><b>Por agente</b></div><div class="tw"><table><thead><tr><th>Agente</th><th class="num">Leads</th><th class="num">Sin tipificar</th><th class="num">Improcedente</th><th class="num">Contacto</th><th class="num">No contacto</th><th class="num">Mensajes</th><th class="num">Positivas</th><th class="num">Negociación</th><th class="num">Ventas</th><th class="num">Perdidos</th></tr></thead>
+    <tbody>${E.por_agente.map(a=>`<tr style="cursor:pointer" data-ea="${a.id}"><td><b style="font-size:13px">${esc(nomCorto(a.nombre))}</b></td><td class="num">${a.leads}</td><td class="num">${a.sin_tipificar?`<b style="color:var(--bad)">${a.sin_tipificar}</b>`:0}</td>
+      <td class="num">${a.improcedente}</td><td class="num">${a.contacto} <small style="color:var(--txt-3)">${pc(a.contacto,a.leads)}%</small></td><td class="num">${a.no_contacto}</td><td class="num">${a.mensajes}</td><td class="num">${a.positivas}</td><td class="num">${a.negociacion}</td>
+      <td class="num">${a.ventas?`<b style="color:var(--ok)">${a.ventas}</b>`:0}</td><td class="num">${a.perdidos}</td></tr>`).join('')}</tbody></table></div>`:''}`}`;
+  c.querySelectorAll('[data-ep]').forEach(b=>b.onclick=()=>{ t.ep=b.dataset.ep; bdPintarEmbudo(c,papel); });
+  if($('#em-d')) { $('#em-d').onchange=e=>{ t.ed=e.target.value; bdPintarEmbudo(c,papel); }; $('#em-h').onchange=e=>{ t.eh=e.target.value; bdPintarEmbudo(c,papel); }; }
+  if($('#em-a')) $('#em-a').onchange=e=>{ t.ea=e.target.value||null; bdPintarEmbudo(c,papel); };
+  c.querySelectorAll('[data-ea]').forEach(tr=>tr.onclick=()=>{ t.ea=tr.dataset.ea; bdPintarEmbudo(c,papel); });
+}
+
+/* ---------------- SUPERVISIÓN DEL DÍA ---------------- */
+async function bdPintarSupervision(c){
+  const t=S.bd; t.sd=t.sd||hoyMexico();
+  const [rs,rv,ra,rp]=await Promise.all([sb.rpc('base_supervision',{p_dia:t.sd}),sb.rpc('base_validaciones_dia',{p_dia:t.sd}),sb.rpc('base_auditorias_dia',{p_dia:t.sd}),
+    sb.from('base_puntos_llamada').select('*').order('orden')]);
+  if(rs.error) throw rs.error;
+  const D=rs.data, A=D.agentes||[], V=rv.data||[], AU=ra.data||[], PT=rp.data||[];
+  const esHoy=t.sd===hoyMexico();
+  const ahora=new Date(), h=ahora.getHours()+ahora.getMinutes()/60;
+  const frac=esHoy?Math.max(0,Math.min(1,(h-D.inicio)/(D.fin-D.inicio))):1;
+  const cortes=[11,13,15,17];
+  const acum=(ph,hh)=>Object.entries(ph||{}).filter(([k])=>Number(k)<hh).reduce((s,[,v])=>s+v,0);
+  c.innerHTML=`<div class="bar"><input type="date" id="sv-d" value="${t.sd}" max="${hoyMexico()}" style="${bdSel}">
+      <span style="font-size:12.5px;color:var(--txt-3)">${esHoy?`Ritmo esperado a esta hora: ${Math.round(frac*100)}% de los leads del día`:'Día cerrado'}</span></div>
+  <div class="tw" style="margin-bottom:18px"><table><thead><tr><th>Agente</th><th class="num">Bloques</th><th>Avance del día</th><th class="num">De días anteriores</th><th class="num">Seguimientos vencidos</th>
+    ${cortes.map(x=>`<th class="num">Corte ${x}:00</th>`).join('')}<th class="num">Mensajes</th><th>Última gestión</th></tr></thead>
+  <tbody>${A.map(a=>{ const esp=Math.round(a.leads*frac), atr=a.leads&&a.tipificados<esp*0.8;
+    return `<tr><td><b style="font-size:13px">${esc(nomCorto(a.nombre))}</b></td><td class="num">${a.bloques}</td>
+      <td style="min-width:170px"><div style="display:flex;align-items:center;gap:8px"><div class="bd-prog" style="flex:1;margin:0"><i style="width:${a.leads?a.tipificados/a.leads*100:0}%;${atr?'background:var(--bad)':''}"></i></div><small style="white-space:nowrap">${a.tipificados}/${a.leads}</small></div>${atr?`<small style="color:var(--bad)">atrasado: debería llevar ~${esp}</small>`:''}</td>
+      <td class="num">${a.arrastrados?`<b style="color:var(--bad)">${a.arrastrados}</b>`:0}</td><td class="num">${a.vencida?`<b style="color:var(--bad)">${a.vencida}</b>`:0}</td>
+      ${cortes.map(x=>`<td class="num" style="color:${esHoy&&h<x?'var(--txt-3)':'inherit'}">${esHoy&&h<x?'—':acum(a.por_hora,x)}</td>`).join('')}
+      <td class="num">${a.mensajes}</td><td style="white-space:nowrap">${esc(bdHace(a.ultima))}</td></tr>`; }).join('')||'<tr><td colspan="11" class="empty">Sin agentes.</td></tr>'}</tbody></table></div>
+
+  <div class="tv-h"><b>Validación de mensajes</b><span>El agente sube capturas; tú revisas otros en su teléfono</span></div>
+  <div class="bar" style="box-shadow:none;padding:0;margin-bottom:8px"><button class="btn" id="sv-genv">Elegir mensajes al azar de este día</button></div>
+  <div id="sv-v" style="margin-bottom:18px"></div>
+
+  <div class="tv-h"><b>Auditoría de llamadas</b><span>Llamadas de 4 minutos o más que no fueron venta · se necesita el reporte de Bonsaif del día</span></div>
+  <div class="bar" style="box-shadow:none;padding:0;margin-bottom:8px"><button class="btn" id="sv-gena">Elegir llamadas al azar de este día</button></div>
+  <div id="sv-a"></div>`;
+  $('#sv-d').onchange=e=>{ t.sd=e.target.value; bdPintarSupervision(c); };
+  $('#sv-genv').onclick=async()=>{ const {data,error}=await sb.rpc('base_generar_validaciones',{p_dia:t.sd}); if(error) return toast(error.message,'bad'); toast(data?`${data} mensajes elegidos.`:'No hay mensajes nuevos que elegir ese día.','ok'); bdPintarSupervision(c); };
+  $('#sv-gena').onclick=async()=>{ const {data,error}=await sb.rpc('base_generar_auditoria_llamadas',{p_dia:t.sd}); if(error) return toast(error.message,'bad'); toast(data?`${data} llamadas elegidas.`:'No hay llamadas auditables: revisa que el reporte de Bonsaif del día esté cargado.','ok'); bdPintarSupervision(c); };
+  // validaciones
+  const ESTV={pendiente:['Esperando captura','p-warn'],subida:['Captura subida','p-teal'],cumple:['Cumple','p-ok'],no_cumple:['No cumple','p-bad']};
+  tablaPaginada($('#sv-v'),V,'<th>Agente</th><th>Cliente</th><th>Revisión</th><th>Estatus</th><th></th>',
+    x=>`<tr><td><b style="font-size:13px">${esc(nomCorto(x.agente))}</b></td><td style="font-size:12.5px">${esc(x.cliente||'')}<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.dn)} · ${esc(fh(x.mensaje_en))}</div></td>
+      <td style="font-size:12.5px">${x.tipo==='captura'?'Captura del agente':'Revisar en su teléfono'}</td><td><span class="p ${ESTV[x.estatus][1]}">${x.tipo==='supervisor'&&x.estatus==='pendiente'?'Por revisar':ESTV[x.estatus][0]}</span>${x.nota?`<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.nota)}</div>`:''}</td>
+      <td style="white-space:nowrap">${x.captura_path?`<button class="btn" style="padding:4px 9px;font-size:12px" data-vc="${esc(x.captura_path)}">Ver captura</button> `:''}
+        ${(x.tipo==='supervisor'&&['pendiente'].includes(x.estatus))||x.estatus==='subida'?`<button class="btn" style="padding:4px 9px;font-size:12px;color:var(--ok)" data-vr="${x.id}" data-ok="1">Cumple</button> <button class="btn" style="padding:4px 9px;font-size:12px;color:var(--bad)" data-vr="${x.id}" data-ok="0">No cumple</button>`:''}</td></tr>`,
+    {vacio:'Aún no se eligen mensajes para este día (se eligen solos a las 17:30).',despues:el=>{
+      el.querySelectorAll('[data-vc]').forEach(b=>b.onclick=async()=>{ const w=window.open('','_blank'); const {data,error}=await sb.storage.from('base_evidencias').createSignedUrl(b.dataset.vc,300);
+        if(error){ w&&w.close(); return toast(error.message,'bad'); } if(w) w.location=data.signedUrl; });
+      el.querySelectorAll('[data-vr]').forEach(b=>b.onclick=async()=>{ const ok=b.dataset.ok==='1'; let nota=null; if(!ok){ nota=prompt('¿Qué encontraste? (ej. no hay mensaje en el chat)'); if(nota===null) return; }
+        const {error}=await sb.rpc('base_revisar_validacion',{p_id:Number(b.dataset.vr),p_cumple:ok,p_nota:nota}); if(error) return toast(error.message,'bad'); bdPintarSupervision(c); }); }});
+  // auditoría de llamadas
+  const el=$('#sv-a');
+  el.innerHTML=AU.length?AU.map(x=>`<div class="tile au-c" style="cursor:default;transform:none;margin-bottom:10px">
+      <div class="au-h"><div><b>${esc(nomCorto(x.agente))}</b> · ${esc(x.cliente||'')} · <span class="mono">${esc(x.dn||'')}</span><small>${esc(fh(x.inicio))} · ${Math.floor((x.duracion_seg||0)/60)}:${String((x.duracion_seg||0)%60).padStart(2,'0')} min · ${esc(x.tip_nombre||x.tipificacion||'')}</small></div>
+        ${x.estatus==='calificada'?`<span class="au-cal ${x.calificacion>=80?'ok':x.calificacion>=60?'med':'mal'}">${x.calificacion}%</span>`:'<span class="p p-warn">Por calificar</span>'}</div>
+      <div class="au-p">${PT.map(p=>{ const v=x.puntos?.[p.clave]; return `<div><span>${esc(p.nombre)}</span><select data-au="${x.id}" data-pt="${p.clave}" ${x.estatus==='calificada'?'disabled':''} style="${bdSel};padding:5px 8px">
+          <option value="">—</option><option value="2" ${v===2?'selected':''}>Cumple</option><option value="1" ${v===1?'selected':''}>Parcial</option><option value="0" ${v===0?'selected':''}>No cumple</option></select></div>`; }).join('')}</div>
+      ${x.estatus==='calificada'?(x.comentario?`<div style="font-size:12.5px;color:var(--txt-2);margin-top:8px">${esc(x.comentario)}</div>`:'')
+        :`<div style="display:flex;gap:8px;margin-top:10px"><input data-auc="${x.id}" placeholder="Puntos a mejorar / comentario para el agente" style="${ESTILO_CAMPO};flex:1"><button class="btn btn-p" data-aug="${x.id}">Guardar calificación</button></div>`}
+    </div>`).join(''):'<div class="empty">Aún no se eligen llamadas para este día (se eligen solas a las 17:30 si ya está el reporte de Bonsaif).</div>';
+  el.querySelectorAll('[data-aug]').forEach(b=>b.onclick=async()=>{
+    const id=b.dataset.aug, pts={}; let falta=false;
+    el.querySelectorAll(`[data-au="${id}"]`).forEach(s=>{ if(s.value==='') falta=true; else pts[s.dataset.pt]=Number(s.value); });
+    if(falta) return toast('Califica los 7 puntos de la bitácora.','bad');
+    const {data,error}=await sb.rpc('base_calificar_llamada',{p_id:Number(id),p_puntos:pts,p_comentario:el.querySelector(`[data-auc="${id}"]`).value});
+    if(error) return toast(error.message,'bad'); toast(`Calificación: ${data}%.`,'ok'); bdPintarSupervision(c); });
+}
+
+/* ---------------- RESUMEN (dirección, administración y supervisión) ---------------- */
+async function bdPintarResumen(c,papel){
+  const adm=['admin','direccion'].includes(papel);
+  if(adm) await sb.rpc('base_ciclar').catch(()=>{});
+  const {data:r,error}=await sb.rpc('base_resumen'); if(error) throw error;
+  const E=r.estatus||{}, tot=r.total||0, cs=r.cupo_siguiente||{}, cola=r.cola_mineria||{};
+  const orden=['fresco','en_gestion','agendado','vendida','actualizada','por_consultar','por_revalidar','cerrada','masivos','no_util'];
+  const pct=cs.cupo?Math.min(100,cs.utiles/cs.cupo*100):0;
+  const A=r.agentes||[], M=r.mineros||[], CF=r.conflictos||[];
+  c.innerHTML=`<div class="kpis">
+    <div class="kpi t"><span>Base fresca para hoy</span><b>${bdNum(r.disponible_hoy)}</b><small>sin tomar por ningún agente</small></div>
+    <div class="kpi"><span>Preparada para el ${esc(bdF(cs.dia))}</span><b>${bdNum(cs.utiles)} <small style="display:inline;font-size:14px;color:var(--txt-3)">/ ${bdNum(cs.cupo)}</small></b>
+      <div class="bd-prog ${cs.utiles>=cs.minimo?'ok':''}"><i style="width:${pct}%"></i></div><small>mínimo ${bdNum(cs.minimo)}</small></div>
+    <div class="kpi"><span>Cola de minería</span><b>${bdNum((cola.nuevos||0)+(cola.revalidar||0))}</b><small>${bdNum(cola.nuevos)} nuevos · ${bdNum(cola.revalidar)} por revalidar</small></div>
+    <div class="kpi"><span>Se ciclan en 7 días</span><b>${bdNum(r.ciclan_7_dias)}</b><small>vuelven a revalidación</small></div>
+  </div>
+  ${CF.length?`<div class="note" style="background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">${CF.length} venta${CF.length===1?'':'s'} con cliente de otro agente</b><br>
+    ${CF.map(x=>`${esc(x.dn)} · vendió ${esc(nomCorto(x.vendio))}, estaba en la cartera de ${esc(nomCorto(x.dueno))} <button class="bd-lnk" data-cfr="${x.venta_id}">Marcar resuelto</button>`).join('<br>')}</div>`:''}
+  <div class="tile w12" style="cursor:default;transform:none;margin-bottom:16px"><div class="tv-h"><b>Dónde está la base</b><span>${bdNum(tot)} números</span></div>
+    <div class="bd-barra">${orden.filter(k=>E[k]).map(k=>`<i style="flex:${E[k]};--c:${BD_EST[k][1]}" title="${esc(BD_EST[k][0])}: ${bdNum(E[k])}"></i>`).join('')}</div>
+    <div class="bd-ley">${orden.filter(k=>E[k]).map(k=>`<span><i style="background:${BD_EST[k][1]}"></i>${esc(BD_EST[k][0])} <b>${bdNum(E[k])}</b></span>`).join('')}</div>
+  </div>
+  <div class="tv-h"><b>Agentes hoy</b><span>gestión en tiempo real</span></div>
+  <div class="tw" style="margin-bottom:18px"><table><thead><tr><th>Agente</th><th class="num">Leads nuevos</th><th class="num">Gestiones</th><th class="num">Contacto</th><th class="num">Ventas</th><th class="num">Cartera</th><th class="num">Agenda vencida</th><th class="num">Alertas 7 días</th><th>Última gestión</th>${adm?'<th></th>':''}</tr></thead>
+  <tbody>${A.map(x=>{ const quieto=x.ultima&&(Date.now()-new Date(x.ultima))>20*60000&&new Date(x.ultima).toDateString()===new Date().toDateString();
+    return `<tr><td><b style="font-size:13px">${esc(nomCorto(x.nombre))}</b></td><td class="num">${x.nuevos}</td><td class="num">${x.gestiones}</td><td class="num">${x.contactos}</td>
+    <td class="num">${x.ventas?`<b style="color:var(--ok)">${x.ventas}</b>`:0}</td><td class="num">${x.cartera}</td>
+    <td class="num">${x.vencida?`<b style="color:var(--bad)">${x.vencida}</b>`:0}</td><td class="num">${x.sin_llamada?`<b style="color:var(--warn)">${x.sin_llamada}</b>`:0}</td>
+    <td style="white-space:nowrap">${quieto?'<span class="p p-warn">sin gestionar</span> ':''}${esc(bdHace(x.ultima))}</td>
+    ${adm?`<td>${x.cartera?`<button class="btn" style="padding:4px 9px;font-size:12px" data-rep="${x.id}" data-nom="${esc(x.nombre)}">Repartir cartera</button>`:''}</td>`:''}</tr>`; }).join('')
+    ||'<tr><td colspan="10" class="empty">Sin agentes activos con usuario.</td></tr>'}</tbody></table></div>
+  <div class="tv-h"><b>Mineros hoy</b></div>
+  <div class="tw" style="margin-bottom:18px"><table><thead><tr><th>Minero</th><th class="num">Consultas</th><th class="num">Frescos</th><th class="num">% útil</th><th class="num">Asignados pendientes</th><th>Última consulta</th></tr></thead>
+  <tbody>${M.map(x=>`<tr><td><b style="font-size:13px">${esc(nomCorto(x.nombre))}</b></td><td class="num">${x.consultas}</td><td class="num">${x.frescos}</td>
+    <td class="num">${x.consultas?Math.round(x.frescos/x.consultas*100)+'%':'—'}</td><td class="num">${x.pendientes}</td><td>${esc(bdHace(x.ultima))}</td></tr>`).join('')
+    ||`<tr><td colspan="6" class="empty">Aún no hay mineros. ${papel==='direccion'?'Asígnalos en "Quién hace qué".':''}</td></tr>`}</tbody></table></div>
+  ${adm&&(r.lotes||[]).length?`<div class="tv-h"><b>Últimas cargas</b></div><div class="tw"><table><thead><tr><th>Lote</th><th>Cargado</th><th class="num">Filas</th><th class="num">Nuevos</th><th class="num">A revalidar</th><th class="num">Descartados</th><th class="num">Repetidos / inválidos</th></tr></thead>
+    <tbody>${r.lotes.map(l=>`<tr><td><b style="font-size:13px">${esc(l.nombre)}</b>${l.origen==='odoo'?' <span class="p p-teal">Odoo</span>':''}</td><td>${esc(fh(l.cargado_en))}</td><td class="num">${bdNum(l.filas)}</td><td class="num">${bdNum(l.nuevos)}</td>
+      <td class="num">${bdNum(l.reincluidos)}</td><td class="num" title="${esc(Object.entries(l.detalle||{}).map(([k,v])=>k+': '+v).join(' · '))}">${bdNum(l.descartados)}</td><td class="num">${bdNum(l.repetidos)} / ${bdNum(l.invalidos)}</td></tr>`).join('')}</tbody></table></div>`:''}`;
+  c.querySelectorAll('[data-rep]').forEach(b=>b.onclick=async()=>{
+    if(!confirm(`¿Repartir la cartera de ${b.dataset.nom} entre los demás agentes? Úsalo cuando alguien causa baja o se ausenta varios días.`)) return;
+    const {data,error}=await sb.rpc('base_repartir_cartera',{p_emp:Number(b.dataset.rep)}); if(error) return toast(error.message,'bad');
+    toast(`${data} cliente${data===1?'':'s'} repartido${data===1?'':'s'}.`,'ok'); vistaBase(); });
+  c.querySelectorAll('[data-cfr]').forEach(b=>b.onclick=async()=>{ const {error}=await sb.rpc('base_resolver_conflicto',{p_venta:Number(b.dataset.cfr)}); if(error) return toast(error.message,'bad'); vistaBase(); });
+}
+
+/* ---------------- CARGAR EXTRACCIÓN ---------------- */
+async function bdPintarCargar(c){
+  c.innerHTML=`<div class="tile w12" style="cursor:default;transform:none">
+    <div class="tv-h"><b>Cargar extracción de AT&T</b><span>Excel o CSV con número y nombre</span></div>
+    <p style="font-size:13px;color:var(--txt-2);margin:0 0 12px">El sistema depura solo: lo nuevo entra a minería; lo que nadie ha trabajado en 90 días o más vuelve a revalidación; lo que está en cola, en la cartera de un agente, vendido, ciclando con fecha futura o trabajado hace poco se descarta.</p>
+    <div class="bd-f2"><div><label>Nombre del lote</label><input id="cg-nom" value="Extracción ${esc(new Date().toLocaleDateString('es-MX'))}" style="${ESTILO_CAMPO}"></div>
+      <div><label>Archivo</label><input type="file" id="cg-f" accept=".xlsx,.xls,.csv,.txt" style="${ESTILO_CAMPO}"></div></div>
+    <details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;color:var(--txt-2)">O pega los números aquí (uno por línea, con el nombre después de una coma o tabulador)</summary>
+      <textarea id="cg-txt" rows="6" style="${ESTILO_CAMPO};margin-top:8px;font-family:ui-monospace,monospace;font-size:12.5px" placeholder="5512345678, JUAN PEREZ"></textarea></details>
+    <div id="cg-prev" style="margin-top:12px"></div>
+  </div><div id="cg-res" style="margin-top:16px"></div>`;
+  let filas=[];
+  const preparar=aoa=>{
+    if(!aoa.length){ $('#cg-prev').innerHTML=''; return; }
+    const tieneCab=!aoa[0].some(v=>/^\D*\d{10,}\D*$/.test(String(v??'')));
+    const cab=tieneCab?aoa[0].map(String):aoa[0].map((_,i)=>'Columna '+(i+1));
+    const datos=tieneCab?aoa.slice(1):aoa;
+    let iDn=bdAdivina(cab,/^(dn|telefono|tel|numero|linea|celular|msisdn)/);
+    if(iDn<0){ let best=-1,bc=0; cab.forEach((_,i)=>{ const n=datos.slice(0,50).filter(r=>/\d{10}/.test(String(r[i]??'').replace(/\D/g,''))).length; if(n>bc){bc=n;best=i;} }); iDn=best; }
+    let iCli=bdAdivina(cab,/(cliente|nombre|titular)/,[iDn]);
+    if(iCli<0) iCli=cab.findIndex((_,i)=>i!==iDn&&datos.slice(0,20).some(r=>/[a-z]{3}/i.test(String(r[i]??''))));
+    const ix={calle:bdAdivina(cab,/(calle|direccion|domicilio)/),colonia:bdAdivina(cab,/colonia/),cp:bdAdivina(cab,/^(cp|c\.p|codigo postal)/),ciudad:bdAdivina(cab,/(ciudad|municipio)/),estado:bdAdivina(cab,/^estado/)};
+    const opc=(sel)=>`<option value="-1">—</option>${cab.map((h,i)=>`<option value="${i}" ${i===sel?'selected':''}>${esc(h)}</option>`).join('')}`;
+    $('#cg-prev').innerHTML=`<div class="bd-f2"><div><label>Columna del número</label><select id="cg-dn" style="${ESTILO_CAMPO}">${opc(iDn)}</select></div>
+      <div><label>Columna del nombre</label><select id="cg-cli" style="${ESTILO_CAMPO}">${opc(iCli)}</select></div></div>
+      <p style="font-size:13px;margin:12px 0"><b>${bdNum(datos.length)}</b> filas listas.</p>
+      <button class="btn btn-p" id="cg-go">Cargar y depurar</button>`;
+    const armar=()=>{ const a=Number($('#cg-dn').value), b=Number($('#cg-cli').value);
+      filas=datos.map(r=>({dn:String(r[a]??''),cliente:b>=0?String(r[b]??'').trim():null,
+        calle:ix.calle>=0?r[ix.calle]:null,colonia:ix.colonia>=0?r[ix.colonia]:null,cp:ix.cp>=0?String(r[ix.cp]??''):null,ciudad:ix.ciudad>=0?r[ix.ciudad]:null,estado:ix.estado>=0?r[ix.estado]:null})); };
+    $('#cg-go').onclick=async()=>{
+      armar(); const b=$('#cg-go'); b.disabled=true; b.classList.add('cargando');
+      let lote=null; const tot={nuevos:0,reincluidos:0,descartados:0,repetidos:0,invalidos:0,motivos:{}};
+      try{
+        for(let i=0;i<filas.length;i+=1000){
+          b.textContent=`Cargando ${Math.min(i+1000,filas.length).toLocaleString('es-MX')} de ${filas.length.toLocaleString('es-MX')}…`;
+          const {data,error}=await sb.rpc('base_cargar_extraccion',{p_nombre:$('#cg-nom').value,p_filas:filas.slice(i,i+1000),p_lote:lote});
+          if(error) throw error; lote=data.lote;
+          ['nuevos','reincluidos','descartados','repetidos','invalidos'].forEach(k=>tot[k]+=data[k]);
+          Object.entries(data.motivos||{}).forEach(([k,v])=>tot.motivos[k]=(tot.motivos[k]||0)+v);
+        }
+        $('#cg-res').innerHTML=`<div class="kpis">
+          <div class="kpi t"><span>Nuevos a minería</span><b>${bdNum(tot.nuevos)}</b></div>
+          <div class="kpi"><span>Vuelven a revalidación</span><b>${bdNum(tot.reincluidos)}</b><small>nadie los trabaja hace 90 días o más</small></div>
+          <div class="kpi"><span>Descartados</span><b>${bdNum(tot.descartados)}</b><small>${Object.entries(tot.motivos).map(([k,v])=>`${esc(k)}: ${bdNum(v)}`).join('<br>')||'—'}</small></div>
+          <div class="kpi"><span>Repetidos / inválidos</span><b>${bdNum(tot.repetidos)} / ${bdNum(tot.invalidos)}</b><small>en el mismo archivo / sin 10 dígitos</small></div></div>`;
+        toast('Extracción cargada y depurada.','ok'); b.textContent='Cargado';
+      }catch(e){ toast(e.message||String(e),'bad'); b.disabled=false; b.textContent='Cargar y depurar'; }
+      b.classList.remove('cargando');
+    };
+  };
+  $('#cg-f').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ preparar(await bdLeerArchivo(f)); }catch(err){ toast('No se pudo leer el archivo: '+err.message,'bad'); } };
+  $('#cg-txt').oninput=e=>preparar(e.target.value.split(/\r?\n/).filter(x=>x.trim()).map(l=>l.split(/\t|,|;/).map(x=>x.trim())));
+}
+
+/* ---------------- MINEROS Y PAGO ---------------- */
+async function bdPintarMineros(c){
+  const [rp,rv,rc]=await Promise.all([
+    sb.from('base_papeles').select('empleado_id,papel,empleados(nombre_completo,estatus)').eq('papel','minero'),
+    sb.from('v_base_pago_mineros').select('*').order('semana_desde',{ascending:false}),
+    sb.rpc('base_resumen')]);
+  if(rp.error) throw rp.error; if(rv.error) throw rv.error;
+  const MIN=(rp.data||[]).filter(x=>x.empleados?.estatus==='activo'), P=rv.data||[];
+  const pend=Object.fromEntries((rc.data?.mineros||[]).map(x=>[x.id,x.pendientes]));
+  const semanas=[...new Set(P.map(x=>x.semana_desde))];
+  const t=S.bd; if(!t.sem||!semanas.includes(t.sem)) t.sem=semanas[0];
+  const fs=k=>{ const a=new Date(k+'T12:00:00'), b=new Date(a); b.setDate(b.getDate()+6); return `${a.toLocaleDateString('es-MX',{day:'numeric',month:'short'})} al ${b.toLocaleDateString('es-MX',{day:'numeric',month:'short'})}`; };
+  const PS=P.filter(x=>x.semana_desde===t.sem);
+  c.innerHTML=`<div class="tile w12" style="cursor:default;transform:none;margin-bottom:16px">
+    <div class="tv-h"><b>Asignar registros a mineros</b><span>Opcional: si no asignas, cada minero toma de la bolsa general.</span></div>
+    ${MIN.length?`<div class="bd-mins">${MIN.map(m=>`<label class="bd-min"><input type="checkbox" value="${m.empleado_id}" checked><span>${esc(nomCorto(m.empleados.nombre_completo))}</span><small>${bdNum(pend[m.empleado_id]||0)} pendientes</small>
+        <button class="bd-lnk" data-lib="${m.empleado_id}" title="Regresar sus pendientes a la bolsa">Liberar</button></label>`).join('')}</div>
+      <div class="bar" style="margin:12px 0 0;box-shadow:none"><label style="font-size:13px">Que cada uno tenga</label><input id="as-n" type="number" value="1000" min="1" style="${bdSel};width:110px"><span style="font-size:13px">registros por consultar</span>
+        <button class="btn btn-p" id="as-go">Asignar</button></div>`
+      :'<div class="empty" style="padding:18px">No hay mineros. Dirección los marca en "Quién hace qué".</div>'}
+  </div>
+  <div class="bar"><b style="font-size:14px">Pago a mineros</b>
+    <select id="pg-sem" style="${bdSel}">${semanas.map(s=>`<option value="${s}" ${s===t.sem?'selected':''}>Semana del ${esc(fs(s))}</option>`).join('')||'<option>Sin consultas aún</option>'}</select>
+    <button class="btn" id="pg-exp" style="margin-left:auto" ${PS.length?'':'disabled'}>Exportar para nómina</button></div>
+  <div class="tw"><table><thead><tr><th>Minero</th><th class="num">Consultas</th><th class="num">Frescos</th><th class="num">Se ciclan</th><th class="num">No útiles</th><th class="num">Revalidaciones</th><th class="num">Auditadas</th><th class="num">Precisión</th><th class="num">A pagar</th><th></th></tr></thead>
+  <tbody>${PS.map(x=>`<tr><td><b style="font-size:13px">${esc(nomCorto(x.minero))}</b></td><td class="num">${bdNum(x.consultas)}</td><td class="num">${bdNum(x.frescos)}</td><td class="num">${bdNum(x.actualizados)}</td>
+    <td class="num">${bdNum(x.no_utiles)}</td><td class="num">${bdNum(x.revalidaciones)}</td><td class="num">${x.auditadas}</td>
+    <td class="num">${x.auditadas?`<b style="color:${x.correctas/x.auditadas>=.95?'var(--ok)':'var(--bad)'}">${Math.round(x.correctas/x.auditadas*100)}%</b>`:'—'}</td>
+    <td class="num"><b>${money(x.monto)}</b></td><td><button class="btn" style="padding:4px 9px;font-size:12px" data-aud="${x.minero_id}">Auditar 10</button></td></tr>`).join('')
+    ||'<tr><td colspan="10" class="empty">Sin consultas en esta semana.</td></tr>'}
+    ${PS.length?`<tr style="font-weight:600"><td>Total</td><td class="num">${bdNum(PS.reduce((a,x)=>a+x.consultas,0))}</td><td class="num">${bdNum(PS.reduce((a,x)=>a+x.frescos,0))}</td><td colspan="6"></td><td class="num">${money(PS.reduce((a,x)=>a+Number(x.monto),0))}</td><td></td></tr>`:''}</tbody></table></div>
+  <div id="pg-aud" style="margin-top:16px"></div>`;
+  if($('#as-go')) $('#as-go').onclick=async()=>{
+    const ids=[...c.querySelectorAll('.bd-min input:checked')].map(i=>Number(i.value)); if(!ids.length) return toast('Elige al menos un minero.','bad');
+    const {data,error}=await sb.rpc('base_asignar_mineros',{p_mineros:ids,p_por_minero:Number($('#as-n').value)||0}); if(error) return toast(error.message,'bad');
+    toast(`Asignados: ${Object.values(data).reduce((a,b)=>a+b,0).toLocaleString('es-MX')} registros.`,'ok'); vistaBase(); };
+  c.querySelectorAll('[data-lib]').forEach(b=>b.onclick=async e=>{ e.preventDefault(); const {data,error}=await sb.rpc('base_liberar_minero',{p_minero:Number(b.dataset.lib)}); if(error) return toast(error.message,'bad'); toast(`${data} registros regresaron a la bolsa.`,'ok'); vistaBase(); });
+  $('#pg-sem').onchange=e=>{ t.sem=e.target.value; bdPintarMineros(c); };
+  $('#pg-exp').onclick=()=>{
+    const f=[['Minero','Semana del','Consultas','Frescos','Se ciclan','No útiles','Revalidaciones','Auditadas','Correctas','Tarifa','A pagar']];
+    PS.forEach((x,i)=>{ const n=i+2; f.push([x.minero,x.semana_desde,x.consultas,x.frescos,x.actualizados,x.no_utiles,x.revalidaciones,x.auditadas,x.correctas,Number(x.tarifa),{f:`C${n}*J${n}`}]); });
+    const n=PS.length+1; f.push(['TOTAL','',{f:`SUM(C2:C${n})`},{f:`SUM(D2:D${n})`},{f:`SUM(E2:E${n})`},{f:`SUM(F2:F${n})`},{f:`SUM(G2:G${n})`},{f:`SUM(H2:H${n})`},{f:`SUM(I2:I${n})`},'',{f:`SUM(K2:K${n})`}]);
+    const ws=XLSX.utils.aoa_to_sheet(f.map(r=>r.map(v=>v&&typeof v==='object'?null:v)));
+    f.forEach((r,ri)=>r.forEach((v,ci)=>{ if(v&&typeof v==='object') ws[XLSX.utils.encode_cell({r:ri,c:ci})]={t:'n',f:v.f}; }));
+    for(let i=2;i<=n+1;i++) ['J','K'].forEach(k=>{ if(ws[k+i]) ws[k+i].z='"$"#,##0.00'; });
+    ws['!cols']=[32,12,11,10,10,10,13,10,10,9,12].map(w=>({wch:w}));
+    const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Pago mineros'); XLSX.writeFile(wb,`pago_mineros_${t.sem}.xlsx`);
+  };
+  c.querySelectorAll('[data-aud]').forEach(b=>b.onclick=async()=>{
+    const {data,error}=await sb.rpc('base_muestra_auditoria',{p_minero:Number(b.dataset.aud),p_desde:t.sem,p_n:10}); if(error) return toast(error.message,'bad');
+    const el=$('#pg-aud');
+    if(!data.length){ el.innerHTML='<div class="empty">No quedan consultas sin auditar de este minero en esa semana.</div>'; return; }
+    el.innerHTML=`<div class="tv-h"><b>Muestra para auditar</b><span>Consulta cada número en AVS y compara</span></div>
+      <div class="tw"><table><thead><tr><th>Número</th><th>Plan</th><th>Equipo</th><th>Última cuota</th><th>Efectiva</th><th>Quedó</th><th></th></tr></thead><tbody>
+      ${data.map(x=>`<tr id="au-${x.id}"><td><b>${esc(x.dn||'')}</b><button class="bd-lnk" data-cpa="${x.registro_id}">ver</button></td><td>${esc(x.plan_actual||'')}</td><td>${x.con_equipo?esc(x.equipo||''):'Sin equipo'}</td>
+        <td>${bdF(x.fecha_ultima_cuota)}</td><td>${bdF(x.fecha_efectiva)}</td><td>${bdPill(x.quedo)}</td>
+        <td style="white-space:nowrap"><button class="btn" style="padding:4px 9px;font-size:12px" data-au="${x.id}" data-ok="1">Correcto</button> <button class="btn" style="padding:4px 9px;font-size:12px;color:var(--bad)" data-au="${x.id}" data-ok="0">Incorrecto</button></td></tr>`).join('')}</tbody></table></div>`;
+    // número del registro
+    const ids=data.map(x=>x.registro_id); const {data:rg}=await sb.from('base_registros').select('id,dn').in('id',ids);
+    (rg||[]).forEach(g=>data.filter(x=>x.registro_id===g.id).forEach(x=>{ const td=$('#au-'+x.id+' td b'); if(td) td.textContent=g.dn; }));
+    el.querySelectorAll('[data-cpa]').forEach(a=>a.onclick=()=>{ const g=(rg||[]).find(z=>z.id===Number(a.dataset.cpa)); if(g) bdCopiar(g.dn); });
+    el.querySelectorAll('[data-au]').forEach(a=>a.onclick=async()=>{
+      const ok=a.dataset.ok==='1'; let nota=null;
+      if(!ok){ nota=prompt('¿Qué estaba mal? (se regresa a revalidar si aún no llega a un agente)'); if(nota===null) return; }
+      const {error:e}=await sb.rpc('base_auditar_consulta',{p_id:Number(a.dataset.au),p_ok:ok,p_nota:nota}); if(e) return toast(e.message,'bad');
+      const tr=$('#au-'+a.dataset.au); tr.style.opacity=.45; tr.querySelector('td:last-child').innerHTML=ok?'<span class="p p-ok">Correcto</span>':'<span class="p p-bad">Incorrecto</span>';
+    });
+  });
+}
+
+/* ---------------- AUDITORÍA DE LLAMADAS (reporte de Bonsaif) ---------------- */
+async function bdPintarAuditoria(c){
+  const desde=(()=>{ const d=new Date(); d.setDate(d.getDate()-14); return d.toISOString().slice(0,10); })();
+  const {data,error}=await sb.from('v_base_auditoria_agentes').select('*').gte('dia',desde).order('dia',{ascending:false}).order('agente');
+  if(error) throw error;
+  const L=data||[];
+  c.innerHTML=`<div class="tile w12" style="cursor:default;transform:none;margin-bottom:16px">
+    <div class="tv-h"><b>Subir reporte de llamadas de Bonsaif</b><span>Excel o CSV con número, agente, fecha y hora, y duración</span></div>
+    <p style="font-size:13px;color:var(--txt-2);margin:0 0 10px">Cada tipificación se cruza con una llamada real a ese número. Sin llamada, o con "contacto" de menos de los segundos configurados, queda marcada. Si el número se cerró sin llamada, regresa a minería.</p>
+    <input type="file" id="au-f" accept=".xlsx,.xls,.csv" style="${ESTILO_CAMPO}"><div id="au-map" style="margin-top:12px"></div></div>
+  <div class="tv-h"><b>Últimos 14 días</b><span>solo se auditan los días que ya tienen reporte</span></div><div id="au-t"></div>`;
+  tablaPaginada($('#au-t'),L,'<th>Día</th><th>Agente</th><th class="num">Gestiones</th><th class="num">Contacto</th><th class="num">Ventas</th><th class="num">Auditadas</th><th class="num">Sin llamada</th><th class="num">Muy cortas</th><th class="num">Duración prom.</th>',
+    x=>`<tr><td style="white-space:nowrap">${bdF(x.dia)}</td><td><b style="font-size:13px">${esc(nomCorto(x.agente))}</b></td><td class="num">${x.gestiones}</td><td class="num">${x.contactos}</td><td class="num">${x.ventas}</td>
+      <td class="num">${x.auditadas||'<span style="color:var(--txt-3)">sin reporte</span>'}</td><td class="num">${x.sin_llamada?`<b style="color:var(--bad)">${x.sin_llamada}</b>`:0}</td>
+      <td class="num">${x.cortas?`<b style="color:var(--warn)">${x.cortas}</b>`:0}</td><td class="num">${x.duracion_prom!=null?Math.floor(x.duracion_prom/60)+':'+String(x.duracion_prom%60).padStart(2,'0'):'—'}</td></tr>`,
+    {vacio:'Aún no hay gestiones en la plataforma.'});
+  $('#au-f').onchange=async e=>{
+    const f=e.target.files[0]; if(!f) return;
+    let aoa; try{ aoa=await bdLeerArchivo(f); }catch(err){ return toast('No se pudo leer: '+err.message,'bad'); }
+    const hi=aoa.findIndex(r=>r.filter(v=>v!=null&&isNaN(Number(v))).length>=3); const cab=(aoa[hi>=0?hi:0]||[]).map(x=>String(x??'')), datos=aoa.slice((hi>=0?hi:0)+1);
+    const g={dn:bdAdivina(cab,/(destino|numero|telefono|dn|cliente|lead|phone)/),agente:bdAdivina(cab,/(agente|usuario|ejecutivo|operador|extension)/),
+      fecha:bdAdivina(cab,/(fecha|inicio|date|start)/),hora:bdAdivina(cab,/^(hora|time)/),dur:bdAdivina(cab,/(dura|segundos|tiempo|talk|conversa)/)};
+    if(g.hora===g.fecha) g.hora=-1;
+    const opc=(sel)=>`<option value="-1">—</option>${cab.map((h,i)=>`<option value="${i}" ${i===sel?'selected':''}>${esc(h)}</option>`).join('')}`;
+    const cam=[['dn','Número marcado'],['agente','Agente'],['fecha','Fecha (o fecha y hora)'],['hora','Hora (si viene aparte)'],['dur','Duración']];
+    $('#au-map').innerHTML=`<div class="bd-f2">${cam.map(([k,l])=>`<div><label>${l}</label><select data-au-c="${k}" style="${ESTILO_CAMPO}">${opc(g[k])}</select></div>`).join('')}</div>
+      <p style="font-size:13px;margin:12px 0"><b>${bdNum(datos.length)}</b> llamadas en el archivo.</p><button class="btn btn-p" id="au-go">Cargar y auditar</button>`;
+    $('#au-go').onclick=async()=>{
+      const ix=Object.fromEntries([...document.querySelectorAll('[data-au-c]')].map(s=>[s.dataset.auC,Number(s.value)]));
+      if(ix.dn<0||ix.fecha<0) return toast('Indica al menos la columna del número y la de la fecha.','bad');
+      const filas=datos.map(r=>({dn:String(r[ix.dn]??''),agente:ix.agente>=0?String(r[ix.agente]??''):null,inicio:bdFechaHora(r[ix.fecha],ix.hora>=0?r[ix.hora]:null),duracion:ix.dur>=0?bdSeg(r[ix.dur]):null})).filter(x=>x.inicio);
+      const b=$('#au-go'); b.disabled=true; b.classList.add('cargando'); let tot=0, au=null;
+      try{ for(let i=0;i<filas.length;i+=1000){ const {data,error}=await sb.rpc('base_cargar_llamadas',{p_filas:filas.slice(i,i+1000),p_archivo:f.name}); if(error) throw error; tot+=data.cargadas; au=data.auditoria; }
+        toast(`${bdNum(tot)} llamadas cargadas. Últimos 30 días: ${au.sin_llamada} gestiones sin llamada, ${au.cortas} muy cortas${au.regresados_a_mineria?`, ${au.regresados_a_mineria} números regresaron a minería`:''}.`,'ok'); vistaBase();
+      }catch(err){ toast(err.message||String(err),'bad'); b.disabled=false; b.classList.remove('cargando'); }
+    };
+  };
+}
+
+/* ---------------- REGISTROS + EXPORTAR LAYOUT BONSAIF ---------------- */
+async function bdPintarRegistros(c){
+  const t=S.bd; t.rq=t.rq||''; t.re=t.re||'';
+  c.innerHTML=`<div class="bar"><input id="rg-q" value="${esc(t.rq)}" placeholder="Buscar número o cliente…" style="${bdSel};flex:1;min-width:200px">
+    <select id="rg-e" style="${bdSel}"><option value="">Todos los estatus</option>${Object.entries(BD_EST).map(([k,[l]])=>`<option value="${k}" ${t.re===k?'selected':''}>${esc(l)}</option>`).join('')}</select>
+    <button class="btn" id="rg-exp" ${t.re?'':'disabled title="Elige un estatus para exportar"'}>Exportar layout Bonsaif</button></div><div id="rg-t"><div class="empty">Buscando…</div></div>`;
+  let q=sb.from('base_registros').select('id,dn,cliente,estatus,plan_actual,con_equipo,equipo,fecha_trabajable,consultado_en,ultima_gestion_en,ultima_tipificacion,agente_id,empleados!base_registros_agente_id_fkey(nombre_completo)').order('actualizado_en',{ascending:false}).limit(500);
+  if(t.re) q=q.eq('estatus',t.re);
+  if(t.rq){ const s=t.rq.replace(/[%,()]/g,''); q=/^\d+$/.test(s)?q.like('dn',`%${s}%`):q.ilike('cliente',`%${s}%`); }
+  const {data,error}=await q; if(error) throw error;
+  tablaPaginada($('#rg-t'),data||[],'<th>Número</th><th>Cliente</th><th>Estatus</th><th>Plan / equipo</th><th>Renovable desde</th><th>Validado</th><th>Última gestión</th><th>Agente</th>',
+    x=>`<tr style="cursor:pointer" data-rg="${x.id}"><td><b>${esc(x.dn)}</b></td><td style="font-size:12.5px">${esc(x.cliente||'—')}</td><td>${bdPill(x.estatus)}</td>
+      <td style="font-size:12px">${esc(x.plan_actual||'—')}<div style="color:var(--txt-3)">${x.con_equipo===false?'Sin equipo':esc(x.equipo||'')}</div></td>
+      <td style="white-space:nowrap">${bdF(x.fecha_trabajable)}</td><td style="white-space:nowrap;font-size:12px">${esc(bdHace(x.consultado_en))}</td>
+      <td style="font-size:12px">${esc(x.ultima_tipificacion||'—')}<div style="color:var(--txt-3)">${esc(bdHace(x.ultima_gestion_en))}</div></td><td style="font-size:12px">${esc(nomCorto(x.empleados?.nombre_completo||''))||'—'}</td></tr>`,
+    {vacio:'Sin registros con este filtro.',despues:el=>el.querySelectorAll('[data-rg]').forEach(tr=>tr.onclick=()=>bdAbrirLead(Number(tr.dataset.rg)))});
+  let tm; $('#rg-q').oninput=e=>{ clearTimeout(tm); tm=setTimeout(()=>{ t.rq=e.target.value.trim(); bdPintarRegistros(c); },400); };
+  $('#rg-e').onchange=e=>{ t.re=e.target.value; bdPintarRegistros(c); };
+  $('#rg-exp').onclick=async()=>{
+    const nom=prompt('Nombre de la base (columna "base" del layout):',`${t.re.toUpperCase()}_${hoyMexico().replace(/-/g,'')}`); if(nom===null) return;
+    const {data:L,error:e}=await traerTodo(()=>sb.from('base_registros').select('dn,cliente,plan_actual,equipo,fecha_trabajable,calle,colonia,cp,ciudad,estado_rep').eq('estatus',t.re).order('id'));
+    if(e) return toast(e.message,'bad');
+    bdExportarBonsaif(L,nom);
+  };
+}
+function bdExportarBonsaif(L,nombre){
+  const dmy=f=>f?f.slice(8,10)+'/'+f.slice(5,7)+'/'+f.slice(0,4):'';
+  const lim=v=>String(v??'').replace(/[,\r\n;"]+/g,' ').trim();
+  const hoy=dmy(hoyMexico()), vistos=new Set();
+  const lineas=['cuenta,cliente,dn,plan actual,equipo,fecha prox reno,calle,colonia,cp,ciudad,estado,fecha base,base'];
+  L.forEach(x=>{ if(vistos.has(x.dn)) return; vistos.add(x.dn);
+    lineas.push([lineas.length,lim(x.cliente),x.dn,lim(x.plan_actual),lim(x.equipo),dmy(x.fecha_trabajable),lim(x.calle),lim(x.colonia),lim(x.cp),lim(x.ciudad),lim(x.estado_rep),hoy,lim(nombre)].join(',')); });
+  const txt=lineas.join('\r\n')+'\r\n', bytes=new Uint8Array(txt.length);
+  for(let i=0;i<txt.length;i++){ const k=txt.charCodeAt(i); bytes[i]=k<256?k:63; }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([bytes],{type:'text/csv;charset=windows-1252'}));
+  a.download=`${lim(nombre).replace(/\s+/g,'_')}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  toast(`${(lineas.length-1).toLocaleString('es-MX')} registros exportados en el layout de Bonsaif.`,'ok');
+}
+
+/* ---------------- MIGRAR ODOO ---------------- */
+async function bdPintarOdoo(c){
+  const tips=await bdTipificaciones();
+  c.innerHTML=`<div class="tile w12" style="cursor:default;transform:none">
+    <div class="tv-h"><b>Migrar la base de Odoo</b><span>Exporta de Odoo todas las columnas y todos los registros</span></div>
+    <p style="font-size:13px;color:var(--txt-2);margin:0 0 12px">Empata cada columna y cada estatus de Odoo con el de aquí. Lo que ya exista en la plataforma no se toca. Las fechas de gestión se respetan, así la regla de 90 días funciona desde el primer día.</p>
+    <input type="file" id="od-f" accept=".xlsx,.xls,.csv" style="${ESTILO_CAMPO}"><div id="od-map" style="margin-top:14px"></div></div><div id="od-res" style="margin-top:16px"></div>`;
+  $('#od-f').onchange=async e=>{
+    const f=e.target.files[0]; if(!f) return;
+    let aoa; try{ aoa=await bdLeerArchivo(f); }catch(err){ return toast('No se pudo leer: '+err.message,'bad'); }
+    const cab=(aoa[0]||[]).map(x=>String(x??'')), datos=aoa.slice(1);
+    const CAMPOS=[['dn','Número (DN) *',/^(dn|telefono|numero|linea|celular|movil)/],['cliente','Cliente',/(cliente|nombre|titular)/],['plan_actual','Plan actual',/plan/],
+      ['con_equipo','¿Con equipo?',/(con equipo|tiene equipo|tipo)/],['equipo','Equipo / modelo',/(equipo|modelo|dispositivo)/],['fecha_ultima_cuota','Fecha última cuota',/(ultima cuota|cuota|vencimiento|fin plazo)/],
+      ['fecha_efectiva','Fecha efectiva',/efectiva/],['estatus','Estatus de gestión',/(estatus|estado de gestion|status|etapa)/],['minero','Minero',/(minero|consultado por|mineria)/],
+      ['agente','Agente que lo trabajó',/(agente|ejecutivo|vendedor|asignado)/],['tipificacion','Tipificación',/tipifica/],['fecha_gestion','Fecha de gestión / marcación',/(fecha.*(gestion|marca|tipif)|ultima gestion)/],
+      ['fecha_consulta','Fecha de consulta en AVS',/(fecha.*(consulta|actualiz|revis))/],['calle','Calle',/(calle|direccion|domicilio)/],['colonia','Colonia',/colonia/],['cp','CP',/^(cp|codigo postal)/],
+      ['ciudad','Ciudad',/(ciudad|municipio)/],['estado','Estado',/^estado$/]];
+    const usados=[]; const g={}; CAMPOS.forEach(([k,,re])=>{ const i=bdAdivina(cab,re,usados); g[k]=i; if(i>=0) usados.push(i); });
+    const opc=(sel)=>`<option value="-1">—</option>${cab.map((h,i)=>`<option value="${i}" ${i===sel?'selected':''}>${esc(h)}</option>`).join('')}`;
+    $('#od-map').innerHTML=`<div class="bd-f3">${CAMPOS.map(([k,l])=>`<div><label>${l}</label><select data-od="${k}" style="${ESTILO_CAMPO}">${opc(g[k])}</select></div>`).join('')}</div>
+      <div id="od-est" style="margin-top:16px"></div><p style="font-size:13px;margin:12px 0"><b>${bdNum(datos.length)}</b> registros en el archivo.</p><button class="btn btn-p" id="od-go">Migrar</button>`;
+    const ESTS=[['por_consultar','Por consultar (a minería)'],['actualizada','Actualizado (tiene fechas: se cicla solo)'],['cerrada','Ya trabajado / marcado'],['vendida','Vendido'],['no_util','No útil'],['masivos','Mensajes masivos']];
+    const adivEst=v=>{ const s=bdNorm(v); return /vend|venta/.test(s)?'vendida':/no util|invalid|no existe|baja|prepago/.test(s)?'no_util':/marca|bonsaif|tipific|gestion|llamad/.test(s)?'cerrada':/actualiz|renov|trabaj|revisad/.test(s)?'actualizada':/masiv|whats|mensaje/.test(s)?'masivos':'por_consultar'; };
+    const adivTip=v=>{ const s=bdNorm(v); const m=[[/venta|vendid/,'venta'],[/no contest|sin contest/,'no_contesta'],[/buzon/,'buzon'],[/cuelg/,'cuelga'],[/no le interesa|no interesa|no acepta/,'no_interesa'],[/renovo|otro lado|otra tienda/,'renovo_otro_lado'],[/equivocad/,'numero_equivocado'],[/no existe|suspend/,'no_existe'],[/segui|interes|agend|llamar/,'seguimiento'],[/tercer/,'tercero'],[/quincena/,'paga_quincena'],[/factura/,'factura_pendiente']].find(([re])=>re.test(s)); return m?m[1]:''; };
+    const pintarEst=()=>{
+      const ie=Number(document.querySelector('[data-od="estatus"]').value), it=Number(document.querySelector('[data-od="tipificacion"]').value);
+      const ve=ie>=0?[...new Set(datos.map(r=>String(r[ie]??'').trim()).filter(Boolean))].slice(0,60):[], vt=it>=0?[...new Set(datos.map(r=>String(r[it]??'').trim()).filter(Boolean))].slice(0,60):[];
+      const cnt=(i,v)=>datos.filter(r=>String(r[i]??'').trim()===v).length;
+      $('#od-est').innerHTML=`${ve.length?`<div class="tv-h"><b>Estatus de Odoo → estatus aquí</b></div><div class="bd-f3">${ve.map(v=>`<div><label>${esc(v)} <span style="color:var(--txt-3)">· ${bdNum(cnt(ie,v))}</span></label><select data-oe="${esc(v)}" style="${ESTILO_CAMPO}">${ESTS.map(([k,l])=>`<option value="${k}" ${adivEst(v)===k?'selected':''}>${l}</option>`).join('')}</select></div>`).join('')}</div>`:''}
+        ${vt.length?`<div class="tv-h" style="margin-top:14px"><b>Tipificaciones de Odoo → aquí</b></div><div class="bd-f3">${vt.map(v=>`<div><label>${esc(v)} <span style="color:var(--txt-3)">· ${bdNum(cnt(it,v))}</span></label><select data-ot="${esc(v)}" style="${ESTILO_CAMPO}"><option value="">(sin equivalente)</option>${tips.map(x=>`<option value="${x.clave}" ${adivTip(v)===x.clave?'selected':''}>${esc(x.nombre)}</option>`).join('')}</select></div>`).join('')}</div>`:''}`;
+    };
+    document.querySelectorAll('[data-od="estatus"],[data-od="tipificacion"]').forEach(s=>s.onchange=pintarEst); pintarEst();
+    $('#od-go').onclick=async()=>{
+      const ix=Object.fromEntries([...document.querySelectorAll('[data-od]')].map(s=>[s.dataset.od,Number(s.value)]));
+      if(ix.dn<0) return toast('Indica la columna del número.','bad');
+      const me=Object.fromEntries([...document.querySelectorAll('[data-oe]')].map(s=>[s.dataset.oe,s.value]));
+      const mt=Object.fromEntries([...document.querySelectorAll('[data-ot]')].map(s=>[s.dataset.ot,s.value]));
+      const val=(r,k)=>ix[k]>=0?r[ix[k]]:null;
+      const filas=datos.map(r=>{ const o={}; CAMPOS.forEach(([k])=>{ const v=val(r,k); o[k]=v==null?null:String(v).trim(); });
+        o.dn=String(val(r,'dn')??''); o.estatus=me[String(val(r,'estatus')??'').trim()]||(ix.estatus>=0?'por_consultar':(o.fecha_ultima_cuota||o.fecha_efectiva?'actualizada':'por_consultar'));
+        o.tipificacion=mt[String(val(r,'tipificacion')??'').trim()]||null;
+        ['fecha_ultima_cuota','fecha_efectiva'].forEach(k=>o[k]=bdFecha(val(r,k)));
+        ['fecha_gestion','fecha_consulta'].forEach(k=>o[k]=bdFechaHora(val(r,k)));
+        return o; });
+      const b=$('#od-go'); b.disabled=true; b.classList.add('cargando'); let lote=null; const tot={importados:0,ya_existian:0,invalidos:0};
+      try{ for(let i=0;i<filas.length;i+=500){ b.textContent=`Migrando ${Math.min(i+500,filas.length).toLocaleString('es-MX')} de ${filas.length.toLocaleString('es-MX')}…`;
+          const {data,error}=await sb.rpc('base_importar_odoo',{p_filas:filas.slice(i,i+500),p_lote:lote,p_nombre:'Migración Odoo '+f.name}); if(error) throw error;
+          lote=data.lote; tot.importados+=data.importados; tot.ya_existian+=data.ya_existian; tot.invalidos+=data.invalidos; }
+        await sb.rpc('base_ciclar').catch(()=>{});
+        $('#od-res').innerHTML=`<div class="kpis"><div class="kpi t"><span>Migrados</span><b>${bdNum(tot.importados)}</b></div><div class="kpi"><span>Ya existían</span><b>${bdNum(tot.ya_existian)}</b><small>no se tocaron</small></div><div class="kpi"><span>Sin número válido</span><b>${bdNum(tot.invalidos)}</b></div></div>`;
+        b.textContent='Migrado'; toast('Migración terminada.','ok');
+      }catch(err){ toast(err.message||String(err),'bad'); b.disabled=false; b.textContent='Migrar'; }
+      b.classList.remove('cargando');
+    };
+  };
+}
+
+/* ---------------- QUIÉN HACE QUÉ ---------------- */
+async function bdPintarPapeles(c){
+  const [re,rp]=await Promise.all([sb.from('empleados').select('id,nombre_completo').eq('estatus','activo').order('nombre_completo'),sb.from('base_papeles').select('*')]);
+  if(re.error) throw re.error;
+  const P=Object.fromEntries((rp.data||[]).map(x=>[x.empleado_id,x.papel]));
+  const fil=S.bd.pq||'';
+  const L=(re.data||[]).filter(x=>!fil||bdNorm(x.nombre_completo).includes(bdNorm(fil)));
+  c.innerHTML=`<div class="note" style="background:var(--teal-l);border-color:var(--teal-line);color:var(--teal-ink)">Los <b>mineros</b> ven solo la pantalla de consulta en AVS y se les paga por registro consultado. <b>Administración de base</b> carga extracciones, asigna, audita y exporta. Los agentes y supervisores entran solos por su rol.</div>
+    <div class="bar"><input id="pp-q" value="${esc(fil)}" placeholder="Buscar persona…" style="${bdSel};flex:1"></div>
+    <div class="tw"><table><thead><tr><th>Persona</th><th>Papel en la base</th></tr></thead><tbody>
+    ${L.map(x=>`<tr><td><b style="font-size:13px">${esc(x.nombre_completo)}</b></td><td><select data-pp="${x.id}" style="${bdSel}">
+      <option value="">— (según su rol)</option><option value="minero" ${P[x.id]==='minero'?'selected':''}>Minero</option><option value="admin_base" ${P[x.id]==='admin_base'?'selected':''}>Administración de base</option></select></td></tr>`).join('')}
+    </tbody></table></div>`;
+  let tm; $('#pp-q').oninput=e=>{ clearTimeout(tm); tm=setTimeout(()=>{ S.bd.pq=e.target.value; bdPintarPapeles(c); $('#pp-q').focus(); },300); };
+  c.querySelectorAll('[data-pp]').forEach(s=>s.onchange=async()=>{
+    const id=Number(s.dataset.pp), v=s.value;
+    const {error}=v?await sb.from('base_papeles').upsert({empleado_id:id,papel:v}):await sb.from('base_papeles').delete().eq('empleado_id',id);
+    if(error) return toast(error.message,'bad'); toast('Guardado.','ok');
+  });
+}
+
 /* ============================================================
    ARRANQUE
    ============================================================ */
@@ -11418,7 +12514,8 @@ async function abrirNuevoAviso(){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v80';
+const VERSION_APP='v83';
+window.addEventListener('beforeunload',e=>{ if(S&&S.ventaSucia){ e.preventDefault(); e.returnValue=''; } });
 async function revisarVersion(){
   try{
     const url=location.href.split('#')[0].split('?')[0]+'?nc='+Date.now();
@@ -11475,6 +12572,7 @@ const ICONOS = {
   alerta:'<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
   caja:'<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M11 12v2h2v-2"/>',
   cobranza:'<path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/>',
+  base:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
   calendario:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   tablero:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   misventas:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
@@ -11489,7 +12587,7 @@ const GRUPOS = [
   ['General',     ['inicio','calendario','guia','avisos']],
   ['Mi espacio',  ['checar','misventas','mificha','miasist','mispagos']],
   ['Personal',    ['plantilla','asistencia','asistencia_old','solicitudes','salidas']],
-  ['Operación',   ['tablero','registro','caja','ventas','auditoria','accesos','tickets']],
+  ['Operación',   ['tablero','registro','caja','ventas','base','auditoria','accesos','tickets']],
   ['Finanzas',    ['nomina','comisiones','dispersion','fijos','gastos','ingresos','cobranza','balance']],
   ['Sistema',     ['usuarios','config']]
 ];
