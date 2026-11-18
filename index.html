@@ -10104,6 +10104,7 @@ async function abrirVentaReg(id){
       ${campo('folio','Folio del contrato','Ej. 4091405416','inputmode="numeric" title="Solo números. Si el contrato trae una A al final, se guarda sin ella."')}
       ${campo('dn','DN (10 dígitos)','5512345678','inputmode="numeric" maxlength="12"')}
       ${campo('cliente','Cliente','Nombre completo')}
+      ${campo('cliente_rfc','RFC','ABCD900101XXX','maxlength="13" autocomplete="off" style="text-transform:uppercase"')}
       ${campo('cliente_nacimiento','Fecha de nacimiento','','type="date" max="'+new Date(Date.now()-18*365.25*864e5).toISOString().slice(0,10)+'"')}
       ${campo('cliente_correo','Correo electrónico','cliente@correo.com','type="email" autocomplete="off"')}
       <div><label>Tipo de venta</label><select id="vf-tipo_venta" ${dis} style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${opc('tipo_venta',Object.entries(TIPO_VENTA))}</select></div>
@@ -10236,6 +10237,13 @@ async function abrirVentaReg(id){
     if(v.cp) buscarCP();
   } else { $('#vf-colsel').style.display='none'; $('#vf-colonia').style.display=''; }
   sinc(); pintarPunto(); engancharEquipo();
+  // RFC → fecha de nacimiento (si está vacía) y aviso si no coinciden
+  if(editable&&$('#vf-cliente_rfc')) $('#vf-cliente_rfc').addEventListener('input',e=>{
+    const r=e.target.value.toUpperCase().replace(/[^A-Z0-9&Ñ]/g,''); e.target.value=r;
+    const m=r.match(/^[A-Z&Ñ]{4}(\d{2})(\d{2})(\d{2})/); if(!m) return;
+    const yy=Number(m[1]), anio=(yy>Number(String(new Date().getFullYear()).slice(2))?1900:2000)+yy, f=`${anio}-${m[2]}-${m[3]}`;
+    const n=$('#vf-cliente_nacimiento'); if(!n.value) n.value=f;
+    else if(n.value!==f&&(r.length===10||r.length===13)) toast('La fecha del RFC no coincide con la fecha de nacimiento: revisa cuál está mal.','bad'); });
   ['vf-con_equipo','vf-pago_inicial','vf-entrega_tipo'].forEach(k=>$('#'+k)&&$('#'+k).addEventListener('change',()=>{ sinc(); pintarPunto(); }));
   $('#vf-punto').onchange=pintarPunto;
   // Cambios sin guardar
@@ -10256,7 +10264,7 @@ async function abrirVentaReg(id){
       if(mo&&!CAT.some(x=>x.modelo===mo&&x.marca===$('#vf-equipo_marca').value)){ toast('El modelo no está en la lista de precios: escríbelo y elígelo de las opciones.','bad'); $('#vf-equipo_modelo').focus(); return null; } }
     const {data,error}=await sb.rpc('guardar_venta_reg',{p:leer()});
     if(error){ toast(error.message,'bad'); return null; }
-    const ex={cliente_nacimiento:$('#vf-cliente_nacimiento')?.value||'',cliente_correo:$('#vf-cliente_correo')?.value||'',equipo_fuera_lista:!!v.equipo_fuera_lista};
+    const ex={cliente_rfc:($('#vf-cliente_rfc')?.value||'').toUpperCase().replace(/[^A-Z0-9&Ñ]/g,''),cliente_nacimiento:$('#vf-cliente_nacimiento')?.value||'',cliente_correo:$('#vf-cliente_correo')?.value||'',equipo_fuera_lista:!!v.equipo_fuera_lista};
     if(ex.cliente_correo&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(ex.cliente_correo.trim())) toast('Revisa el correo del cliente: no tiene formato válido.','bad');
     const r2=await sb.rpc('guardar_venta_cliente',{p_id:data,p:ex});
     if(r2.error){ toast(r2.error.message.includes('guardar_venta_cliente')?'Falta correr el SQL 163 para guardar nacimiento y correo.':r2.error.message,'bad'); } if(!silencio) toast('Guardado.','ok'); id=data; S.ventaSucia=false; return data; };
@@ -12769,7 +12777,7 @@ function pintarDinamicaNiveles(el,d,A,jefe,yo,dias){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v88';
+const VERSION_APP='v89';
 window.addEventListener('beforeunload',e=>{ if(S&&S.ventaSucia){ e.preventDefault(); e.returnValue=''; } });
 async function revisarVersion(){
   try{
