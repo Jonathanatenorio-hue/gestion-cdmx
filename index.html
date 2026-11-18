@@ -9975,7 +9975,7 @@ async function vistaVentasReg(){
       <td class="mono">${esc(x.folio||'—')}${x.registro_tardio?' <span class="p p-warn" title="Apareció en Global sin registro">tardía</span>':''}<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.dn||'')}</div></td>
       <td style="font-size:12.5px">${esc(x.cliente||'')}</td>
       ${papel!=='agente'?`<td style="font-size:12.5px;white-space:nowrap">${esc(nomCorto(x.agente||''))}</td>`:''}
-      <td style="font-size:12.5px">${esc((x.plan||'').replace(/^AT&T /,''))}<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.con_equipo?[x.equipo_marca,x.equipo_modelo,x.equipo_capacidad,x.equipo_color].filter(Boolean).join(' '):'Solo SIM')}</div></td>
+      <td style="font-size:12.5px">${esc((x.plan||'').replace(/^AT&T /,''))}<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.con_equipo?eqTexto(x):'Solo SIM')}</div></td>
       <td><span class="p ${ETAPA_CLASE(x.etapa||'')}">${esc(x.etapa||'')}</span>${(()=>{ const h=pasosVenta(x).hechos; return `<div class="vt-mini" title="${h} de 8 pasos">${Array.from({length:8},(_,i)=>`<i class="${i<h?'ok':''}"></i>`).join('')}</div>`; })()}${x.motivo&&['regresada','rechazada','cancelada'].includes(x.estatus)?`<div style="font-size:11.5px;color:var(--bad);max-width:220px">${esc(x.motivo)}</div>`:''}</td>
       <td style="font-size:12px;white-space:nowrap">${x.fecha_subida?fh(x.fecha_subida):`<span style="color:var(--txt-3)">${x.previa?'Venta previa':'Sin subir'}</span>`}</td>
       <td style="font-size:12px;white-space:nowrap">${t.tab==='revisar'?`<b style="color:${x.minutos_en_revision>30?'var(--bad)':'inherit'}">${x.minutos_en_revision} min</b>`:x.fecha_back_office?fh(x.fecha_back_office):'<span style="color:var(--txt-3)">—</span>'}</td></tr>`;
@@ -9991,6 +9991,9 @@ async function vistaVentasReg(){
 }
 
 
+/* Equipo como texto: sin repetir la marca si ya viene en el nombre */
+function eqTexto(x){ const mo=String(x.equipo_modelo||''), ma=String(x.equipo_marca||'');
+  return [ma&&mo.toUpperCase().includes(ma.toUpperCase())?'':ma, mo, x.equipo_capacidad, x.equipo_color].filter(Boolean).join(' '); }
 /* Línea del tiempo de una venta: de registrada a "ya cuenta" */
 function pasosVenta(v, evidFecha){
   const est=v.estatus, entregada=v.envio_estatus==='Entregado'||v.envio_status==='Entregado'||est==='facturada';
@@ -10062,11 +10065,12 @@ async function abrirVentaReg(id){
 
   // Catálogo de equipos: marca → modelo → capacidad → color
   const unicos=a=>[...new Set(a.filter(Boolean))];
-  const conCatalogo=CAT.length>0;
+  const conCatalogo=false; // el equipo se pega tal cual del sistema (un solo campo)
   const selEq=(k,l,lista,actual)=>{ const L=unicos(lista); if(actual&&!L.includes(actual)) L.unshift(actual);
     return `<div><label>${l}</label><select id="vf-${k}" ${dis} style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${L.map(x=>`<option ${x===actual?'selected':''}>${esc(x)}</option>`).join('')}</select></div>`; };
   const equipoHTML=()=>{
-    if(!conCatalogo||v.equipo_fuera_lista) return `${campo('equipo_marca','Marca','Ej. Apple')}${campo('equipo_modelo','Modelo','Ej. iPhone 17 Pro Max')}${campo('equipo_capacidad','Capacidad','Ej. 256 GB')}${campo('equipo_color','Color','Ej. Plata')}
+    if(!conCatalogo) return `<div style="grid-column:1/-1"><label>Equipo</label><input id="vf-equipo_modelo" value="${esc([v.equipo_modelo,v.equipo_capacidad,v.equipo_color].filter(Boolean).filter((x,i,a)=>!a[0]||i===0||!String(a[0]).toUpperCase().includes(String(x).toUpperCase())).join(' '))}" placeholder="Pégalo tal cual del sistema, ej. XIAOMIREDMINOTE17PRO NEGRO BDLHTAG" autocomplete="off" ${dis} style="${ESTILO_CAMPO};text-transform:uppercase"><small style="font-size:11.5px;color:var(--txt-3)">Copia y pega el equipo completo: modelo, capacidad y color.</small></div>`;
+    if(v.equipo_fuera_lista) return `${campo('equipo_marca','Marca','Ej. Apple')}${campo('equipo_modelo','Modelo','Ej. iPhone 17 Pro Max')}${campo('equipo_capacidad','Capacidad','Ej. 256 GB')}${campo('equipo_color','Color','Ej. Plata')}
       ${conCatalogo?`<div style="grid-column:1/-1;font-size:12.5px;color:var(--warn)"><b>Equipo capturado a mano: no está en la lista de precios.</b> Mesa de control lo revisa. ${editable?'<a href="#" id="eq-alista">Volver a buscar en la lista</a>':''}</div>`:''}`;
     const ma=v.equipo_marca||'', mo=v.equipo_modelo||'', ca=v.equipo_capacidad||'';
     const deMarca=CAT.filter(x=>x.marca===ma), deModelo=deMarca.filter(x=>x.modelo===mo);
@@ -10093,7 +10097,7 @@ async function abrirVentaReg(id){
     <h1>${id?`Venta ${esc(v.folio||'#'+id)}`:'Registrar venta'}</h1>
     <p>${id?`<span class="p ${ETAPA_CLASE(v.etapa||'')}">${esc(v.etapa||'')}</span> · ${esc(v.agente||'')}${v.pt?' · '+esc(v.pt):''}`:'Llena todo y sube el expediente completo. Nada se pierde mientras capturas: al final eliges guardar o enviar.'}</p></div></div>
   ${v.motivo&&['regresada','rechazada','cancelada','asignada'].includes(v.estatus)?`<div class="note" style="margin-bottom:14px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">${v.estatus==='rechazada'?'Rechazada':v.estatus==='cancelada'?'Cancelada':'Regresada para corregir'}</b>${esc(v.motivo)}</div>`:''}
-  ${id&&v.equipo_fuera_lista?`<div class="note" style="margin-bottom:14px;background:var(--warn-l,#fff6e5);border-color:var(--warn)"><b style="color:var(--warn)">Equipo fuera de la lista de precios</b>El agente lo capturó a mano: ${esc([v.equipo_marca,v.equipo_modelo,v.equipo_capacidad,v.equipo_color].filter(Boolean).join(' '))}. Revisa que exista y que el precio sea correcto.</div>`:''}
+  ${id&&v.equipo_fuera_lista?`<div class="note" style="margin-bottom:14px;background:var(--warn-l,#fff6e5);border-color:var(--warn)"><b style="color:var(--warn)">Equipo fuera de la lista de precios</b>El agente lo capturó a mano: ${esc(eqTexto(v))}. Revisa que exista y que el precio sea correcto.</div>`:''}
   ${v.previa?`<div class="note" style="margin-bottom:14px"><b>Venta previa a la plataforma</b>Se hizo antes del 17 de noviembre: no requiere expediente. Se termina sola cuando Global la marque como terminada.</div>`:''}
   ${v.estatus==='asignada'?`<div class="note" style="margin-bottom:14px"><b>Registro tardío</b>Esta venta apareció en Global sin registro. ${new Date()>=new Date('2026-12-01T00:00:00')?'No cuenta para tu meta ni comisión hasta que subas el expediente y mesa de control la apruebe.':'Sube su expediente para dejarla completa.'}</div>`:''}
   <div class="dash" style="gap:14px" id="vf-form">
@@ -10256,6 +10260,8 @@ async function abrirVentaReg(id){
     ['folio','dn','cliente','tipo_venta','plan_id','plazo','con_equipo','tipo_sim','equipo_marca','equipo_modelo','equipo_color','equipo_capacidad',
      'pago_inicial','pago_inicial_monto','entrega_tipo','calle','numero_ext','numero_int','colonia','cp','municipio','estado_dir','referencias','telefono_contacto','empleado_id']
       .forEach(k=>{ const el=$('#vf-'+k); if(el) o[k]=el.value; });
+    if(!conCatalogo&&o.equipo_modelo!==undefined){ const eq=String(o.equipo_modelo||'').replace(/\s+/g,' ').trim().toUpperCase(); o.equipo_modelo=eq;
+      const f=MARCAS_EQ.find(([re])=>re.test(eq)); o.equipo_marca=eq?(f?f[1]:eq.split(' ')[0].slice(0,20)):''; o.equipo_capacidad=''; o.equipo_color=''; }
     if($('#vf-colsel')&&$('#vf-colsel').style.display!=='none'&&$('#vf-colsel').value&&$('#vf-colsel').value!=='__otra') o.colonia=$('#vf-colsel').value;
     o.punto_entrega_id=['hub','tienda'].includes(o.entrega_tipo)?$('#vf-punto').value:null;
     return o; };
@@ -10264,7 +10270,7 @@ async function abrirVentaReg(id){
       if(mo&&!CAT.some(x=>x.modelo===mo&&x.marca===$('#vf-equipo_marca').value)){ toast('El modelo no está en la lista de precios: escríbelo y elígelo de las opciones.','bad'); $('#vf-equipo_modelo').focus(); return null; } }
     const {data,error}=await sb.rpc('guardar_venta_reg',{p:leer()});
     if(error){ toast(error.message,'bad'); return null; }
-    const ex={cliente_rfc:($('#vf-cliente_rfc')?.value||'').toUpperCase().replace(/[^A-Z0-9&Ñ]/g,''),cliente_nacimiento:$('#vf-cliente_nacimiento')?.value||'',cliente_correo:$('#vf-cliente_correo')?.value||'',equipo_fuera_lista:!!v.equipo_fuera_lista};
+    const ex={cliente_rfc:($('#vf-cliente_rfc')?.value||'').toUpperCase().replace(/[^A-Z0-9&Ñ]/g,''),cliente_nacimiento:$('#vf-cliente_nacimiento')?.value||'',cliente_correo:$('#vf-cliente_correo')?.value||'',equipo_fuera_lista:false};
     if(ex.cliente_correo&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(ex.cliente_correo.trim())) toast('Revisa el correo del cliente: no tiene formato válido.','bad');
     const r2=await sb.rpc('guardar_venta_cliente',{p_id:data,p:ex});
     if(r2.error){ toast(r2.error.message.includes('guardar_venta_cliente')?'Falta correr el SQL 163 para guardar nacimiento y correo.':r2.error.message,'bad'); } if(!silencio) toast('Guardado.','ok'); id=data; S.ventaSucia=false; return data; };
@@ -12777,7 +12783,7 @@ function pintarDinamicaNiveles(el,d,A,jefe,yo,dias){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v89';
+const VERSION_APP='v90';
 window.addEventListener('beforeunload',e=>{ if(S&&S.ventaSucia){ e.preventDefault(); e.returnValue=''; } });
 async function revisarVersion(){
   try{
