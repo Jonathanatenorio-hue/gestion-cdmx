@@ -849,7 +849,7 @@ body:has(#campana) #main .head{padding-right:54px}
             <input id="e-cod" type="number" class="mono" readonly style="background:var(--surface-2);color:var(--txt-2)">
             <small>Se asigna solo. Solo lo usa el importador del Excel viejo.</small></div>
           <div class="f full"><label for="e-nom">Nombre completo</label><input id="e-nom" placeholder="Nombres y apellidos, como en la cuenta bancaria"></div>
-          <div class="f"><label for="e-fnac">Fecha de nacimiento</label><input id="e-fnac" type="date"></div>
+          <div class="f"><label for="e-fnac">Fecha de nacimiento <span id="e-edad" style="font-weight:400;color:var(--txt-3)"></span></label><input id="e-fnac" type="date"></div>
           <div class="f"><label for="e-tel">Teléfono</label><input id="e-tel" class="mono"></div>
           <div class="f full"><label for="e-cor">Correo</label><input id="e-cor" type="email"></div>
           <div class="f full" style="background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r);padding:12px">
@@ -2718,7 +2718,7 @@ function abrirEmpleado(id){
   });
   const v=(k,d='')=>e?.[k]??d;
   $('#e-tipo').value=v('tipo_registro','empleado'); $('#e-cod').value=v('codigo');
-  $('#e-nom').value=v('nombre_completo'); $('#e-fnac').value=v('fecha_nacimiento');
+  $('#e-nom').value=v('nombre_completo'); $('#e-fnac').value=v('fecha_nacimiento'); setTimeout(edadSexoEmp,0);
   $('#e-tel').value=v('telefono'); $('#e-cor').value=v('correo');
   $('#e-rfc').value=v('rfc'); $('#e-curp').value=v('curp'); $('#e-not').value=v('notas');
   const par=partirNombre(v('nombre_completo'));
@@ -9991,6 +9991,13 @@ async function vistaVentasReg(){
 }
 
 
+/* Edad y sexo junto a la fecha de nacimiento (sexo sale de la CURP) */
+function edadSexoEmp(){ const el=$('#e-edad'); if(!el) return; const f=$('#e-fnac')?.value, c=($('#e-curp')?.value||'').trim().toUpperCase();
+  let t=[]; if(f){ const n=new Date(f+'T12:00'), h=new Date(); let a=h.getFullYear()-n.getFullYear(); if(h<new Date(h.getFullYear(),n.getMonth(),n.getDate())) a--; if(a>=0&&a<120) t.push(a+' años'); }
+  const sx=c.length===18?{H:'Hombre',M:'Mujer',X:'No binario'}[c[10]]:''; if(sx) t.push(sx);
+  el.textContent=t.length?'· '+t.join(' · '):''; }
+document.addEventListener('input',e=>{ if(e.target&&(e.target.id==='e-fnac'||e.target.id==='e-curp')) edadSexoEmp(); });
+document.addEventListener('change',e=>{ if(e.target&&(e.target.id==='e-fnac'||e.target.id==='e-curp')) edadSexoEmp(); });
 /* Equipo como texto: sin repetir la marca si ya viene en el nombre */
 function eqTexto(x){ const mo=String(x.equipo_modelo||''), ma=String(x.equipo_marca||'');
   return [ma&&mo.toUpperCase().includes(ma.toUpperCase())?'':ma, mo, x.equipo_capacidad, x.equipo_color].filter(Boolean).join(' '); }
@@ -12783,7 +12790,7 @@ function pintarDinamicaNiveles(el,d,A,jefe,yo,dias){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v90';
+const VERSION_APP='v91';
 window.addEventListener('beforeunload',e=>{ if(S&&S.ventaSucia){ e.preventDefault(); e.returnValue=''; } });
 async function revisarVersion(){
   try{
