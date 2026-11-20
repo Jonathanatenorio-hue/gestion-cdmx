@@ -12641,7 +12641,7 @@ async function bdPintarPapeles(c){
    DINÁMICAS — publicar, medir en vivo y pagar con comisiones
    ============================================================ */
 const nomMesD=k=>{ const t=new Date(k+'-15T12:00:00').toLocaleDateString('es-MX',{month:'long',year:'numeric'}); return t.charAt(0).toUpperCase()+t.slice(1); };
-const DIN_METRICA={ventas_registradas:'Ventas subidas completas por el agente (deja de contar si mesa la rechaza o cancela)',ventas_aprobadas:'Ventas aprobadas por mesa de control',ventas_terminadas:'Ventas terminadas en Global'};
+const DIN_METRICA={ventas_registradas:'Ventas subidas completas por el agente (deja de contar si mesa la rechaza o cancela)',ventas_aprobadas:'Ventas aprobadas por mesa de control',ventas_terminadas:'Ventas terminadas en Global',ventas_en_ruta:'Ventas hechas en la vigencia que salen a ruta (en tránsito, entregadas o terminadas en Global). Las que todavía no salen se ven como "por salir" y cuentan en cuanto salen'};
 const DIN_EST={borrador:['Borrador',''],publicada:['Activa','p-ok'],cerrada:['Cerrada','p-teal'],cancelada:['Cancelada','p-bad']};
 const dinRango=d=>`${new Date(d.desde+'T12:00:00').toLocaleDateString('es-MX',{day:'numeric',month:'short'})} al ${new Date(d.hasta+'T12:00:00').toLocaleDateString('es-MX',{day:'numeric',month:'short'})}`;
 async function vistaDinamicas(){
@@ -12686,7 +12686,7 @@ async function pintarDinamica(el,id){
         <div style="font-size:12.5px;color:var(--txt-2);margin-top:8px"><b>Qué cuenta:</b> ${esc(DIN_METRICA[d.metrica])}, con fecha del ${dinRango(d)}. Pueden ganar todos los que lleguen.</div>
         ${yo&&!jefe?`<div class="din-yo ${yo.gana?'gana':''}"><div><span>Tu avance</span><b>${yo.cuentan} <small>de ${d.meta}</small></b></div>${barra(yo.cuentan,d.meta)}
           <small>${yo.gana?'¡Llegaste a la meta! Cuida que todas pasen mesa de control.':`Te ${d.meta-yo.cuentan===1?'falta 1 venta':'faltan '+(d.meta-yo.cuentan)+' ventas'}.`}${yo.cuentan>yo.confirmadas?` ${yo.cuentan-yo.confirmadas} en revisión de mesa.`:''}</small>
-          ${yo.ventas.length?`<div class="din-folios">${yo.ventas.map(v=>`<span class="${v.cuenta?'':'no'}">${esc(v.folio)} · ${esc(({en_revision:'en revisión',regresada:'regresada: corrígela',aprobada:'aprobada',en_global:'en ruta',facturada:'terminada'})[v.estatus]||v.estatus)}</span>`).join('')}</div>`:''}</div>`:''}
+          ${yo.ventas.length?`<div class="din-folios">${yo.ventas.map(v=>`<span class="${v.cuenta?'':'no'}">${esc(v.folio)} · ${esc(({en_revision:'en revisión',regresada:'regresada: corrígela',aprobada:'aprobada',en_global:'en ruta',facturada:'terminada','En ruta':'en ruta','Por salir a ruta':'por salir a ruta','Terminada':'terminada','Cierre de mesa':'cierre de mesa'})[v.estatus]||v.estatus)}</span>`).join('')}</div>`:''}</div>`:''}
         ${d.texto?`<details class="din-txt"><summary>Ver el anuncio completo</summary><div>${esc(d.texto)}</div></details>`:''}
         ${S.direccion?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
           ${d.estatus!=='cerrada'&&d.estatus!=='cancelada'?`<button class="btn" data-ed="${id}">Editar</button>`:''}
@@ -12696,7 +12696,7 @@ async function pintarDinamica(el,id){
     </div>
     ${errAv}${jefe&&d.estatus!=='borrador'&&!ra.error?`<div class="tv-h" style="margin-top:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b>${d.estatus==='cerrada'?'Resultado':'Cómo van'}</b><span>${A.ganadores||0} ${A.ganadores===1?'llegó':'llegaron'} a la meta</span><button class="btn" data-wa="${id}" style="margin-left:auto">📲 Imagen para WhatsApp</button></div>
       <div class="din-rank">${P.map((p,i)=>`<div class="${p.gana?'gana':''}"><span class="din-pos">${i+1}</span><b>${esc(nomCorto(p.nombre))}</b>${barra(p.cuentan,d.meta)}
-        <span class="din-n">${p.cuentan}<small>/${d.meta}</small></span><small class="din-st">${p.gana?'🏆 '+money(p.premio):d.meta-p.cuentan<=2&&p.cuentan>0?'a '+(d.meta-p.cuentan)+' de la meta':p.cuentan?'':'sin ventas'}${p.cuentan>p.confirmadas?` · ${p.cuentan-p.confirmadas} en revisión`:''}</small></div>`).join('')||'<div class="empty">Sin participantes.</div>'}</div>`:''}
+        <span class="din-n">${p.cuentan}<small>/${d.meta}</small></span><small class="din-st">${p.gana?'🏆 '+money(p.premio):d.meta-p.cuentan<=2&&p.cuentan>0?'a '+(d.meta-p.cuentan)+' de la meta':p.cuentan?'':'sin ventas'}${p.cuentan>p.confirmadas?` · ${p.cuentan-p.confirmadas} en revisión`:''}${(p.ventas||[]).filter(v=>v.estatus==='Por salir a ruta').length?` · ${(p.ventas||[]).filter(v=>v.estatus==='Por salir a ruta').length} por salir a ruta`:''}</small></div>`).join('')||'<div class="empty">Sin participantes.</div>'}</div>`:''}
   </div>`;
   const img=el.querySelector('.din-img'); if(img) img.onclick=()=>{ const w=window.open(); if(w){ w.document.write(`<title>${esc(d.nombre)}</title><body style="margin:0;background:#111;display:flex;justify-content:center"><img src="${d.imagen}" style="max-width:100%;height:auto">`); } };
   el.querySelectorAll('[data-wa]').forEach(b=>b.onclick=()=>imagenDinamica(d,A));
@@ -12781,7 +12781,7 @@ async function imagenDinamica(d,A){
   const gan=P.filter(p=>p.gana).length;
   F('',30,'700'); g.fillStyle=gan?C.ok:C.meta;
   g.fillText(gan?`🏆 ${gan} ${gan===1?'ya llegó':'ya llegaron'} ${niv?'a un nivel':'a la meta'}`:(niv?'¡Todavía nadie llega a un nivel, a darle!':'¡Todavía nadie llega a la meta, a darle!'),60,y); y+=46;
-  F('',22,'400'); g.fillStyle=C.sub; g.fillText(niv?'Cuentan activaciones terminadas en Global y los requisitos de la dinámica.':'Cuentan las ventas subidas completas; si mesa la rechaza, deja de contar.',60,y);
+  F('',22,'400'); g.fillStyle=C.sub; g.fillText(niv?'Cuentan activaciones terminadas en Global y los requisitos de la dinámica.':(d.metrica==='ventas_en_ruta'?'Cuentan las ventas hechas en la vigencia que salen a ruta. Canceladas no cuentan.':'Cuentan las ventas subidas completas; si mesa la rechaza, deja de contar.'),60,y);
   const blob=await new Promise(r=>cv.toBlob(r,'image/png'));
   const nombre=`dinamica_${(d.nombre||'avance').toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g,'_').slice(0,40)}_${hoyMexico()}.png`;
   const file=new File([blob],nombre,{type:'image/png'}), url=URL.createObjectURL(blob);
@@ -12845,7 +12845,7 @@ function pintarDinamicaNiveles(el,d,A,jefe,yo,dias,errAv=''){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v92';
+const VERSION_APP='v93';
 window.addEventListener('beforeunload',e=>{ if(S&&S.ventaSucia){ e.preventDefault(); e.returnValue=''; } });
 async function revisarVersion(){
   try{
