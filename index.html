@@ -12673,7 +12673,8 @@ async function pintarDinamica(el,id){
   const hoy=hoyMexico(), dias=Math.max(0,Math.round((new Date(d.hasta+'T12:00:00')-new Date(hoy+'T12:00:00'))/864e5));
   const barra=(n,m)=>`<div class="din-bar"><i style="width:${Math.min(100,n/m*100)}%"></i>${Array.from({length:m-1},(_,i)=>`<em style="left:${(i+1)/m*100}%"></em>`).join('')}</div>`;
   const premioTxt=d.premio_tipo==='fijo'?`${money(d.premio)} al llegar a ${d.meta}`:`${money(d.premio)} por venta al llegar a ${d.meta}`;
-  if(d.tipo==='niveles') return pintarDinamicaNiveles(el,d,A,jefe,yo,dias);
+  const errAv=ra.error?`<div class="note" style="margin-top:14px;border-color:var(--bad)"><b style="color:var(--bad)">No se pudo calcular el avance</b>${esc(ra.error.message)}</div>`:'';
+  if(d.tipo==='niveles') return pintarDinamicaNiveles(el,d,A,jefe,yo,dias,errAv);
   el.innerHTML=`<div class="tile din-card" style="cursor:default;transform:none">
     <div class="din-top">
       ${d.imagen?`<img class="din-img" src="${d.imagen}" alt="${esc(d.nombre)}" id="din-img-${id}">`:''}
@@ -12693,11 +12694,12 @@ async function pintarDinamica(el,id){
           ${d.estatus==='publicada'?`<button class="btn btn-p" data-cer="${id}">Cerrar y confirmar ganadores</button><button class="btn" style="color:var(--bad)" data-can="${id}">Cancelar</button>`:''}</div>`:''}
       </div>
     </div>
-    ${jefe&&d.estatus!=='borrador'?`<div class="tv-h" style="margin-top:16px"><b>${d.estatus==='cerrada'?'Resultado':'Cómo van'}</b><span>${A.ganadores} ${A.ganadores===1?'llegó':'llegaron'} a la meta</span></div>
+    ${errAv}${jefe&&d.estatus!=='borrador'&&!ra.error?`<div class="tv-h" style="margin-top:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b>${d.estatus==='cerrada'?'Resultado':'Cómo van'}</b><span>${A.ganadores||0} ${A.ganadores===1?'llegó':'llegaron'} a la meta</span><button class="btn" data-wa="${id}" style="margin-left:auto">📲 Imagen para WhatsApp</button></div>
       <div class="din-rank">${P.map((p,i)=>`<div class="${p.gana?'gana':''}"><span class="din-pos">${i+1}</span><b>${esc(nomCorto(p.nombre))}</b>${barra(p.cuentan,d.meta)}
         <span class="din-n">${p.cuentan}<small>/${d.meta}</small></span><small class="din-st">${p.gana?'🏆 '+money(p.premio):d.meta-p.cuentan<=2&&p.cuentan>0?'a '+(d.meta-p.cuentan)+' de la meta':p.cuentan?'':'sin ventas'}${p.cuentan>p.confirmadas?` · ${p.cuentan-p.confirmadas} en revisión`:''}</small></div>`).join('')||'<div class="empty">Sin participantes.</div>'}</div>`:''}
   </div>`;
   const img=el.querySelector('.din-img'); if(img) img.onclick=()=>{ const w=window.open(); if(w){ w.document.write(`<title>${esc(d.nombre)}</title><body style="margin:0;background:#111;display:flex;justify-content:center"><img src="${d.imagen}" style="max-width:100%;height:auto">`); } };
+  el.querySelectorAll('[data-wa]').forEach(b=>b.onclick=()=>imagenDinamica(d,A));
   el.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>editarDinamica(id));
   el.querySelectorAll('[data-pub]').forEach(b=>b.onclick=async()=>{ if(!confirm('¿Publicar? A cada agente le llega el aviso.')) return;
     const {data,error}=await sb.rpc('publicar_incentivo',{p_id:id}); if(error) return toast(error.message,'bad'); toast(`Publicada. Se avisó a ${data} agentes.`,'ok'); vistaDinamicas(); });
@@ -12741,7 +12743,59 @@ async function editarDinamica(id){
 }
 
 
-function pintarDinamicaNiveles(el,d,A,jefe,yo,dias){
+/* ---------- Imagen de avance para WhatsApp (1080 × 1350) ---------- */
+async function imagenDinamica(d,A){
+  const P=(A.personas||[]).slice(), niv=d.tipo==='niveles', N=(d.niveles||[]).slice().sort((a,b)=>a.desde-b.desde);
+  const tope=niv?Math.max(...N.map(n=>n.desde),1):d.meta;
+  const W=1080, filas=Math.max(P.length,1), alto=56, H=Math.max(1080, 400+(d.imagen?250:0)+filas*alto+170);
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H; const g=cv.getContext('2d');
+  const C={fondo:'#0f1424',card:'#182036',txt:'#ffffff',sub:'#a9b2c8',barra:'#2a3350',ok:'#22c55e',meta:'#f5b301',acento:'#5b8cff'};
+  g.fillStyle=C.fondo; g.fillRect(0,0,W,H);
+  const F=(t,s,w='600')=>{ g.font=`${w} ${s}px Arial, Helvetica, sans-serif`; g.fillStyle=C.txt; return g; };
+  let y=70;
+  // banner con la imagen de la dinámica, si hay
+  if(d.imagen){ try{ const im=await new Promise((ok,no)=>{ const i=new Image(); i.onload=()=>ok(i); i.onerror=no; i.src=d.imagen; });
+      const bh=240, r=Math.max(W/im.width, bh/im.height), sw=W/r, sh=bh/r;
+      g.drawImage(im,(im.width-sw)/2,(im.height-sh)/2,sw,sh,0,0,W,bh);
+      const gr=g.createLinearGradient(0,bh-120,0,bh); gr.addColorStop(0,'rgba(15,20,36,0)'); gr.addColorStop(1,C.fondo); g.fillStyle=gr; g.fillRect(0,bh-120,W,120); y=bh+10; }catch(e){} }
+  F('',26,'700'); g.fillStyle=C.meta; g.fillText('AVANCE DE LA DINÁMICA',60,y); y+=58;
+  F('',50,'800'); let tit=d.nombre; while(g.measureText(tit).width>W-120&&tit.length>4) tit=tit.slice(0,-2); if(tit!==d.nombre) tit+='…'; g.fillText(tit,60,y); y+=46;
+  const hoy=new Date(), corte=hoy.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'})+' · '+hoy.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  F('',26,'400'); g.fillStyle=C.sub; g.fillText(`${dinRango(d)}  ·  corte: ${corte}`,60,y); y+=40;
+  g.fillStyle=C.sub; g.fillText(niv?`Niveles: ${N.map(n=>n.nombre+' '+n.desde+(n.hasta?'–'+n.hasta:'+')).join('  ·  ')}`:`Meta: ${d.meta} ventas  ·  Premio: ${money(d.premio)}${d.premio_tipo==='por_venta'?' por venta':''}`,60,y); y+=78;
+  // ranking
+  const x0=60, wNom=330, xb=x0+50+wNom, wb=W-xb-170;
+  P.forEach((p,i)=>{ const yy=y+i*alto;
+    g.fillStyle=i%2?'rgba(255,255,255,0.03)':C.card; g.fillRect(40,yy-34,W-80,alto-6);
+    F('',26,'700'); g.fillStyle=p.gana?C.ok:C.sub; g.textAlign='right'; g.fillText(String(i+1),x0+30,yy); g.textAlign='left';
+    F('',27,'600'); g.fillStyle=C.txt; let nm=nomCorto(p.nombre); while(g.measureText(nm).width>wNom&&nm.length>3) nm=nm.slice(0,-1); g.fillText(nm,x0+50,yy);
+    const v=p.cuentan||0, pct=Math.min(1,v/tope);
+    g.fillStyle=C.barra; g.fillRect(xb,yy-20,wb,16);
+    g.fillStyle=p.gana?C.ok:C.acento; if(pct>0) g.fillRect(xb,yy-20,Math.max(6,wb*pct),16);
+    g.fillStyle=C.fondo; (niv?N.map(n=>n.desde/tope):Array.from({length:d.meta-1},(_,k)=>(k+1)/d.meta)).forEach(f=>{ if(f<1) g.fillRect(xb+wb*f-1,yy-20,2,16); });
+    F('',30,'800'); g.fillStyle=p.gana?C.ok:C.txt; g.textAlign='right'; g.fillText(niv?String(v):`${v}/${d.meta}`,W-110,yy); g.textAlign='left';
+    if(p.gana){ g.font='30px Arial'; g.fillText('🏆',W-95,yy+2); }
+  });
+  if(!P.length){ F('',28,'400'); g.fillStyle=C.sub; g.fillText('Todavía no hay ventas registradas.',60,y); }
+  y+=filas*alto+30;
+  const gan=P.filter(p=>p.gana).length;
+  F('',30,'700'); g.fillStyle=gan?C.ok:C.meta;
+  g.fillText(gan?`🏆 ${gan} ${gan===1?'ya llegó':'ya llegaron'} ${niv?'a un nivel':'a la meta'}`:(niv?'¡Todavía nadie llega a un nivel, a darle!':'¡Todavía nadie llega a la meta, a darle!'),60,y); y+=46;
+  F('',22,'400'); g.fillStyle=C.sub; g.fillText(niv?'Cuentan activaciones terminadas en Global y los requisitos de la dinámica.':'Cuentan las ventas subidas completas; si mesa la rechaza, deja de contar.',60,y);
+  const blob=await new Promise(r=>cv.toBlob(r,'image/png'));
+  const nombre=`dinamica_${(d.nombre||'avance').toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g,'_').slice(0,40)}_${hoyMexico()}.png`;
+  const file=new File([blob],nombre,{type:'image/png'}), url=URL.createObjectURL(blob);
+  const m=document.createElement('div'); m.className='modal-bg';
+  m.innerHTML=`<div class="modal" style="max-width:520px"><h3 style="margin:0 0 10px">Imagen para WhatsApp</h3><img src="${url}" style="width:100%;border-radius:10px;border:1px solid var(--line)">
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">${navigator.canShare&&navigator.canShare({files:[file]})?'<button class="btn btn-p" id="wa-sh">Compartir</button>':''}<a class="btn ${navigator.canShare&&navigator.canShare({files:[file]})?'':'btn-p'}" href="${url}" download="${nombre}">Descargar</a><button class="btn" id="wa-x" style="margin-left:auto">Cerrar</button></div>
+    <p style="font-size:12px;color:var(--txt-3);margin:10px 0 0">En el celular "Compartir" la manda directo a WhatsApp. En la computadora descárgala y arrástrala al chat.</p></div>`;
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;overflow:auto';
+  m.querySelector('.modal').style.cssText+='background:var(--card,#fff);padding:18px;border-radius:14px;width:100%';
+  document.body.appendChild(m);
+  const cerrar=()=>{ m.remove(); URL.revokeObjectURL(url); }; m.querySelector('#wa-x').onclick=cerrar; m.onclick=e=>{ if(e.target===m) cerrar(); };
+  const sh=m.querySelector('#wa-sh'); if(sh) sh.onclick=async()=>{ try{ await navigator.share({files:[file],title:d.nombre}); }catch(e){} };
+}
+function pintarDinamicaNiveles(el,d,A,jefe,yo,dias,errAv=''){
   const id=d.id, P=A.personas||[], N=(d.niveles||[]).slice().sort((a,b)=>b.desde-a.desde), REQ=d.requisitos||[];
   const minimo=Math.min(...N.map(n=>n.desde));
   const reqChip=r=>`<span class="din-req ${r.cumple?'ok':'no'}" title="${esc(r.nombre)}">${r.cumple?'✓':'✗'} ${r.tipo==='asistencia'?(r.valor==null?'Asistencia: sin datos':`Asistencia ${r.valor}%`):`${esc(r.nombre.replace(/^Mínimo 16 activaciones (en |del )?/i,'').replace(/^1 al 23 de /,'').replace(/^./,c=>c.toUpperCase()))} ${r.valor}/${r.meta}`}</span>`;
@@ -12764,13 +12818,14 @@ function pintarDinamicaNiveles(el,d,A,jefe,yo,dias){
           ${d.estatus==='publicada'?`<button class="btn btn-p" data-cer="${id}">Cerrar y confirmar ganadores</button><button class="btn" style="color:var(--bad)" data-can="${id}">Cancelar</button>`:''}</div>`:''}
       </div>
     </div>
-    ${jefe?`<div class="tv-h" style="margin-top:16px"><b>${d.estatus==='cerrada'?'Resultado':'Cómo van'}</b><span>${A.ganadores} ${A.ganadores===1?'va':'van'} ganando un nivel</span></div>
+    ${errAv}${jefe&&!errAv?`<div class="tv-h" style="margin-top:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b>${d.estatus==='cerrada'?'Resultado':'Cómo van'}</b><span>${A.ganadores||0} ${A.ganadores===1?'va':'van'} ganando un nivel</span><button class="btn" data-wa="${id}" style="margin-left:auto">📲 Imagen para WhatsApp</button></div>
       <div class="tw"><table><thead><tr><th>Agente</th><th class="num">Activaciones</th><th class="num">En tránsito</th><th>Requisitos</th><th>Nivel hoy</th></tr></thead><tbody>
-      ${P.map(p=>`<tr ${p.gana?'style="background:var(--ok-l)"':''}><td><b style="font-size:13px">${esc(nomCorto(p.nombre))}</b></td><td class="num"><b>${p.cuentan}</b></td><td class="num">${p.transito||0}</td>
+      ${P.length?'':'<tr><td colspan="5"><div class="empty">Sin participantes.</div></td></tr>'}${P.map(p=>`<tr ${p.gana?'style="background:var(--ok-l)"':''}><td><b style="font-size:13px">${esc(nomCorto(p.nombre))}</b></td><td class="num"><b>${p.cuentan}</b></td><td class="num">${p.transito||0}</td>
         <td><div class="din-reqs">${(p.requisitos||[]).map(reqChip).join('')}</div></td>
         <td style="font-size:12.5px">${p.gana?'🏆 '+esc(p.nivel):p.nivel_por_ventas?`<span style="color:var(--warn)">${esc(p.nivel_por_ventas)} · falta requisito</span>`:p.cuentan?`a ${minimo-p.cuentan} del Nivel 2`:'—'}</td></tr>`).join('')}</tbody></table></div>`:''}
   </div>`;
   const img=el.querySelector('.din-img'); if(img) img.onclick=()=>{ const w=window.open(); if(w){ w.document.write(`<title>${esc(d.nombre)}</title><body style="margin:0;background:#111;display:flex;justify-content:center"><img src="${d.imagen}" style="max-width:100%;height:auto">`); } };
+  el.querySelectorAll('[data-wa]').forEach(b=>b.onclick=()=>imagenDinamica(d,A));
   el.querySelectorAll('[data-cer]').forEach(b=>b.onclick=async()=>{ if(!confirm('¿Cerrar la dinámica? Se congelan los ganadores con lo que llevan hoy (activaciones y asistencia).')) return;
     const {data,error}=await sb.rpc('cerrar_incentivo',{p_id:id}); if(error) return toast(error.message,'bad'); toast(`Cerrada: ${data} ganador${data===1?'':'es'}.`,'ok'); vistaDinamicas(); });
   el.querySelectorAll('[data-can]').forEach(b=>b.onclick=async()=>{ if(!confirm('¿Cancelar la dinámica?')) return;
@@ -12790,7 +12845,7 @@ function pintarDinamicaNiveles(el,d,A,jefe,yo,dias){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v91';
+const VERSION_APP='v92';
 window.addEventListener('beforeunload',e=>{ if(S&&S.ventaSucia){ e.preventDefault(); e.returnValue=''; } });
 async function revisarVersion(){
   try{
