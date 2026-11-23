@@ -9936,11 +9936,13 @@ const CANDADOS=[
   ['conf_venta','venta','Terminada','El reporte de Ventas la trae terminada',v=>v.estatus==='facturada']
 ];
 function candadosChips(v,chico){
+  if(v.previa) return '';
   return CANDADOS.filter(c=>c[4](v)).map(([k,n,l,d])=>{ const s=v[k], nota=(v.conf_nota||{})[n];
     const [ic,cl,tt]=s==='ok'?['✓','p-ok','Cuadra con Global']:s==='falla'?['✕','p-bad',nota||'No cuadra con Global']:['⏳','','Falta que cargue el reporte del día siguiente'];
     return `<span class="p ${cl}" title="${esc(l+': '+tt)}" style="font-size:${chico?'10.5px':'12px'};${chico?'padding:1px 6px':''}">${ic} ${l}</span>`; }).join(' ');
 }
 function candadosHTML(v){
+  if(v.previa) return '';
   const C=CANDADOS.filter(c=>c[4](v));
   if(!C.length) return '';
   return `<div class="tile w12" style="cursor:default;transform:none${v.no_cuadra?';border-color:var(--bad)':''}"><div class="tv-h"><b>¿Cuadra con Global?</b><span>Los reportes confirman; no mueven la venta</span></div>
@@ -9973,11 +9975,11 @@ async function vistaVentasReg(){
   const papel=await papelVentas();
   if(!papel){ $('#main').innerHTML='<div class="empty"><b>Sin acceso</b>Tu puesto no registra ni revisa ventas.</div>'; return; }
   const tabs={
-    agente:   [['mias','Mis ventas'],['calc','Calculadora DHL']],
+    agente:   [['mias','Mis ventas'],['anteriores','Anteriores'],['calc','Calculadora DHL']],
     jefe:     [['todas','Ventas de mi equipo'],['calc','Calculadora DHL']],
-    mesa:     [['revisar','Revisión'],['bo','Back Office'],['ruta','En ruta'],['nocuadra','No cuadra'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['calc','Calculadora DHL']],
+    mesa:     [['revisar','Revisión'],['bo','Back Office'],['ruta','En ruta'],['nocuadra','No cuadra'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['anteriores','Anteriores'],['calc','Calculadora DHL']],
     factura:  [['cerrar','Entregadas · por cerrar'],['nocuadra','No cuadra'],['todas','Todas'],['calc','Calculadora DHL']],
-    direccion:[['revisar','Revisión'],['bo','Back Office'],['ruta','En ruta'],['cerrar','Entregadas'],['nocuadra','No cuadra'],['cuadre','Cuadre diario'],['dhl','Envíos DHL'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['calc','Calculadora DHL']]
+    direccion:[['revisar','Revisión'],['bo','Back Office'],['ruta','En ruta'],['cerrar','Entregadas'],['nocuadra','No cuadra'],['cuadre','Cuadre diario'],['dhl','Envíos DHL'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['anteriores','Anteriores'],['calc','Calculadora DHL']]
   }[papel];
   const t=S.vr||(S.vr={tab:tabs[0][0],q:''});
   if(!tabs.some(x=>x[0]===t.tab)) t.tab=tabs[0][0];
@@ -9990,16 +9992,17 @@ async function vistaVentasReg(){
   ]);
   const err=[rl,rs].find(x=>x.error);
   if(err){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(err.error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 178.</span></div>`; return; }
-  const L=rl.data||[], SR=rs.data||[];
+  const TODO=rl.data||[], SR=rs.data||[];
+  const L=TODO.filter(x=>!x.previa), ANT=TODO.filter(x=>x.previa);
   const vivas=x=>!['rechazada','cancelada'].includes(x.estatus);
   const filtro={
-    mias:()=>L, todas:()=>L,
+    mias:()=>L, todas:()=>L, anteriores:()=>ANT,
     revisar:()=>L.filter(x=>x.estatus==='en_revision').sort((a,b)=>new Date(a.enviado_en)-new Date(b.enviado_en)),
-    bo:()=>L.filter(x=>x.estatus==='aprobada'&&!x.previa),
-    ruta:()=>L.filter(x=>x.estatus==='en_global'&&!x.previa),
+    bo:()=>L.filter(x=>x.estatus==='aprobada'),
+    ruta:()=>L.filter(x=>x.estatus==='en_global'),
     cerrar:()=>L.filter(x=>x.estatus==='entregada').sort((a,b)=>new Date(a.entregada_en)-new Date(b.entregada_en)),
     nocuadra:()=>L.filter(x=>x.no_cuadra&&vivas(x)),
-    dhl:()=>L.filter(x=>vivas(x)&&x.hub_real)
+    dhl:()=>L.filter(x=>vivas(x)&&(x.hub_real||x.hub_ideal))
   };
   const n=k=>['sinreg'].includes(k)?SR.length:['salvan','cuadre','calc'].includes(k)?'':(filtro[k]?filtro[k]().length:0);
   const atrasadas=L.filter(x=>x.estatus==='en_revision'&&x.minutos_en_revision>60).length;
@@ -10025,7 +10028,7 @@ async function vistaVentasReg(){
   else if(t.tab==='calc') pintarCalculadoraDHL(c);
   else {
     const filas=filtro[t.tab]();
-    c.innerHTML=`<details class="vr-ley"><summary>¿Cómo avanza una venta?</summary><div>
+    c.innerHTML=`${t.tab==='anteriores'?'<div class="note" style="margin-bottom:12px"><b>Ventas anteriores al 23 de noviembre</b>Ya no pasan por el flujo: quedan con su agente y Global decide (se cierran solas al salir terminadas). Solo para consulta.</div>':''}<details class="vr-ley"><summary>¿Cómo avanza una venta?</summary><div>
         <p><b>1 · Nuevo</b> · el agente registra folio, DN y PT y pasa sola a revisión. Si mesa la regresa, vuelve aquí y el agente solo corrige folio, DN o PT.</p>
         <p><b>2 · Revisión</b> · Itzel revisa en Global y AVS con el checklist y el hub DHL. La aprueba o la regresa con motivo.</p>
         <p><b>3 · Back Office</b> · Itzel asigna series y captura la guía DHL (10 dígitos) o la ruta interna con su turno.</p>
@@ -10046,7 +10049,7 @@ async function vistaVentasReg(){
       <td style="font-size:12px;white-space:nowrap">${x.fecha_venta?fecha(x.fecha_venta):'—'}</td></tr>`;
     const pintar=()=>{ const q=t.q.trim().toLowerCase();
       tablaPaginada($('#vr-lista'),q?filas.filter(x=>[x.folio,x.dn,x.pt,x.cliente,x.global_cliente,x.agente].join(' ').toLowerCase().includes(q)):filas,cab,fila,
-        {vacio:{revisar:'Nada por revisar.',bo:'Nada en Back Office pendiente.',ruta:'Nada en ruta.',cerrar:'Nada entregado por cerrar.',nocuadra:'Todo cuadra con Global.'}[t.tab]||'Todavía no hay ventas registradas.',
+        {vacio:{anteriores:'No hay ventas anteriores.',revisar:'Nada por revisar.',bo:'Nada en Back Office pendiente.',ruta:'Nada en ruta.',cerrar:'Nada entregado por cerrar.',nocuadra:'Todo cuadra con Global.'}[t.tab]||'Todavía no hay ventas registradas.',
          despues:el=>el.querySelectorAll('[data-vr]').forEach(tr=>tr.onclick=()=>abrirVentaReg(Number(tr.dataset.vr)))}); };
     let tm; $('#vr-q').oninput=e=>{ t.q=e.target.value; clearTimeout(tm); tm=setTimeout(pintar,180); };
     pintar();
@@ -12813,7 +12816,7 @@ function pintarDinamicaNiveles(el,d,A,jefe,yo,dias,errAv=''){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v97';
+const VERSION_APP='v98';
 window.addEventListener('beforeunload',e=>{ if(S&&S.ventaSucia){ e.preventDefault(); e.returnValue=''; } });
 async function revisarVersion(){
   try{
