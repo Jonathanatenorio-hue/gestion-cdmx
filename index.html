@@ -749,6 +749,20 @@ body:has(#campana) #main .head{padding-right:54px}
 .eq-lista button.on,.eq-lista button:hover{background:var(--teal-l)}
 .eq-nada{padding:10px;font-size:12.5px;color:var(--txt-3)}
 .din-card{padding:20px}
+.tb-grid{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:8px;margin-top:10px}
+.tb-n{aspect-ratio:1/1;border-radius:12px;border:1px solid var(--line);background:var(--card-2,var(--line-2));display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:var(--txt);position:relative;padding:2px;text-align:center;line-height:1.1}
+.tb-n small{font-size:10px;font-weight:600;color:var(--txt-3);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tb-n.libre.puedo{cursor:pointer;border-color:var(--teal);box-shadow:0 0 0 2px var(--teal-l) inset}
+.tb-n.libre.puedo:hover{transform:translateY(-2px);background:var(--teal-l)}
+.tb-n.dest{background:linear-gradient(160deg,var(--ok-l),transparent);border-color:var(--ok)}
+.tb-n.dest b{font-size:15px;color:var(--ok)}
+.tb-n.dest.grande{background:linear-gradient(160deg,#fde68a,#f59e0b33);border-color:#f59e0b}
+.tb-n.dest.grande b{color:#b45309}
+.tb-n.rev{opacity:.55}
+.tb-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tb-chips span{font-size:12px;padding:4px 10px;border-radius:99px;background:var(--line-2)}
+.tb-sello{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;word-break:break-all;background:var(--line-2);padding:8px 10px;border-radius:8px;margin-top:6px}
+@media(max-width:700px){ .tb-grid{grid-template-columns:repeat(5,minmax(0,1fr))} }
 .din-top{display:grid;grid-template-columns:minmax(0,300px) 1fr;gap:22px;align-items:start}
 .din-img{width:100%;border-radius:14px;cursor:zoom-in;box-shadow:0 8px 24px rgba(0,0,0,.18)}
 .din-info h2{font-family:var(--fuente-t);font-size:24px;margin:8px 0 12px;letter-spacing:-.5px}
@@ -12641,7 +12655,7 @@ async function bdPintarPapeles(c){
    DINÁMICAS — publicar, medir en vivo y pagar con comisiones
    ============================================================ */
 const nomMesD=k=>{ const t=new Date(k+'-15T12:00:00').toLocaleDateString('es-MX',{month:'long',year:'numeric'}); return t.charAt(0).toUpperCase()+t.slice(1); };
-const DIN_METRICA={ventas_registradas:'Ventas subidas completas por el agente (deja de contar si mesa la rechaza o cancela)',ventas_aprobadas:'Ventas aprobadas por mesa de control',ventas_terminadas:'Ventas terminadas en Global',ventas_en_ruta:'Ventas hechas en la vigencia que salen a ruta (en tránsito, entregadas o terminadas en Global). Las que todavía no salen se ven como "por salir" y cuentan en cuanto salen'};
+const DIN_METRICA={ventas_registradas:'Ventas subidas completas por el agente (deja de contar si mesa la rechaza o cancela)',ventas_aprobadas:'Ventas aprobadas por mesa de control',ventas_terminadas:'Ventas terminadas en Global',tablero:'Tablero de premios: ventas generadas en la vigencia que se activan antes del límite',ventas_en_ruta:'Ventas hechas en la vigencia que salen a ruta (en tránsito, entregadas o terminadas en Global). Las que todavía no salen se ven como "por salir" y cuentan en cuanto salen'};
 const DIN_EST={borrador:['Borrador',''],publicada:['Activa','p-ok'],cerrada:['Cerrada','p-teal'],cancelada:['Cancelada','p-bad']};
 const dinRango=d=>`${new Date(d.desde+'T12:00:00').toLocaleDateString('es-MX',{day:'numeric',month:'short'})} al ${new Date(d.hasta+'T12:00:00').toLocaleDateString('es-MX',{day:'numeric',month:'short'})}`;
 async function vistaDinamicas(){
@@ -12654,7 +12668,7 @@ async function vistaDinamicas(){
     ${S.direccion?'<button class="btn btn-p" id="din-nueva">Nueva dinámica</button>':''}</div>
     <div id="din-l">${act.length?'':'<div class="empty" style="margin-bottom:16px">No hay dinámicas activas en este momento.</div>'}</div>
     ${otras.length?`<div class="tv-h" style="margin-top:18px"><b>Anteriores y borradores</b></div><div class="din-mini">${otras.map(d=>`<button class="tile din-m" data-din="${d.id}" style="transform:none">
-      ${d.imagen?`<img src="${d.imagen}" alt="">`:''}<div><span class="p ${DIN_EST[d.estatus][1]}">${DIN_EST[d.estatus][0]}</span><b>${esc(d.nombre)}</b><small>${dinRango(d)} · ${d.tipo==='niveles'?'por niveles':'meta '+d.meta+' · '+money(d.premio)}</small></div></button>`).join('')}</div>`:''}`;
+      ${d.imagen?`<img src="${d.imagen}" alt="">`:''}<div><span class="p ${DIN_EST[d.estatus][1]}">${DIN_EST[d.estatus][0]}</span><b>${esc(d.nombre)}</b><small>${dinRango(d)} · ${d.tipo==='niveles'?'por niveles':d.tipo==='tablero'?'tablero de premios':'meta '+d.meta+' · '+money(d.premio)}</small></div></button>`).join('')}</div>`:''}`;
   if($('#din-nueva')) $('#din-nueva').onclick=()=>editarDinamica(null);
   document.querySelectorAll('[data-din]').forEach(b=>b.onclick=()=>abrirDinamica(Number(b.dataset.din)));
   const el=$('#din-l');
@@ -12675,6 +12689,7 @@ async function pintarDinamica(el,id){
   const premioTxt=d.premio_tipo==='fijo'?`${money(d.premio)} al llegar a ${d.meta}`:`${money(d.premio)} por venta al llegar a ${d.meta}`;
   const errAv=ra.error?`<div class="note" style="margin-top:14px;border-color:var(--bad)"><b style="color:var(--bad)">No se pudo calcular el avance</b>${esc(ra.error.message)}</div>`:'';
   if(d.tipo==='niveles') return pintarDinamicaNiveles(el,d,A,jefe,yo,dias,errAv);
+  if(d.tipo==='tablero') return pintarTablero(el,d,jefe,dias);
   el.innerHTML=`<div class="tile din-card" style="cursor:default;transform:none">
     <div class="din-top">
       ${d.imagen?`<img class="din-img" src="${d.imagen}" alt="${esc(d.nombre)}" id="din-img-${id}">`:''}
@@ -12730,6 +12745,8 @@ async function editarDinamica(id){
   </div>
   <div style="display:flex;gap:8px;margin-top:14px"><button class="btn" id="dn-g">Guardar borrador</button>${!id||d.estatus==='borrador'?'<button class="btn btn-p" id="dn-gp">Guardar y publicar</button>':''}</div></div>`;
   $('#din-v').onclick=()=>vistaDinamicas();
+  if(d.tipo==='tablero'){ ['#dn-me','#dn-meta','#dn-pr','#dn-pt'].forEach(q=>{ const f=$(q)?.closest('div'); if(f) f.style.display='none'; });
+    $('#dn-de').closest('div').insertAdjacentHTML('beforebegin','<div style="grid-column:1/-1" class="note"><b>Tablero de premios</b>Los premios, el mínimo de 4 activadas, el bono y la fecha límite ya están definidos y el tablero está sellado; aquí solo cambias nombre, anuncio e imagen.</div>'); }
   $('#dn-img').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; const blob=await comprimirFoto(f);
     imagen=await new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(blob); }); $('#dn-prev').src=imagen; $('#dn-prev').style.display=''; };
   const guardar=async pub=>{
@@ -12743,6 +12760,73 @@ async function editarDinamica(id){
 }
 
 
+/* ---------- Tablero de premios ---------- */
+async function pintarTablero(el,d,jefe,dias){
+  const {data:T,error}=await sb.rpc('tablero_estado',{p_id:d.id});
+  if(error){ el.innerHTML=`<div class="tile din-card"><div class="empty"><b>No se pudo cargar el tablero</b>${esc(error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 175.</span></div></div>`; return; }
+  const P=T.personas||[], N=T.numeros||[], yo=P.find(p=>p.id===T.yo), lim=T.limite?new Date(T.limite):null;
+  const limTxt=lim?lim.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'})+' a las '+lim.toLocaleTimeString('es-MX',{hour:'numeric',minute:'2-digit'}):'';
+  const total=(T.premios||[]).reduce((a,x)=>a+x.monto*x.cantidad,0);
+  const salio=m=>N.filter(n=>n.destapado&&Number(n.premio)===m).length;
+  const puedo=!jefe&&yo&&yo.disponibles>0&&d.estatus==='publicada';
+  const libres=N.filter(n=>!n.destapado).length;
+  el.innerHTML=`<div class="tile din-card" style="cursor:default;transform:none">
+    <div class="din-top" ${d.imagen?'':'style="grid-template-columns:1fr"'}>
+      ${d.imagen?`<img class="din-img" src="${d.imagen}" alt="${esc(d.nombre)}">`:''}
+      <div class="din-info">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="p ${DIN_EST[d.estatus][1]}">${DIN_EST[d.estatus][0]}</span>
+          <small style="color:var(--txt-3)">Ventas del ${dinRango(d)}${d.estatus==='publicada'&&dias>0?` · ${dias===1?'queda 1 día':'quedan '+dias+' días'} para vender`:''}</small></div>
+        <h2>${esc(d.nombre)}</h2>
+        <div class="din-reglas"><div><span>Empiezas a tirar</span><b>con ${T.umbral} activadas</b></div><div><span>Activación hasta</span><b>${esc(limTxt)}</b></div><div><span>Bono</span><b>${money(T.bono_monto)} al llegar a ${T.bono_meta}</b></div></div>
+        <div style="font-size:12.5px;color:var(--txt-2);margin-top:8px">Cuentan solo las ventas <b>generadas del ${dinRango(d)}</b>. Cada una que se active te da un tiro; con ${T.umbral} activadas se desbloquean todos tus tiros juntos. Los números que nadie destape se quedan sin destapar.</div>
+        <div class="tb-chips">${(T.premios||[]).slice().sort((a,b)=>b.monto-a.monto).map(x=>`<span><b>${money(x.monto)}</b> × ${x.cantidad} · ${x.cantidad-salio(x.monto)===0?'ya salieron todos':'quedan '+(x.cantidad-salio(x.monto))}</span>`).join('')}<span>${money(total)} en juego</span></div>
+        ${yo&&!jefe?`<div class="din-yo ${yo.disponibles>0?'gana':''}"><div><span>Tus ventas activadas</span><b>${yo.activadas}${yo.vendidas>yo.activadas?` <small>+ ${yo.vendidas-yo.activadas} por activar</small>`:''}</b></div>
+          <div class="din-bar"><i style="width:${Math.min(100,yo.activadas/T.bono_meta*100)}%"></i><em style="left:${T.umbral/T.bono_meta*100}%"></em></div>
+          <small>${yo.activadas<T.umbral?`Te ${T.umbral-yo.activadas===1?'falta 1 activada':'faltan '+(T.umbral-yo.activadas)+' activadas'} para empezar a tirar.`:yo.disponibles>0?`<strong>¡Tienes ${yo.disponibles} ${yo.disponibles===1?'tiro':'tiros'}!</strong> Elige ${yo.disponibles===1?'un número':'tus números'} en el tablero.`:'Ya usaste tus tiros. Cada activación nueva te da otro.'}
+            ${yo.premios>0?` · Llevas <strong>${money(yo.premios)}</strong> en premios.`:''}${yo.bono?` · 🏆 Bono de ${money(T.bono_monto)} ganado.`:yo.activadas>=T.umbral?` · Te faltan ${T.bono_meta-yo.activadas} para el bono.`:''}</small></div>`:''}
+        ${d.texto?`<details class="din-txt"><summary>Ver el anuncio completo</summary><div>${esc(d.texto)}</div></details>`:''}
+        <details class="din-txt"${T.revelado?' open':''}><summary>🔒 Sello del tablero (para comprobar que no se movió)</summary><div style="font-size:12.5px">
+          Los premios se repartieron al azar en los 50 números al crear la dinámica y quedaron bloqueados. Esta es su huella digital; si alguien cambiara un solo premio, no coincidiría.
+          <div class="tb-sello">${esc(T.sello||'—')}</div>
+          ${T.revelado?`<p style="margin:8px 0 4px">Tablero revelado. Cualquiera puede comprobar que la lista completa da la misma huella:</p><button class="btn" id="tb-ver">Verificar sello</button> <span id="tb-ver-r" style="font-size:12.5px"></span>`:'<p style="margin:8px 0 0">Al cerrar la dinámica se revela la lista completa y aquí mismo se puede verificar.</p>'}</div></details>
+        ${S.direccion?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          ${d.estatus==='borrador'?`<button class="btn" data-ed="${d.id}">Editar anuncio e imagen</button><button class="btn btn-p" data-pub="${d.id}">Publicar y avisar a los agentes</button>`:''}
+          ${d.estatus==='publicada'?`<button class="btn" data-ed="${d.id}">Editar anuncio e imagen</button><button class="btn btn-p" data-cer="${d.id}">Cerrar, pagar y revelar tablero</button><button class="btn" style="color:var(--bad)" data-can="${d.id}">Cancelar</button>`:''}</div>`:''}
+      </div>
+    </div>
+    <div class="tv-h" style="margin-top:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b>Tablero</b><span>${50-libres} destapados · ${libres} por destapar</span>
+      ${S.direccion&&d.estatus==='publicada'?`<span style="margin-left:auto;display:flex;gap:6px;align-items:center;font-size:12.5px">Destapar por:<select id="tb-por" style="${ESTILO_CAMPO};padding:6px 8px;width:auto"><option value="">— elige agente (en vivo) —</option>${P.filter(p=>p.disponibles>0).map(p=>`<option value="${p.id}">${esc(nomCorto(p.nombre))} · ${p.disponibles} ${p.disponibles===1?'tiro':'tiros'}</option>`).join('')}</select></span>`:''}</div>
+    ${puedo?`<div class="note" style="margin:8px 0"><b>Te ${yo.disponibles===1?'queda 1 tiro':'quedan '+yo.disponibles+' tiros'}</b>Toca un número libre para destaparlo.</div>`:''}
+    <div class="tb-grid">${N.map(n=>n.destapado?`<div class="tb-n dest ${n.premio>=200?'grande':''}" title="${esc(n.agente||'')}"><span style="font-size:11px;color:var(--txt-3)">${n.n}</span><b>${money(n.premio).replace('.00','')}</b><small>${esc(nomCorto(n.agente||''))}</small></div>`
+      :`<div class="tb-n libre ${puedo||S.direccion&&d.estatus==='publicada'?'puedo':''} ${T.revelado?'rev':''}" data-n="${n.n}">${n.n}${T.revelado&&n.premio!=null?`<small>${money(n.premio).replace('.00','')}</small>`:''}</div>`).join('')}</div>
+    ${jefe?`<div class="tv-h" style="margin-top:18px"><b>Cómo van</b><span>${P.filter(p=>p.activadas>=T.umbral).length} ya tiran · ${P.filter(p=>p.bono).length} con bono</span></div>
+      <div class="tw"><table><thead><tr><th>Agente</th><th class="num">Vendidas</th><th class="num">Activadas</th><th class="num">Tiros</th><th class="num">Premios</th><th>Bono</th></tr></thead><tbody>
+      ${P.map(p=>`<tr><td><b style="font-size:13px">${esc(nomCorto(p.nombre))}</b></td><td class="num">${p.vendidas}</td><td class="num"><b>${p.activadas}</b>${p.activadas<T.umbral?` <small style="color:var(--txt-3)">(faltan ${T.umbral-p.activadas})</small>`:''}</td>
+        <td class="num">${p.usados}/${p.tiros}${p.disponibles?` <span class="p p-ok" style="font-size:10.5px">${p.disponibles} por usar</span>`:''}</td><td class="num">${p.premios?money(p.premios):'—'}</td><td>${p.bono?'🏆 '+money(p.bono_monto):p.activadas>=T.umbral?`a ${T.bono_meta-p.activadas}`:'—'}</td></tr>`).join('')||'<tr><td colspan="6"><div class="empty">Todavía no hay ventas de esta semana.</div></td></tr>'}</tbody></table></div>`:''}
+  </div>`;
+  const img=el.querySelector('.din-img'); if(img) img.onclick=()=>{ const w=window.open(); if(w){ w.document.write(`<body style="margin:0;background:#111;display:flex;justify-content:center"><img src="${d.imagen}" style="max-width:100%;height:auto">`); } };
+  el.querySelectorAll('.tb-n.libre.puedo').forEach(b=>b.onclick=async()=>{
+    const n=Number(b.dataset.n), por=S.direccion?($('#tb-por')?.value||''):'';
+    if(S.direccion&&!por) return toast('Elige primero a qué agente le toca el tiro.','bad');
+    const quien=por?nomCorto((P.find(p=>String(p.id)===por)||{}).nombre||''):'';
+    if(!confirm(`¿Destapar el número ${n}${quien?' para '+quien:''}? No se puede deshacer.`)) return;
+    const {data:r,error:e}=await sb.rpc('tablero_destapar',por?{p_id:d.id,p_numero:n,p_empleado:Number(por)}:{p_id:d.id,p_numero:n});
+    if(e) return toast(e.message,'bad');
+    b.classList.add('dest'); b.innerHTML=`<span style="font-size:11px">${n}</span><b>${money(r.premio).replace('.00','')}</b>`;
+    toast(`🎉 El ${n} tenía ${money(r.premio)}${r.restantes>0?` · te ${r.restantes===1?'queda 1 tiro':'quedan '+r.restantes+' tiros'}`:''}`,'ok');
+    setTimeout(()=>pintarTablero(el,d,jefe,dias),1600); });
+  const ver=el.querySelector('#tb-ver'); if(ver) ver.onclick=async()=>{
+    const txt=(T.texto_sellado||'')+'|'+(T.clave||''), buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(txt));
+    const h=[...new Uint8Array(buf)].map(x=>x.toString(16).padStart(2,'0')).join(''), ok=h===T.sello;
+    $('#tb-ver-r').innerHTML=ok?'<b style="color:var(--ok)">✓ Coincide: el tablero no se movió desde el inicio.</b>':'<b style="color:var(--bad)">✗ No coincide.</b>'; };
+  el.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>editarDinamica(d.id));
+  el.querySelectorAll('[data-pub]').forEach(b=>b.onclick=async()=>{ if(!confirm('¿Publicar? A cada agente le llega el aviso.')) return;
+    const {data,error}=await sb.rpc('publicar_incentivo',{p_id:d.id}); if(error) return toast(error.message,'bad'); toast(`Publicada. Se avisó a ${data} agentes.`,'ok'); vistaDinamicas(); });
+  el.querySelectorAll('[data-cer]').forEach(b=>b.onclick=async()=>{ if(!confirm('¿Cerrar? Se congelan los premios destapados y los bonos, entran a la revisión de comisiones y se revela el tablero completo.')) return;
+    const {data,error}=await sb.rpc('cerrar_tablero',{p_id:d.id}); if(error) return toast(error.message,'bad'); toast(`Cerrada: ${data} con premio.`,'ok'); vistaDinamicas(); });
+  el.querySelectorAll('[data-can]').forEach(b=>b.onclick=async()=>{ if(!confirm('¿Cancelar la dinámica? Nadie cobra.')) return;
+    const {error}=await sb.rpc('cancelar_incentivo',{p_id:d.id}); if(error) return toast(error.message,'bad'); vistaDinamicas(); });
+}
 /* ---------- Imagen de avance para WhatsApp (1080 × 1350) ---------- */
 async function imagenDinamica(d,A){
   const P=(A.personas||[]).slice(), niv=d.tipo==='niveles', N=(d.niveles||[]).slice().sort((a,b)=>a.desde-b.desde);
@@ -12845,7 +12929,7 @@ function pintarDinamicaNiveles(el,d,A,jefe,yo,dias,errAv=''){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v93';
+const VERSION_APP='v94';
 window.addEventListener('beforeunload',e=>{ if(S&&S.ventaSucia){ e.preventDefault(); e.returnValue=''; } });
 async function revisarVersion(){
   try{
