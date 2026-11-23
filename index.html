@@ -10009,7 +10009,7 @@ async function vistaVentasReg(){
   <div class="head"><div><h1>Ventas</h1><p>${papel==='agente'?'Registra cada venta con su folio, DN y PT en cuanto la captures en Global. Lo que no se registra aquí no cuenta para tu meta ni para tu comisión.'
       :papel==='factura'?'Ventas entregadas: valida, activa en Global, factura en ASD y reprograma en AVS para completarlas.'
       :'Dónde va cada venta y quién la tiene. Cada área mueve solo su etapa; los reportes de Global confirman.'}</p></div>
-    <div class="acts">${papel==='agente'?'<button class="btn btn-p" id="vr-nueva">+ Registrar venta</button>':''}</div></div>
+    <div class="acts">${['agente','mesa','direccion'].includes(papel)?'<button class="btn btn-p" id="vr-nueva">+ Registrar venta</button>':''}</div></div>
   ${aviso||''}
   ${pend.length?`<div class="note" style="margin-bottom:14px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">Tienes ${pend.length} venta${pend.length===1?'':'s'} que necesita${pend.length===1?'':'n'} algo de ti</b>
      ${pend.map(x=>esc(x.folio||'')+' · '+esc(x.estatus==='regresada'?'corrige: '+(x.motivo||''):x.evid_rechazo?'vuelve a subir la evidencia: '+x.evid_rechazo:'ya se entregó: sube la evidencia con la etiqueta')).join('<br>')}</div>`:''}
@@ -10100,9 +10100,10 @@ async function cotizarHubCP(cp,edo,mun,equipo){
   return {edo,mun,C:data||[]};
 }
 function tablaHubsHTML(C,real){
-  const inv=C.some(x=>x.con_inventario), sug=C.find(x=>x.sugerido), ideal=C.find(x=>x.ideal&&x.permitido);
+  const inv=C.some(x=>x.con_inventario), sug=C.find(x=>x.sugerido), perm=C.filter(x=>x.permitido), min=perm.length?Math.min(...perm.map(x=>Number(x.costo))):null,
+        ideal=perm.find(x=>Number(x.costo)===min);
   return `<div style="font-size:13.5px;margin-bottom:8px">${sug?`Debe salir de <b style="color:var(--ok)">${esc(sug.nombre)} (${sug.hub})</b> · ${money(sug.costo)}`:'<b style="color:var(--bad)">Ningún hub permitido tiene existencia.</b>'}
-      ${sug&&ideal&&sug.hub!==ideal.hub?` <small style="color:var(--warn)">El más barato es ${ideal.hub}, pero ${inv?'no tiene existencia':'no aplica'}.</small>`:''}</div>
+      ${sug&&ideal&&Number(sug.costo)>min?` <small style="color:var(--warn)">El más barato es ${ideal.hub} (${money(min)}), pero no tiene existencia.</small>`:sug&&perm.filter(x=>Number(x.costo)===min).length>1?` <small style="color:var(--txt-3)">Empatan ${perm.filter(x=>Number(x.costo)===min).map(x=>x.hub).join(', ')}; sale de ${sug.hub}.</small>`:''}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">${C.map(x=>`<span class="p ${x.sugerido?'p-ok':x.hub===real?'p-bad':''}" title="${x.permitido?'':'Tijuana solo entrega en Baja California'}" style="font-size:12px;${x.permitido?'':'opacity:.45;text-decoration:line-through'}">${x.hub} · zona ${esc(x.zona||'')} · ${money(x.costo)}${inv?` · ${x.existencia>0?x.existencia+' pzas':'sin existencia'}`:''}${x.hub===real?' · sale de aquí':''}</span>`).join('')}</div>
     <div style="font-size:11.5px;color:var(--txt-3);margin-top:6px">${inv?'Con el inventario de hubs cargado hoy.':'Sin inventario de hubs cargado: se sugiere el más barato. Empate → Puebla.'} Tijuana solo entrega en Baja California.</div>`;
 }
@@ -10191,9 +10192,14 @@ async function abrirVentaReg(id){
 
   // ---- Registro nuevo: solo folio, DN y PT
   if(!id){
-    $('#main').innerHTML=`<div class="head"><div><h1>Registrar venta</h1><p>Captúrala primero en AVS y en Global. Aquí solo van el folio, el DN y el PT; tu nombre y la fecha se ponen solos.</p></div>
+    const aNombre=['mesa','direccion'].includes(papel);
+    let agentes=[];
+    if(aNombre){ const {data:ag}=await sb.from('empleados').select('id,nombre_completo,puestos(clave)').eq('estatus','activo').order('nombre_completo');
+      agentes=(ag||[]).filter(e=>['EJEC','SUP'].includes(e.puestos?.clave)); }
+    $('#main').innerHTML=`<div class="head"><div><h1>Registrar venta</h1><p>${aNombre?'Registra la venta a nombre del agente que la hizo (si él no pudo). Queda en el historial que la registraste tú.':'Captúrala primero en AVS y en Global. Aquí solo van el folio, el DN y el PT; tu nombre y la fecha se ponen solos.'}</p></div>
       <div class="acts"><button class="btn" id="vf-volver">← Ventas</button></div></div>
       ${sec('Datos de la venta',`<div style="${g3}">
+        ${aNombre?`<div><label>Agente</label><select id="rf-emp" style="${ESTILO_CAMPO}"><option value="">Elegir agente…</option>${agentes.map(a=>`<option value="${a.id}">${esc(a.nombre_completo)}</option>`).join('')}</select><small style="font-size:11.5px;color:var(--txt-3)">A nombre de quién va la venta.</small></div>`:''}
         <div><label>Folio del contrato</label><input id="rf-folio" inputmode="numeric" maxlength="12" placeholder="4100714005" style="${ESTILO_CAMPO}"><small style="font-size:11.5px;color:var(--txt-3)">10 dígitos. Si trae A al final, va sin ella. No es el DN.</small></div>
         <div><label>DN</label><input id="rf-dn" inputmode="numeric" maxlength="14" placeholder="5512345678" style="${ESTILO_CAMPO}"><small style="font-size:11.5px;color:var(--txt-3)">El número del cliente, 10 dígitos.</small></div>
         <div><label>PT de Global</label><input id="rf-pt" maxlength="10" placeholder="PT25642" style="${ESTILO_CAMPO};text-transform:uppercase"><small style="font-size:11.5px;color:var(--txt-3)">La programación que te dio Global.</small></div></div>
@@ -10203,8 +10209,10 @@ async function abrirVentaReg(id){
       const f=$('#rf-folio').value.replace(/\D/g,''), d=$('#rf-dn').value.replace(/\D/g,'');
       $('#rf-msg').innerHTML=f&&d&&f===d?'<b style="color:var(--bad)">El folio no puede ser igual al DN: revisa el contrato.</b>':''; }));
     $('#rf-ok').onclick=async()=>{
+      const emp=aNombre?Number($('#rf-emp').value)||null:null;
+      if(aNombre&&!emp) return toast('Elige a nombre de qué agente va la venta.','bad');
       const b=$('#rf-ok'); b.disabled=true;
-      const {data,error}=await sb.rpc('registrar_venta',{p_folio:$('#rf-folio').value,p_dn:$('#rf-dn').value,p_pt:$('#rf-pt').value});
+      const {data,error}=await sb.rpc('registrar_venta',{p_folio:$('#rf-folio').value,p_dn:$('#rf-dn').value,p_pt:$('#rf-pt').value,p_emp:emp});
       b.disabled=false;
       if(error) return toast(error.message,'bad');
       S.ventaSucia=false; toast('Venta registrada. Ya está con mesa de control.','ok'); abrirVentaReg(data);
@@ -10419,11 +10427,10 @@ async function buscaCP(cp){ _cpMod=_cpMod||await import('https://cdn.jsdelivr.ne
 
 /* ---------- Ventas en Global sin registro ---------- */
 async function pintarSinRegistro(c,SR){
-  if(!SR.length){ c.innerHTML='<div class="enorden"><span class="ico">✓</span><b>Todo registrado</b>Cada venta de Global desde el 17 de noviembre tiene su registro y todas las anteriores tienen agente.</div>'; return; }
+  if(!SR.length){ c.innerHTML='<div class="enorden"><span class="ico">✓</span><b>Todo registrado</b>Lo de hoy en adelante está registrado y todo lo anterior tiene agente.</div>'; return; }
   const {data:ag}=await sb.from('empleados').select('id,nombre_completo,puestos(clave)').eq('estatus','activo').order('nombre_completo');
   const agentes=(ag||[]).filter(e=>e.puestos?.clave==='EJEC'||e.puestos?.clave==='SUP');
-  c.innerHTML=`<div class="note" style="margin-bottom:12px"><b>Ventas que llegaron de Global sin que el agente las registrara</b>Asígnalas a su agente. Las hechas desde el 17 de noviembre quedan como "registro tardío" y el agente debe subir el expediente. Las anteriores ("Anterior · sin agente") solo toman el agente: no piden expediente.
-    ${new Date()>=new Date('2026-12-01T00:00:00')?'Desde el 1 de diciembre no cuentan para meta ni comisión hasta que el expediente se apruebe.':'Hasta el 30 de noviembre cuentan al asignarlas; desde el 1 de diciembre ya no, hasta que el expediente se apruebe.'}</div><div id="sr-l"></div>`;
+  c.innerHTML=`<div class="note" style="margin-bottom:12px"><b>Ventas de Global que no tienen agente o no se registraron</b><b style="font-weight:600">Anterior · sin agente</b>: ventas de antes del 23 de noviembre que no se sabe de quién son. Solo ponle el agente; no pasan por revisión.<br><b style="font-weight:600">En tránsito / Terminada</b>: ventas del 23 de noviembre en adelante que el agente no registró. Al asignarlas entran a Revisión como registro tardío.</div><div id="sr-l"></div>`;
   tablaPaginada($('#sr-l'),SR,`<th>Folio</th><th>Fecha</th><th>DN</th><th>Plan</th><th>Origen</th><th>Asignar a</th><th></th>`,
     x=>`<tr><td class="mono">${esc(x.folio||'')}<div style="font-size:11px;color:var(--txt-3)">${esc(x.programacion||'')}</div></td><td style="font-size:12.5px">${fecha(x.fecha_venta)}</td>
       <td class="mono" style="font-size:12.5px">${esc(x.telefono||'')}</td><td style="font-size:12.5px">${esc((x.plan||'').replace(/^ATT /,''))}</td>
@@ -12806,7 +12813,7 @@ function pintarDinamicaNiveles(el,d,A,jefe,yo,dias,errAv=''){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v96';
+const VERSION_APP='v97';
 window.addEventListener('beforeunload',e=>{ if(S&&S.ventaSucia){ e.preventDefault(); e.returnValue=''; } });
 async function revisarVersion(){
   try{
