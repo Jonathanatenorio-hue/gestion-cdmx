@@ -1454,8 +1454,8 @@ const S = {
 const MODULOS = [
   {id:'inicio',     n:'··', t:'Inicio',               lista:true, ver:'jefes'},
   {id:'calendario', n:'01b', t:'Calendario',           lista:true},
-  {id:'guia',       n:'00', t:'Cómo se usa',          lista:true, ver:'jefes'},
-  {id:'avisos',     n:'18', t:'Avisos al personal',   lista:true, ver:'rh'},
+  {id:'guia',       n:'00', t:'Cómo se usa',          lista:true, ver:'jefes', oculto:true},
+  {id:'avisos',     n:'18', t:'Avisos al personal',   lista:true, ver:'todos'},
   {id:'checar',     n:'13', t:'Checar',               lista:true, ver:'todos'},
   {id:'mificha',    n:'14', t:'Mi información',       lista:true, ver:'todos'},
   {id:'miasist',    n:'15', t:'Mi asistencia',        lista:true, ver:'todos'},
@@ -1542,7 +1542,9 @@ async function iniciar(){
   $('#login').style.display='none';
   $('#app').classList.add('on');
   $('#u-nom').textContent=perfil.nombre;
-  $('#u-rol').textContent=perfil.rol;
+  $('#u-rol').textContent=({director:'Dirección',admin:'Administración',coordinador:'Coordinador',supervisor:'Supervisor',agente:'Agente',administrativo:'Administrativo'})[perfil.rol]||perfil.rol;
+  if(perfil.empleado_id) sb.from('empleados').select('puestos(nombre)').eq('id',perfil.empleado_id).maybeSingle()
+    .then(({data})=>{ const n=data?.puestos?.nombre; if(n&&!['director','admin'].includes(perfil.rol)) $('#u-rol').textContent=n; }).catch(()=>{});
   $('#u-ava').textContent=iniciales(perfil.nombre)||'·';
   try{ const {data:pc}=await sb.rpc('mi_papel_caja'); S.cajaPapel=pc||null; }catch(e){ S.cajaPapel=null; }
   try{ const {data:pv}=await sb.rpc('mi_papel_ventas'); S.papelVentas=pv||null; }catch(e){ S.papelVentas=null; }
@@ -6711,7 +6713,7 @@ async function cruzarVentas(){
 /* ============================================================
    MÓDULO 98 — USUARIOS Y ACCESOS
    ============================================================ */
-const ROLES={director:'Dirección · ve y hace todo',admin:'Administración · dinero y nómina',
+const ROLES={director:'Dirección · ve y hace todo',admin:'Administración · dinero y nómina',administrativo:'Administrativo · solo lo suyo y su área',
   coordinador:'Coordinador · ve toda la operación',supervisor:'Supervisor · su equipo',
   agente:'Agente · solo sus ventas'};
 
@@ -8392,7 +8394,7 @@ function idDelTelefono(){
 async function vistaChecar(){
   $('#main').innerHTML='<div class="empty">Cargando…</div>';
   S.chTab = S.chTab || 'marcar';
-  const puedeVer = S.direccion || ['coordinador','supervisor'].includes(S.perfil?.rol);
+  const puedeVer = !esFacturacion() && (S.direccion || ['coordinador','supervisor'].includes(S.perfil?.rol));
 
   $('#main').innerHTML=`
   <div class="head">
@@ -9441,6 +9443,7 @@ const nomCorto=n=>{ n=String(n||'');
   return sel.map(cap).join(' '); };
 
 async function vistaTableroVentas(){
+  if(esFacturacion()) return vistaPanelFacturacion(false);
   const t=S.tv||(S.tv={per:'mes',mes:null,emp:null,empNom:null,sup:null});
   const esAg=S.perfil?.rol==='agente';
   const [desde,hasta,etiqueta]=rangoTablero(t);
@@ -10065,11 +10068,11 @@ async function vistaVentasReg(){
 async function pintarPendientesAnteriores(c,PA,papel,err){
   if(err){ c.innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(err.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 183.</span></div>`; return; }
   const t=S.vrPA||(S.vrPA={ver:'pend',sel:null});
-  const staff=['mesa','factura','direccion'].includes(papel), puedeActivar=['factura','direccion'].includes(papel), puedeAgente=['mesa','direccion'].includes(papel);
+  const staff=['mesa','factura','direccion'].includes(papel), puedeActivar=['factura','direccion'].includes(papel), puedeAgente=papel==='direccion';
   const pend=PA.filter(x=>!x.estado_final), act=PA.filter(x=>x.estado_final==='activada'), cai=PA.filter(x=>x.estado_final==='caida');
   const listas=PA.filter(x=>!x.estado_final&&/lista para activar|ya la trae activada/.test(x.situacion||''));
   let agentes=[];
-  if(puedeAgente&&pend.some(x=>!x.empleado_id)){ const {data:ag}=await sb.from('empleados').select('id,nombre_completo,puestos(clave)').eq('estatus','activo').order('nombre_completo');
+  if(puedeAgente){ const {data:ag}=await sb.from('empleados').select('id,nombre_completo,puestos(clave)').eq('estatus','activo').order('nombre_completo');
     agentes=(ag||[]).filter(e=>['EJEC','SUP'].includes(e.puestos?.clave)); }
   const F=t.ver==='pend'?pend:t.ver==='listas'?listas:PA;
   const cl=x=>x.estado_final==='activada'?'p-ok':x.estado_final==='caida'?'p-bad':/lista para activar|ya la trae/.test(x.situacion)?'p-warn':'p-teal';
@@ -10949,7 +10952,12 @@ async function probarIP(){
 
 const esAgente = () => (S.perfil?.rol === 'agente');
 
+/* Facturación (Perla): solo lo suyo y su trabajo de ventas */
+const esFacturacion=()=>!S.direccion&&S.papelVentas==='factura';
+const MODS_FACTURACION=['inicio','calendario','avisos','checar','mificha','miasist','mispagos','ventas','tablero','caja'];
 function puedeVerModulo(m){
+  if(m.oculto) return false;   // "Cómo se usa": pendiente, se hará por rol al terminar el sistema
+  if(esFacturacion()) return MODS_FACTURACION.includes(m.id)&&(m.id!=='caja'||!!S.cajaPapel);
   if(m.ver==='caja')  return !!S.cajaPapel;
   if(m.ver==='ventasreg') return !!S.papelVentas;
   if(m.ver==='base') return !!S.papelBase;
@@ -11468,8 +11476,8 @@ async function pintarUbicacionOficina(){
    la misma pantalla que ellos. */
 async function pintarVerComo(dinero, recargar){
   const w=$('#vc-wrap'); if(!w) return;
-  const puede = dinero ? S.direccion : (S.direccion || S.rh || ['coordinador','supervisor'].includes(S.perfil?.rol));
-  if(!puede){ w.innerHTML=''; return; }
+  const puede = !esFacturacion() && (dinero ? S.direccion : (S.direccion || S.rh || ['coordinador','supervisor'].includes(S.perfil?.rol)));
+  if(!puede){ w.innerHTML=''; S.verComo=null; return; }
   if(!S.listaVerComo){
     const {data}=await sb.from('empleados').select('id,nombre_completo')
       .eq('estatus','activo').eq('tipo_registro','empleado').order('nombre_completo');
@@ -11641,9 +11649,77 @@ async function revisarAvisos(){
   };
 }
 
+/* Avisos para quien no los administra: solo los dirigidos a mí */
+async function vistaMisAvisos(){
+  const {data,error}=await sb.rpc('mis_avisos_todos');
+  if(error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 184.</span></div>`; return; }
+  const L=data||[], f=d=>d?new Date(d+'T12:00:00').toLocaleDateString('es-MX',{day:'numeric',month:'short'}):'';
+  $('#main').innerHTML=`<div class="head"><div><h1>Mis avisos</h1><p>Los avisos que dirección o Personal te mandaron a ti.</p></div></div>
+    ${!L.length?'<div class="empty"><b>No tienes avisos</b>Cuando te manden uno te aparece al entrar y aquí queda guardado.</div>'
+      :L.map(a=>`<div class="tw" style="padding:16px 20px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div><h3 style="margin:0;font-size:15px">${esc(a.titulo)}</h3><div style="font-size:12px;color:var(--txt-2);margin-top:3px">Desde ${f(a.desde)}${a.hasta?' hasta '+f(a.hasta):''}</div></div>
+        <div>${a.enterado_en?`<span class="p p-ok">Enterado · ${fh(a.enterado_en)}</span>`:`<button class="btn btn-p" data-ent="${a.id}">Enterado</button>`}</div></div>
+        <div style="font-size:13.5px;margin-top:10px;white-space:pre-wrap">${esc(a.cuerpo||'')}</div></div>`).join('')}`;
+  document.querySelectorAll('[data-ent]').forEach(b=>b.onclick=async()=>{ b.disabled=true;
+    const {error}=await sb.rpc('dar_enterado',{p_aviso:Number(b.dataset.ent)}); if(error){ b.disabled=false; return toast(error.message,'bad'); } vistaMisAvisos(); });
+}
+
+/* Panel de facturación (Perla): lo que completó en el mes contra los reportes, y lo que tiene pendiente */
+async function vistaPanelFacturacion(esInicio){
+  $('#main').innerHTML='<div class="empty">Cargando…</div>';
+  const t=S.pf||(S.pf={mes:hoyMexico().slice(0,7)});
+  const [rv,rp,cv]=await Promise.all([
+    traerTodo(()=>sb.from('v_ventas_registro').select('id,folio,agente,estatus,etapa,previa,facturada_en,facturada_por,conf_venta,conf_nota,no_cuadra,entregada_en,envio_tipo').order('id')),
+    sb.from('v_pendientes_anteriores').select('*'),
+    sb.rpc('global_ultima_carga',{p_tipo:'ventas'})
+  ]);
+  if(rv.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(rv.error.message)}</div>`; return; }
+  const V=rv.data||[], PA=rp.error?[]:(rp.data||[]), yo=S.perfil?.id, mes=t.mes;
+  const enMes=d=>d&&diaMX(d).slice(0,7)===mes;
+  const F=V.filter(x=>!x.previa&&x.estatus==='facturada'&&enMes(x.facturada_en)&&(!yo||x.facturada_por===yo||!x.facturada_por));
+  const FA=PA.filter(x=>x.resultado==='activada'&&enMes(x.resuelta_en)&&(!yo||x.resuelta_por===yo||!x.resuelta_por));
+  const okF=F.filter(x=>x.conf_venta==='ok'), malF=F.filter(x=>x.conf_venta==='falla'), espF=F.filter(x=>!x.conf_venta);
+  const okA=FA.filter(x=>x.terminada_global||x.venta_codigo), espA=FA.filter(x=>!(x.terminada_global||x.venta_codigo));
+  const total=F.length+FA.length, enRep=okF.length+okA.length, dif=malF.length, espera=espF.length+espA.length;
+  const vivos=V.filter(x=>!x.previa);
+  const etapa=(l,n,tab,nota)=>`<button class="kpi" data-ir-tab="${tab}" style="text-align:left;cursor:pointer;border:1px solid var(--line)"><span>${l}</span><b>${n}</b>${nota?`<small>${nota}</small>`:''}</button>`;
+  const pendAnt=PA.filter(x=>!x.estado_final), listasAnt=pendAnt.filter(x=>/lista para activar|ya la trae/.test(x.situacion||''));
+  const meses=[...Array(4)].map((_,i)=>{ const h=hoyMexico(), d=new Date(Number(h.slice(0,4)),Number(h.slice(5,7))-1-i,15); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); });
+  const nomMes=m=>new Date(m+'-15T12:00:00').toLocaleDateString('es-MX',{month:'long',year:'numeric'});
+  $('#main').innerHTML=`<div class="head"><div><h1>${esInicio?'Hola, '+esc((S.perfil?.nombre||'').split(' ')[0]):'Tablero de facturación'}</h1>
+      <p>Lo que completaste contra lo que traen los reportes de Global, y lo que tienes pendiente.</p></div>
+      <div class="acts"><select id="pf-mes" style="${ESTILO_CAMPO};width:auto">${meses.map(m=>`<option value="${m}" ${m===mes?'selected':''}>${nomMes(m)}</option>`).join('')}</select></div></div>
+    <h3 style="font-size:14px;margin:4px 0 10px">Lo que te toca ahora</h3>
+    <div class="kpis">
+      ${etapa('Entregadas · por completar',vivos.filter(x=>x.estatus==='entregada').length,'cerrar','tu bandeja del flujo nuevo')}
+      ${etapa('Pendientes anteriores',pendAnt.length,'pendant',`${listasAnt.length} listas para activar`)}
+      ${etapa('No cuadra con Global',vivos.filter(x=>x.no_cuadra&&x.estatus==='facturada').length,'nocuadra','completadas que el reporte no trae')}</div>
+    <h3 style="font-size:14px;margin:18px 0 10px">Dónde van las demás <small style="font-weight:400;color:var(--txt-3)">(no te tocan todavía)</small></h3>
+    <div class="kpis">
+      <div class="kpi"><span>2 · Revisión</span><b>${vivos.filter(x=>x.estatus==='en_revision').length}</b><small>Itzel</small></div>
+      <div class="kpi"><span>3 · Back Office</span><b>${vivos.filter(x=>x.estatus==='aprobada').length}</b><small>Itzel</small></div>
+      <div class="kpi"><span>4 · En ruta</span><b>${vivos.filter(x=>x.estatus==='en_global').length}</b><small>DHL / ruta interna</small></div></div>
+    <h3 style="font-size:14px;margin:18px 0 10px">${esc(nomMes(mes))}: tú contra los reportes</h3>
+    <div class="kpis">
+      <div class="kpi t"><span>Completadas por ti</span><b>${total}</b><small>${F.length} del flujo nuevo · ${FA.length} anteriores</small></div>
+      <div class="kpi"><span>En el reporte de Ventas</span><b>${enRep}</b><small>terminadas en Global</small></div>
+      <div class="kpi ${dif?'bad':'t'}"><span>Diferencia</span><b>${dif}</b><small>${dif?'completadas que Global no trae terminadas':'cuadra'}</small></div>
+      <div class="kpi"><span>Por confirmar</span><b>${espera}</b><small>${cv.data?'falta el reporte del día siguiente · última carga '+fh(cv.data):'no se ha cargado el reporte de Ventas'}</small></div></div>
+    ${dif?`<div class="tile w12" style="cursor:default;transform:none;margin-top:14px;border-color:var(--bad)"><div class="tv-h"><b>No cuadran: las marcaste completadas y Global no las trae terminadas</b></div>
+      ${malF.map(x=>`<div data-vr="${x.id}" style="cursor:pointer;padding:8px 0;border-top:1px solid var(--line);font-size:13px"><b class="mono">${esc(x.folio||'')}</b> · ${esc(nomCorto(x.agente||''))} · completada ${fh(x.facturada_en)}</div>`).join('')}</div>`:''}
+    ${total?`<details style="margin-top:14px"><summary style="cursor:pointer;font-size:13px">Ver las ${total} que completaste en ${esc(nomMes(mes))}</summary><div class="tw" style="margin-top:8px"><table><thead><tr><th>Folio</th><th>Agente</th><th>Completada</th><th>Reporte de Ventas</th></tr></thead><tbody>
+      ${F.map(x=>`<tr data-vr="${x.id}" style="cursor:pointer"><td class="mono">${esc(x.folio||'')}</td><td style="font-size:12.5px">${esc(nomCorto(x.agente||''))}</td><td style="font-size:12.5px">${fh(x.facturada_en)}</td><td>${x.conf_venta==='ok'?'<span class="p p-ok">✓ terminada</span>':x.conf_venta==='falla'?'<span class="p p-bad">✕ no la trae</span>':'<span class="p">⏳ por confirmar</span>'}</td></tr>`).join('')}
+      ${FA.map(x=>`<tr><td class="mono">${esc(x.folio)} <span class="p" style="font-size:10.5px">anterior</span></td><td style="font-size:12.5px">${esc(nomCorto(x.agente||''))}</td><td style="font-size:12.5px">${fh(x.resuelta_en)}</td><td>${x.terminada_global||x.venta_codigo?'<span class="p p-ok">✓ activa en Global</span>':'<span class="p">⏳ por confirmar</span>'}</td></tr>`).join('')}
+      </tbody></table></div></details>`:''}`;
+  $('#pf-mes').onchange=e=>{ t.mes=e.target.value; vistaPanelFacturacion(esInicio); };
+  document.querySelectorAll('[data-ir-tab]').forEach(b=>b.onclick=()=>{ S.vr={tab:b.dataset.irTab,q:''}; irA('ventas'); });
+  document.querySelectorAll('[data-vr]').forEach(el=>el.onclick=()=>{ vistaActual='ventas'; pintarNav(); abrirVentaReg(Number(el.dataset.vr)); });
+}
+
 async function vistaAvisos(){
   $('#main').innerHTML='<div class="empty">Cargando…</div>';
-  const puede = S.direccion || S.rh;
+  const puede = (S.direccion || S.rh) && !esFacturacion();
+  if(!puede) return vistaMisAvisos();
   const {data,error}=await sb.from('v_avisos_acuses').select('*');
   if(error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(error.message)}<br><span style="font-size:12.5px">Si dice que falta una columna, corre el SQL 129.</span></div>`; return; }
   const grupos={}, orden=[];
@@ -12879,7 +12955,7 @@ function pintarDinamicaNiveles(el,d,A,jefe,yo,dias,errAv=''){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v99';
+const VERSION_APP='v101';
 window.addEventListener('beforeunload',e=>{ if(S&&S.ventaSucia){ e.preventDefault(); e.returnValue=''; } });
 async function revisarVersion(){
   try{
@@ -13062,6 +13138,7 @@ function vigilarMain(){
    INICIO EJECUTIVO
    ============================================================ */
 async function vistaInicio(){
+  if(esFacturacion()) return vistaPanelFacturacion(true);
   $('#main').innerHTML='<div class="empty">Cargando…</div>';
   const dir=S.direccion, hoy=hoyMexico();
   const seguro=q=>Promise.resolve(q).then(r=>r&&r.error?null:(r?r.data:null)).catch(()=>null);
