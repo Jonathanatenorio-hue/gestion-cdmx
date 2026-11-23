@@ -460,7 +460,7 @@ main>.tabs button.on{background:var(--card);color:var(--txt);box-shadow:0 1px 3p
 .cargando{opacity:.6;pointer-events:none}
 
 /* ---------- Línea del tiempo de la venta ---------- */
-.vt{list-style:none;margin:6px 0 0;padding:0;display:grid;grid-template-columns:repeat(8,1fr);gap:0}
+.vt{list-style:none;margin:6px 0 0;padding:0;display:grid;grid-template-columns:repeat(6,1fr);gap:0}
 .vt li{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding-right:10px}
 .vt li:before{content:'';position:absolute;top:13px;left:28px;right:0;height:2px;background:var(--line)}
 .vt li:last-child:before{display:none}
@@ -9902,17 +9902,54 @@ const DOCS_VENTA=[
   ['evidencia_entrega','Evidencia de entrega','pdfimg']
 ];
 const CHECK_MESA=[
-  ['folio','El folio registrado coincide con el del contrato firmado'],
-  ['contrato','Contrato completo y firmado'],
-  ['pago','Pago inicial: el comprobante coincide con el monto (o no lleva pago)'],
-  ['ine','INE vigente y legible, coincide con el cliente'],
-  ['direccion','Dirección completa (calle, número, colonia, CP, referencias) y teléfono de contacto'],
-  ['plan_equipo','Plan, plazo y equipo exactos (marca, modelo, capacidad, color y tipo de SIM)'],
-  ['renovacion','Si es renovación: la línea es viable por fecha de última cuota (si no aplica, márcalo)']
+  ['equipo','Equipo con existencia y el mismo modelo en AVS, Global, contrato y mensaje de confirmación'],
+  ['hub','Sale del hub DHL sugerido (o el motivo está registrado arriba)'],
+  ['folio','El folio coincide en AVS y en el contrato'],
+  ['ine','INE legible: sin tachaduras ni recortes, en fondo claro y plano'],
+  ['contrato_firmado','Contrato firmado'],
+  ['contrato_blanco','Contrato en blanco'],
+  ['nombre_rfc','Nombre y RFC correctos e iguales en contrato, Global y AVS'],
+  ['confirmacion','Mensaje de confirmación del cliente'],
+  ['pago','Comprobante de pago (si lleva pago inicial)'],
+  ['resumen','Resumen de servicios'],
+  ['buro','Carta buró']
 ];
-const TIPO_VENTA={linea_nueva:'Línea nueva',portabilidad:'Portabilidad',renovacion:'Renovación'};
-const ETAPA_CLASE=e=>/Terminada|Facturada/.test(e)?'p-ok':/Rechazada|Cancelada|falta evidencia|Regresada|Falta expediente/.test(e)?'p-bad':/revisión|Por capturar|Por facturar/.test(e)?'p-warn':/Borrador/.test(e)?'':'p-teal';
+const CHECK_PERLA=[
+  ['evidencia','La evidencia es correcta: el cliente recibió y la guía de la etiqueta coincide'],
+  ['activada_global','Activada en Global'],
+  ['facturada_asd','Facturada en ASD'],
+  ['reprogramada_avs','Línea reprogramada en AVS']
+];
+const MOTIVOS_HUB=['Sin existencia en el hub sugerido','El cliente pidió que saliera de ahí','Ya estaba capturada y no se pudo cambiar','Otro'];
+const HUBS_DHL=['CDMX','TOL','PUE','GDL','MTY','VER','TIJ'];
+const ETAPA_CLASE=e=>/Completada/.test(e)?'p-ok':/Caída|Rechazada|corregir|rechazada/.test(e)?'p-bad':/Revisión|Back Office/.test(e)?'p-warn':/Nuevo/.test(e)?'':'p-teal';
 const fh=t=>t?new Date(t).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+const RESP_TXT=v=>({agente:'Agente · '+nomCorto(v.agente||''),mesa:'Mesa de control',ruta:'Ruta interna'+(v.turno_ruta?' · '+v.turno_ruta:''),factura:'Facturación',global:'Global (que la termine)'})[v.responsable]||'';
+const hace=t=>{ if(!t) return ''; const m=Math.max(0,(Date.now()-new Date(t))/60000); return m<60?Math.round(m)+' min':m<1440?Math.round(m/60)+' h':Math.round(m/1440)+' d'; };
+const diaMX=t=>t?new Date(t).toLocaleDateString('en-CA',{timeZone:'America/Mexico_City'}):'';
+
+/* Candados: lo que la plataforma dice contra lo que dicen los reportes de Global */
+const CANDADOS=[
+  ['conf_pt','pt','PT','El PT existe en el Detalle con el mismo folio',v=>!!v.id&&!['rechazada','cancelada'].includes(v.estatus)],
+  ['conf_bo','bo','Back Office','El Detalle la trae en Back Office o más adelante',v=>['aprobada','en_global','entregada','facturada'].includes(v.estatus)],
+  ['conf_guia','guia','Guía','La guía del Detalle es la que capturó mesa',v=>v.envio_tipo==='dhl'&&['en_global','entregada','facturada'].includes(v.estatus)],
+  ['conf_venta','venta','Terminada','El reporte de Ventas la trae terminada',v=>v.estatus==='facturada']
+];
+function candadosChips(v,chico){
+  return CANDADOS.filter(c=>c[4](v)).map(([k,n,l,d])=>{ const s=v[k], nota=(v.conf_nota||{})[n];
+    const [ic,cl,tt]=s==='ok'?['✓','p-ok','Cuadra con Global']:s==='falla'?['✕','p-bad',nota||'No cuadra con Global']:['⏳','','Falta que cargue el reporte del día siguiente'];
+    return `<span class="p ${cl}" title="${esc(l+': '+tt)}" style="font-size:${chico?'10.5px':'12px'};${chico?'padding:1px 6px':''}">${ic} ${l}</span>`; }).join(' ');
+}
+function candadosHTML(v){
+  const C=CANDADOS.filter(c=>c[4](v));
+  if(!C.length) return '';
+  return `<div class="tile w12" style="cursor:default;transform:none${v.no_cuadra?';border-color:var(--bad)':''}"><div class="tv-h"><b>¿Cuadra con Global?</b><span>Los reportes confirman; no mueven la venta</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">${C.map(([k,n,l,d])=>{ const s=v[k], nota=(v.conf_nota||{})[n];
+      return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;${s==='falla'?'background:var(--bad-l);border-color:var(--bad)':''}">
+        <b style="font-size:13px">${s==='ok'?'<span style="color:var(--ok)">✓</span>':s==='falla'?'<span style="color:var(--bad)">✕</span>':'⏳'} ${l}</b>
+        <div style="font-size:12px;color:${s==='falla'?'var(--bad)':'var(--txt-3)'};margin-top:3px">${esc(s==='falla'?(nota||'No cuadra con Global'):s==='ok'?d:'Se confirma con el reporte del día siguiente')}</div></div>`; }).join('')}</div>
+    ${v.terminada_folio?`<div style="font-size:12.5px;color:var(--warn);margin-top:10px">Global la terminó con <b>otro folio: ${esc(v.terminada_folio)}</b> (mismo DN). Revisa con el agente cuál es el bueno.</div>`:''}</div>`;
+}
 
 async function papelVentas(){
   if(S.papelVentas!==undefined) return S.papelVentas;
@@ -9920,82 +9957,96 @@ async function papelVentas(){
   return S.papelVentas;
 }
 
+/* ¿Ya se cargaron los reportes de Global de hoy? */
+async function avisoReportesGlobal(){
+  try{
+    const [d,v]=await Promise.all([sb.rpc('global_ultima_carga',{p_tipo:'detalle'}),sb.rpc('global_ultima_carga',{p_tipo:'ventas'})]);
+    const hoy=hoyMexico(), F=[['Detalle de programación',d.data],['Ventas',v.data]].filter(([,t])=>!t||diaMX(t)<hoy);
+    if(!F.length) return '';
+    return `<div class="note" style="margin-bottom:14px;background:var(--warn-l);border-color:var(--warn-line)"><b>Falta cargar hoy: ${F.map(x=>x[0]).join(' y ')}</b>
+      ${F.map(([l,t])=>`${l}: ${t?'última carga '+fh(t):'nunca se ha cargado'}`).join(' · ')}. Sin el reporte del día, los candados se quedan en ⏳ y no se detectan caídas, reprogramadas ni entregas de ruta interna.</div>`;
+  }catch(e){ return ''; }
+}
+
 async function vistaVentasReg(){
   $('#main').innerHTML='<div class="empty">Cargando…</div>';
   const papel=await papelVentas();
   if(!papel){ $('#main').innerHTML='<div class="empty"><b>Sin acceso</b>Tu puesto no registra ni revisa ventas.</div>'; return; }
   const tabs={
-    agente:   [['mias','Mis ventas']],
-    jefe:     [['todas','Ventas de mi equipo']],
-    mesa:     [['revisar','Por revisar'],['capturar','Por capturar en Global'],['logistica','En logística'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas']],
-    factura:  [['facturar','Por facturar'],['todas','Todas']],
-    direccion:[['revisar','Por revisar'],['capturar','Por capturar en Global'],['logistica','En logística'],['facturar','Por facturar'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['cierre','Cierre de expedientes'],['equipos','Lista de precios']]
+    agente:   [['mias','Mis ventas'],['calc','Calculadora DHL']],
+    jefe:     [['todas','Ventas de mi equipo'],['calc','Calculadora DHL']],
+    mesa:     [['revisar','Revisión'],['bo','Back Office'],['ruta','En ruta'],['nocuadra','No cuadra'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['calc','Calculadora DHL']],
+    factura:  [['cerrar','Entregadas · por cerrar'],['nocuadra','No cuadra'],['todas','Todas'],['calc','Calculadora DHL']],
+    direccion:[['revisar','Revisión'],['bo','Back Office'],['ruta','En ruta'],['cerrar','Entregadas'],['nocuadra','No cuadra'],['cuadre','Cuadre diario'],['dhl','Envíos DHL'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['calc','Calculadora DHL']]
   }[papel];
   const t=S.vr||(S.vr={tab:tabs[0][0],q:''});
   if(!tabs.some(x=>x[0]===t.tab)) t.tab=tabs[0][0];
+  const staff=['mesa','factura','direccion'].includes(papel);
 
-  const [rl,rs]=await Promise.all([
+  const [rl,rs,aviso]=await Promise.all([
     traerTodo(()=>sb.from('v_ventas_registro').select('*').order('actualizado_en',{ascending:false}).order('id')),
-    ['mesa','direccion'].includes(papel)?sb.from('v_global_sin_registro').select('*').order('fecha_venta',{ascending:false}):{data:[]}
+    ['mesa','direccion'].includes(papel)?sb.from('v_global_sin_registro').select('*').order('fecha_venta',{ascending:false}):{data:[]},
+    staff?avisoReportesGlobal():''
   ]);
   const err=[rl,rs].find(x=>x.error);
-  if(err){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(err.error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 151.</span></div>`; return; }
+  if(err){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(err.error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 178.</span></div>`; return; }
   const L=rl.data||[], SR=rs.data||[];
+  const vivas=x=>!['rechazada','cancelada'].includes(x.estatus);
   const filtro={
     mias:()=>L, todas:()=>L,
     revisar:()=>L.filter(x=>x.estatus==='en_revision').sort((a,b)=>new Date(a.enviado_en)-new Date(b.enviado_en)),
-    capturar:()=>L.filter(x=>x.estatus==='aprobada'),
-    logistica:()=>L.filter(x=>x.estatus==='en_global'),
-    facturar:()=>L.filter(x=>x.estatus==='en_global'&&x.con_evidencia)
+    bo:()=>L.filter(x=>x.estatus==='aprobada'&&!x.previa),
+    ruta:()=>L.filter(x=>x.estatus==='en_global'&&!x.previa),
+    cerrar:()=>L.filter(x=>x.estatus==='entregada').sort((a,b)=>new Date(a.entregada_en)-new Date(b.entregada_en)),
+    nocuadra:()=>L.filter(x=>x.no_cuadra&&vivas(x)),
+    dhl:()=>L.filter(x=>vivas(x)&&x.hub_real)
   };
-  const n=k=>k==='sinreg'?SR.length:(k==='cierre'||k==='salvan'||k==='equipos')?'':(filtro[k]?filtro[k]().length:0);
-  const atrasadas=L.filter(x=>x.estatus==='en_revision'&&x.minutos_en_revision>30).length;
-  const mias=papel==='agente'?L:[];
-  const pend=mias.filter(x=>['borrador','regresada','asignada'].includes(x.estatus)||(x.estatus==='en_global'&&!x.con_evidencia&&!x.previa));
+  const n=k=>['sinreg'].includes(k)?SR.length:['salvan','cuadre','calc'].includes(k)?'':(filtro[k]?filtro[k]().length:0);
+  const atrasadas=L.filter(x=>x.estatus==='en_revision'&&x.minutos_en_revision>60).length;
+  const pend=papel==='agente'?L.filter(x=>x.estatus==='regresada'||(x.estatus==='en_global'&&x.envio_tipo==='dhl'&&(x.evid_rechazo||x.envio_estatus==='Entregado'||x.envio_status==='Entregado'))):[];
 
   $('#main').innerHTML=`
-  <div class="head"><div><h1>Ventas</h1><p>${papel==='agente'?'Registra cada venta con su expediente completo. Lo que no se registra aquí no cuenta para tu meta ni para tu comisión.'
-      :papel==='factura'?'Ventas entregadas y con evidencia, listas para facturar y activar.'
-      :'Registro de ventas de los agentes: revisión, captura en Global, logística y facturación.'}</p></div>
-    <div class="acts">${['agente','mesa','direccion'].includes(papel)?'<button class="btn btn-p" id="vr-nueva">+ Registrar venta</button>':''}</div></div>
-  ${papel==='agente'&&pend.length?`<div class="note" style="margin-bottom:14px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">Tienes ${pend.length} venta${pend.length===1?'':'s'} que necesita${pend.length===1?'':'n'} algo de ti</b>
-     ${pend.map(x=>esc(x.folio||'borrador')+' · '+esc(x.estatus==='en_global'?'sube la evidencia de entrega':x.estatus==='regresada'?'corrige: '+(x.motivo||''):x.estatus==='asignada'?'sube su expediente':'termina de registrarla')).join('<br>')}</div>`:''}
-  ${atrasadas&&['mesa','direccion'].includes(papel)?`<div class="note" style="margin-bottom:14px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">${atrasadas} venta${atrasadas===1?'':'s'} con más de 30 minutos esperando revisión</b>Revísalas primero.</div>`:''}
+  <div class="head"><div><h1>Ventas</h1><p>${papel==='agente'?'Registra cada venta con su folio, DN y PT en cuanto la captures en Global. Lo que no se registra aquí no cuenta para tu meta ni para tu comisión.'
+      :papel==='factura'?'Ventas entregadas: valida, activa en Global, factura en ASD y reprograma en AVS para completarlas.'
+      :'Dónde va cada venta y quién la tiene. Cada área mueve solo su etapa; los reportes de Global confirman.'}</p></div>
+    <div class="acts">${papel==='agente'?'<button class="btn btn-p" id="vr-nueva">+ Registrar venta</button>':''}</div></div>
+  ${aviso||''}
+  ${pend.length?`<div class="note" style="margin-bottom:14px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">Tienes ${pend.length} venta${pend.length===1?'':'s'} que necesita${pend.length===1?'':'n'} algo de ti</b>
+     ${pend.map(x=>esc(x.folio||'')+' · '+esc(x.estatus==='regresada'?'corrige: '+(x.motivo||''):x.evid_rechazo?'vuelve a subir la evidencia: '+x.evid_rechazo:'ya se entregó: sube la evidencia con la etiqueta')).join('<br>')}</div>`:''}
+  ${atrasadas&&['mesa','direccion'].includes(papel)?`<div class="note" style="margin-bottom:14px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">${atrasadas} venta${atrasadas===1?'':'s'} con más de 1 hora esperando revisión</b>Revísalas primero.</div>`:''}
   <div class="tabs">${tabs.map(([k,l])=>`<button class="tab ${t.tab===k?'on':''}" data-vrt="${k}">${l}${n(k)!==''?` · ${n(k)}`:''}</button>`).join('')}</div>
   <div id="vr-cuerpo" style="margin-top:14px"></div>`;
 
   const c=$('#vr-cuerpo');
   if(t.tab==='sinreg') pintarSinRegistro(c,SR);
-  else if(t.tab==='cierre') pintarCierreExpedientes(c);
   else if(t.tab==='salvan') pintarSalvanFalta(c);
-  else if(t.tab==='equipos') pintarListaPrecios(c);
+  else if(t.tab==='dhl') pintarEnviosDHL(c,filtro.dhl());
+  else if(t.tab==='cuadre') pintarCuadreDiario(c,L);
+  else if(t.tab==='calc') pintarCalculadoraDHL(c);
   else {
     const filas=filtro[t.tab]();
-    c.innerHTML=`<details class="vr-ley"><summary>¿Qué significa cada etapa?</summary><div>
-        <p><b>Borrador</b> · el agente empezó a capturarla pero no la ha enviado. Mesa de control no la ve y no cuenta para nada.</p>
-        <p><b>En revisión</b> · el agente la subió completa; mesa de control tiene 30 minutos para revisarla.</p>
-        <p><b>Regresada para corregir</b> · mesa encontró algo mal; el agente corrige y la vuelve a enviar.</p>
-        <p><b>Por capturar en Global</b> · aprobada por mesa (back office). Ya cuenta como venta por entregar.</p>
-        <p><b>En logística</b> · ya está en Global con su PT; va el estatus de la programación.</p>
-        <p><b>Entregada · falta evidencia</b> · el agente debe subir la evidencia de entrega.</p>
-        <p><b>Por facturar</b> · entregada y con evidencia; facturación la activa.</p>
-        <p><b>Terminada</b> · Global ya la marca terminada: cuenta para meta, comisión y cobro.</p>
-        <p><span class="p p-warn">tardía</span> <b>Falta expediente (registro tardío)</b> · apareció en Global sin que el agente la registrara aquí; mesa se la asignó y el agente tiene que subir su expediente.</p>
-        <p><b>Venta previa</b> · venta de antes del 17-nov que ya iba en proceso: no pide expediente y sigue sola en logística.</p>
-        <p style="color:var(--txt-3)">Fecha de venta = cuando el agente la sube completa. Back office = cuando mesa de control la aprueba.</p></div></details>
-      <input type="search" id="vr-q" value="${esc(t.q)}" placeholder="Buscar folio, DN, cliente o agente" style="${ESTILO_CAMPO};margin-bottom:10px"><div id="vr-lista"></div>`;
-    const cab=`<th>Folio</th><th>Cliente</th>${papel!=='agente'?'<th>Agente</th>':''}<th>Plan y equipo</th><th>Etapa</th><th>Fecha de venta</th><th>${t.tab==='revisar'?'Esperando':'Back office'}</th>`;
+    c.innerHTML=`<details class="vr-ley"><summary>¿Cómo avanza una venta?</summary><div>
+        <p><b>1 · Nuevo</b> · el agente registra folio, DN y PT y pasa sola a revisión. Si mesa la regresa, vuelve aquí y el agente solo corrige folio, DN o PT.</p>
+        <p><b>2 · Revisión</b> · Itzel revisa en Global y AVS con el checklist y el hub DHL. La aprueba o la regresa con motivo.</p>
+        <p><b>3 · Back Office</b> · Itzel asigna series y captura la guía DHL (10 dígitos) o la ruta interna con su turno.</p>
+        <p><b>4 · En ruta</b> · DHL: cuando el cliente recibe, el agente sube la evidencia con la etiqueta y pasa a Entregada. Ruta interna: pasa sola cuando el Detalle de Global la trae entregada.</p>
+        <p><b>5 · Entregada</b> · Perla valida la evidencia (DHL), activa en Global, factura en ASD y reprograma en AVS.</p>
+        <p><b>6 · Completada</b> · fin. Cuenta para comisión cuando el reporte de Ventas la confirma terminada.</p>
+        <p style="color:var(--txt-3)">Los candados ✓ ⏳ ✕ comparan lo marcado aquí contra los reportes de Global del día siguiente. ✕ = no cuadra y avisa.</p></div></details>
+      <input type="search" id="vr-q" value="${esc(t.q)}" placeholder="Buscar folio, DN, PT, cliente o agente" style="${ESTILO_CAMPO};margin-bottom:10px"><div id="vr-lista"></div>`;
+    const cab=`<th>Folio · DN · PT</th><th>Cliente</th>${papel!=='agente'?'<th>Agente</th>':''}<th>Etapa</th><th>La tiene</th><th>Fecha de venta</th>`;
     const fila=x=>`<tr style="cursor:pointer" data-vr="${x.id}">
-      <td class="mono">${esc(x.folio||'—')}${x.registro_tardio?' <span class="p p-warn" title="Apareció en Global sin registro">tardía</span>':''}<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.dn||'')}</div></td>
-      <td style="font-size:12.5px">${esc(x.cliente||'')}</td>
+      <td class="mono">${esc(x.folio||'—')}${x.registro_tardio?' <span class="p p-warn" title="Apareció en Global sin registro">tardía</span>':''}<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.dn||'')}${x.pt?' · '+esc(x.pt):''}</div></td>
+      <td style="font-size:12.5px">${esc(x.cliente||x.global_cliente||'')}<div style="font-size:11.5px;color:var(--txt-3)">${esc(eqTexto(x)||x.global_equipo||'')}</div></td>
       ${papel!=='agente'?`<td style="font-size:12.5px;white-space:nowrap">${esc(nomCorto(x.agente||''))}</td>`:''}
-      <td style="font-size:12.5px">${esc((x.plan||'').replace(/^AT&T /,''))}<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.con_equipo?eqTexto(x):'Solo SIM')}</div></td>
-      <td><span class="p ${ETAPA_CLASE(x.etapa||'')}">${esc(x.etapa||'')}</span>${(()=>{ const h=pasosVenta(x).hechos; return `<div class="vt-mini" title="${h} de 8 pasos">${Array.from({length:8},(_,i)=>`<i class="${i<h?'ok':''}"></i>`).join('')}</div>`; })()}${x.motivo&&['regresada','rechazada','cancelada'].includes(x.estatus)?`<div style="font-size:11.5px;color:var(--bad);max-width:220px">${esc(x.motivo)}</div>`:''}</td>
-      <td style="font-size:12px;white-space:nowrap">${x.fecha_subida?fh(x.fecha_subida):`<span style="color:var(--txt-3)">${x.previa?'Venta previa':'Sin subir'}</span>`}</td>
-      <td style="font-size:12px;white-space:nowrap">${t.tab==='revisar'?`<b style="color:${x.minutos_en_revision>30?'var(--bad)':'inherit'}">${x.minutos_en_revision} min</b>`:x.fecha_back_office?fh(x.fecha_back_office):'<span style="color:var(--txt-3)">—</span>'}</td></tr>`;
+      <td><span class="p ${ETAPA_CLASE(x.etapa||'')}">${esc(x.etapa||'')}</span>${(()=>{ const h=pasosVenta(x).hechos; return `<div class="vt-mini" title="${h} de 6 etapas">${Array.from({length:6},(_,i)=>`<i class="${i<h?'ok':''}"></i>`).join('')}</div>`; })()}
+        <div style="margin-top:4px">${candadosChips(x,true)}</div>
+        ${x.motivo&&['regresada','rechazada','cancelada'].includes(x.estatus)?`<div style="font-size:11.5px;color:var(--bad);max-width:240px">${esc(x.motivo)}</div>`:''}${x.evid_rechazo?`<div style="font-size:11.5px;color:var(--bad);max-width:240px">Evidencia: ${esc(x.evid_rechazo)}</div>`:''}</td>
+      <td style="font-size:12px;white-space:nowrap">${x.responsable?`<b>${esc(RESP_TXT(x))}</b><div style="color:var(--txt-3)">${x.etapa_desde?'hace '+hace(x.etapa_desde):''}</div>`:'<span style="color:var(--txt-3)">—</span>'}</td>
+      <td style="font-size:12px;white-space:nowrap">${x.fecha_venta?fecha(x.fecha_venta):'—'}</td></tr>`;
     const pintar=()=>{ const q=t.q.trim().toLowerCase();
-      tablaPaginada($('#vr-lista'),q?filas.filter(x=>[x.folio,x.dn,x.cliente,x.agente,x.pt].join(' ').toLowerCase().includes(q)):filas,cab,fila,
-        {vacio:{revisar:'Nada por revisar.',capturar:'Nada por capturar.',facturar:'Nada por facturar.',logistica:'Nada en logística.'}[t.tab]||'Todavía no hay ventas registradas.',
+      tablaPaginada($('#vr-lista'),q?filas.filter(x=>[x.folio,x.dn,x.pt,x.cliente,x.global_cliente,x.agente].join(' ').toLowerCase().includes(q)):filas,cab,fila,
+        {vacio:{revisar:'Nada por revisar.',bo:'Nada en Back Office pendiente.',ruta:'Nada en ruta.',cerrar:'Nada entregado por cerrar.',nocuadra:'Todo cuadra con Global.'}[t.tab]||'Todavía no hay ventas registradas.',
          despues:el=>el.querySelectorAll('[data-vr]').forEach(tr=>tr.onclick=()=>abrirVentaReg(Number(tr.dataset.vr)))}); };
     let tm; $('#vr-q').oninput=e=>{ t.q=e.target.value; clearTimeout(tm); tm=setTimeout(pintar,180); };
     pintar();
@@ -10004,6 +10055,88 @@ async function vistaVentasReg(){
   if($('#vr-nueva')) $('#vr-nueva').onclick=()=>abrirVentaReg(null);
 }
 
+/* Cuadre diario: lo que se marcó contra lo que confirman los reportes */
+function pintarCuadreDiario(c,L){
+  const t=S.vrCuadre||(S.vrCuadre={dia:hoyMexico()});
+  const dias=[...new Set(L.filter(x=>!x.previa).map(x=>diaMX(x.fecha_subida||x.creado_en)).filter(Boolean))].sort().reverse();
+  if(dias.length&&!dias.includes(t.dia)) t.dia=dias[0];
+  const D=L.filter(x=>!x.previa&&diaMX(x.fecha_subida||x.creado_en)===t.dia);
+  const BO=x=>['aprobada','en_global','entregada','facturada'].includes(x.estatus);
+  const por={}; D.forEach(x=>{ (por[x.empleado_id]=por[x.empleado_id]||{n:x.agente,L:[]}).L.push(x); });
+  const cnt=(A,f)=>A.filter(f).length;
+  const celda=(marc,conf,falla)=>`${marc}${marc?` <small style="color:var(--txt-3)">· ${conf} ✓</small>${falla?` <b style="color:var(--bad)">· ${falla} ✕</b>`:''}`:''}`;
+  const R=Object.values(por).map(a=>({n:a.n,L:a.L,reg:a.L.length,pt:cnt(a.L,x=>x.conf_pt==='ok'),ptf:cnt(a.L,x=>x.conf_pt==='falla'),
+    bo:cnt(a.L,BO),boc:cnt(a.L,x=>x.conf_bo==='ok'),bof:cnt(a.L,x=>x.conf_bo==='falla'),
+    co:cnt(a.L,x=>x.estatus==='facturada'),coc:cnt(a.L,x=>x.conf_venta==='ok'),cof:cnt(a.L,x=>x.conf_venta==='falla'),
+    caidas:cnt(a.L,x=>['cancelada','rechazada'].includes(x.estatus))})).sort((a,b)=>b.reg-a.reg);
+  const T=k=>R.reduce((s,r)=>s+r[k],0);
+  const malas=D.filter(x=>x.no_cuadra);
+  c.innerHTML=`<div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:12px">
+      <div><label>Día de registro</label><select id="cu-dia" style="${ESTILO_CAMPO};width:auto">${(dias.length?dias:[t.dia]).map(d=>`<option value="${d}" ${d===t.dia?'selected':''}>${fecha(d)}</option>`).join('')}</select></div>
+      <div style="font-size:12.5px;color:var(--txt-3);max-width:560px">Registradas en la plataforma contra lo que confirman los reportes de Global del día siguiente. Si se marcan 9 y el reporte trae 5, aquí salen las 4 que faltan.</div></div>
+    <div class="kpis">
+      <div class="kpi"><span>Registradas</span><b>${T('reg')}</b><small>${T('pt')} con PT confirmado</small></div>
+      <div class="kpi ${T('bof')?'bad':''}"><span>Back Office</span><b>${T('bo')}</b><small>${T('boc')} confirmadas en Global${T('bof')?` · ${T('bof')} no cuadran`:''}</small></div>
+      <div class="kpi ${T('cof')?'bad':'t'}"><span>Completadas</span><b>${T('co')}</b><small>${T('coc')} terminadas en Global${T('cof')?` · ${T('cof')} no cuadran`:''}</small></div>
+      <div class="kpi ${malas.length?'bad':''}"><span>No cuadran</span><b>${malas.length}</b><small>${T('caidas')} caídas o rechazadas</small></div></div>
+    ${R.length?`<div class="tw" style="margin-top:12px"><table><thead><tr><th>Agente</th><th class="num">Registradas</th><th>PT en Detalle</th><th>Back Office</th><th>Completadas</th><th class="num">Caídas</th></tr></thead><tbody>
+      ${R.map(r=>`<tr><td style="font-size:12.5px;white-space:nowrap">${esc(nomCorto(r.n||''))}</td><td class="num"><b>${r.reg}</b></td>
+        <td style="font-size:12.5px">${r.pt} ✓${r.ptf?` <b style="color:var(--bad)">· ${r.ptf} ✕</b>`:''}${r.reg-r.pt-r.ptf>0?` <small style="color:var(--txt-3)">· ${r.reg-r.pt-r.ptf} ⏳</small>`:''}</td>
+        <td style="font-size:12.5px">${celda(r.bo,r.boc,r.bof)}</td><td style="font-size:12.5px">${celda(r.co,r.coc,r.cof)}</td><td class="num">${r.caidas||''}</td></tr>`).join('')}
+      </tbody></table></div>`:'<div class="empty">No hay ventas registradas ese día.</div>'}
+    ${malas.length?`<div class="tile w12" style="cursor:default;transform:none;margin-top:14px;border-color:var(--bad)"><div class="tv-h"><b>Lo que no cuadra ese día</b></div>
+      ${malas.map(x=>`<div data-vr="${x.id}" style="cursor:pointer;padding:8px 0;border-top:1px solid var(--line);font-size:13px"><b class="mono">${esc(x.folio||'')}</b> · ${esc(nomCorto(x.agente||''))} · ${esc(x.etapa||'')}
+        <div style="font-size:12px;color:var(--bad)">${Object.values(x.conf_nota||{}).filter(Boolean).map(esc).join(' · ')}</div></div>`).join('')}</div>`:''}`;
+  $('#cu-dia').onchange=e=>{ t.dia=e.target.value; pintarCuadreDiario(c,L); };
+  c.querySelectorAll('[data-vr]').forEach(el=>el.onclick=()=>abrirVentaReg(Number(el.dataset.vr)));
+}
+
+/* Calculadora DHL: CP → de qué hub debe salir (con existencia si ya se cargó el inventario) */
+async function cotizarHubCP(cp,edo,mun,equipo){
+  if(/^\d{5}$/.test(cp||'')&&(!edo||!mun)){ const r=await buscaCP(cp).catch(()=>null); if(!r) throw new Error('No encontré ese CP.'); edo=r.estado; mun=r.municipio; }
+  if(!edo||!mun) throw new Error('Pon el CP de entrega (5 dígitos).');
+  const {data,error}=await sb.rpc('dhl_sugerir_hub',{p_estado:edo,p_municipio:mun,p_equipo:equipo||null});
+  if(error) throw new Error(error.message);
+  return {edo,mun,C:data||[]};
+}
+function tablaHubsHTML(C,real){
+  const inv=C.some(x=>x.con_inventario), sug=C.find(x=>x.sugerido), ideal=C.find(x=>x.ideal&&x.permitido);
+  return `<div style="font-size:13.5px;margin-bottom:8px">${sug?`Debe salir de <b style="color:var(--ok)">${esc(sug.nombre)} (${sug.hub})</b> · ${money(sug.costo)}`:'<b style="color:var(--bad)">Ningún hub permitido tiene existencia.</b>'}
+      ${sug&&ideal&&sug.hub!==ideal.hub?` <small style="color:var(--warn)">El más barato es ${ideal.hub}, pero ${inv?'no tiene existencia':'no aplica'}.</small>`:''}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">${C.map(x=>`<span class="p ${x.sugerido?'p-ok':x.hub===real?'p-bad':''}" title="${x.permitido?'':'Tijuana solo entrega en Baja California'}" style="font-size:12px;${x.permitido?'':'opacity:.45;text-decoration:line-through'}">${x.hub} · zona ${esc(x.zona||'')} · ${money(x.costo)}${inv?` · ${x.existencia>0?x.existencia+' pzas':'sin existencia'}`:''}${x.hub===real?' · sale de aquí':''}</span>`).join('')}</div>
+    <div style="font-size:11.5px;color:var(--txt-3);margin-top:6px">${inv?'Con el inventario de hubs cargado hoy.':'Sin inventario de hubs cargado: se sugiere el más barato. Empate → Puebla.'} Tijuana solo entrega en Baja California.</div>`;
+}
+function pintarCalculadoraDHL(c){
+  c.innerHTML=`<div class="tile w12" style="cursor:default;transform:none;max-width:760px"><div class="tv-h"><b>¿De qué hub debe salir?</b></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end">
+      <div><label>CP de entrega</label><input id="cd-cp" maxlength="5" inputmode="numeric" placeholder="72160" style="${ESTILO_CAMPO}"></div>
+      <div><label>Equipo (opcional)</label><input id="cd-eq" placeholder="Para buscar existencia" style="${ESTILO_CAMPO}"></div>
+      <button class="btn btn-p" id="cd-ok">Calcular</button></div>
+    <div id="cd-lugar" style="font-size:12.5px;color:var(--txt-3);margin-top:8px"></div><div id="cd-res" style="margin-top:10px"></div></div>`;
+  const ir=async()=>{ const cp=$('#cd-cp').value.trim(); $('#cd-res').innerHTML='<span style="font-size:12.5px;color:var(--txt-3)">Calculando…</span>';
+    try{ const r=await cotizarHubCP(cp,null,null,$('#cd-eq').value.trim()); $('#cd-lugar').textContent=`${r.mun}, ${r.edo}`; $('#cd-res').innerHTML=tablaHubsHTML(r.C); }
+    catch(e){ $('#cd-lugar').textContent=''; $('#cd-res').innerHTML=`<span style="color:var(--bad);font-size:12.5px">${esc(e.message)}</span>`; } };
+  $('#cd-ok').onclick=ir; $('#cd-cp').onkeydown=e=>{ if(e.key==='Enter') ir(); };
+}
+
+/* Envíos DHL: ¿salió del hub sugerido? */
+function pintarEnviosDHL(c,F){
+  const mes=hoyMexico().slice(0,7), M=F.filter(x=>String(x.fecha_venta||'').slice(0,7)===mes);
+  const cal=M.filter(x=>x.hub_ideal), ok=cal.filter(x=>!(x.sobrecosto_dhl>0)), sc=cal.reduce((a,x)=>a+Number(x.sobrecosto_dhl||0),0);
+  c.innerHTML=`<div class="kpis">
+      <div class="kpi"><span>Envíos del mes con hub calculado</span><b>${cal.length}</b></div>
+      <div class="kpi ${cal.length&&ok.length/cal.length<0.9?'bad':'t'}"><span>Salieron del sugerido</span><b>${cal.length?Math.round(ok.length/cal.length*100):0}%</b><small>${ok.length} de ${cal.length}</small></div>
+      <div class="kpi"><span>Sobrecosto del mes</span><b>${money(sc)}</b><small>${cal.length?money(sc/cal.length)+' por envío':''}</small></div></div>
+    <div style="font-size:12.5px;color:var(--txt-3);margin:10px 0">Costo estimado con el tarifario DHL VAVTRADE 2026 (descuento del contrato, combustible del mes e IVA). El hub real sale del reporte de Global; el sugerido, del destino.</div>
+    <div id="dhl-l"></div>`;
+  tablaPaginada($('#dhl-l'),F.slice().sort((a,b)=>(b.sobrecosto_dhl||0)-(a.sobrecosto_dhl||0)),
+    '<th>Folio</th><th>Agente</th><th>Destino</th><th>Salió de</th><th>Sugerido</th><th class="num">Sobrecosto</th><th>Motivo</th>',
+    x=>`<tr style="cursor:pointer" data-vr="${x.id}"><td class="mono">${esc(x.folio||'')}</td><td style="font-size:12.5px">${esc(nomCorto(x.agente||''))}</td>
+      <td style="font-size:12.5px">${esc([x.dest_municipio||x.global_municipio,x.dest_estado||x.global_estado].filter(Boolean).join(', '))}</td>
+      <td><b>${esc(x.hub_real||'—')}</b></td><td>${esc(x.hub_ideal||'—')}</td>
+      <td class="num">${x.sobrecosto_dhl>0?`<b style="color:var(--bad)">${money(x.sobrecosto_dhl)}</b>`:x.hub_ideal?'<span class="p p-ok">✓</span>':'—'}</td><td style="font-size:12px">${esc(x.motivo_hub||'')}</td></tr>`,
+    {vacio:'Todavía no hay envíos con hub.',despues:el=>el.querySelectorAll('[data-vr]').forEach(tr=>tr.onclick=()=>abrirVentaReg(Number(tr.dataset.vr)))});
+}
 
 /* Edad y sexo junto a la fecha de nacimiento (sexo sale de la CURP) */
 function edadSexoEmp(){ const el=$('#e-edad'); if(!el) return; const f=$('#e-fnac')?.value, c=($('#e-curp')?.value||'').trim().toUpperCase();
@@ -10015,438 +10148,274 @@ document.addEventListener('change',e=>{ if(e.target&&(e.target.id==='e-fnac'||e.
 /* Equipo como texto: sin repetir la marca si ya viene en el nombre */
 function eqTexto(x){ const mo=String(x.equipo_modelo||''), ma=String(x.equipo_marca||'');
   return [ma&&mo.toUpperCase().includes(ma.toUpperCase())?'':ma, mo, x.equipo_capacidad, x.equipo_color].filter(Boolean).join(' '); }
-/* Línea del tiempo de una venta: de registrada a "ya cuenta" */
-function pasosVenta(v, evidFecha){
-  const est=v.estatus, entregada=v.envio_estatus==='Entregado'||v.envio_status==='Entregado'||est==='facturada';
+
+/* Las 6 etapas */
+function pasosVenta(v){
+  const est=v.estatus;
+  let n=Number(v.etapa_n)||0;
+  if(!n) n=est==='rechazada'?2:est==='cancelada'?(v.entregada_en?5:v.logistica_en?4:v.revisado_en?3:2):1;
   const P=[
-    {l:'Registrada', s:v.registro_tardio?'Registro tardío':'', t:v.creado_en, ok:!!v.id},
-    {l:'Enviada a revisión', t:v.enviado_en, ok:!!v.enviado_en&&!['borrador','asignada'].includes(est)},
-    {l:'Aprobada por mesa de control', s:['aprobada','en_global','facturada'].includes(v.estatus)?'Ya cuenta como venta por entregar':'', t:v.revisado_en, ok:['aprobada','en_global','facturada'].includes(est),
-       mal:['regresada','rechazada'].includes(est)?(est==='rechazada'?'Rechazada':'Regresada')+(v.motivo?': '+v.motivo:''):''},
-    {l:'Capturada en Global', s:v.pt||'', t:v.capturada_en, ok:['en_global','facturada'].includes(est)&&!!v.pt},
-    {l:'Entregada', s:!entregada&&v.envio_estatus?v.envio_estatus:'', t:v.envio_entregado_en, ok:entregada},
-    {l:'Evidencia de entrega', t:evidFecha, ok:!!(evidFecha||v.con_evidencia)},
-    {l:'Facturada y SIM activada', t:v.facturada_en, ok:est==='facturada'},
-    {l:'Terminada · ya cuenta', s:'Meta, comisión y cobro', t:v.terminada_global, ok:!!v.terminada_global, fin:true}
+    {l:'Nuevo', s:[v.folio,v.pt].filter(Boolean).join(' · '), t:v.fecha_subida},
+    {l:'Revisión', s:'Mesa de control', t:v.revisado_en},
+    {l:'Back Office', s:'Series y envío', t:v.logistica_en},
+    {l:'En ruta', s:v.envio_tipo==='dhl'?'DHL '+(v.guia_dhl||''):v.envio_tipo==='interna'?'Ruta interna'+(v.turno_ruta?' · '+v.turno_ruta:''):'', t:v.logistica_en},
+    {l:'Entregada', s:v.envio_tipo==='dhl'?'Con evidencia':v.envio_tipo==='interna'?'Según Global':'', t:v.entregada_en},
+    {l:'Completada', s:'Global · ASD · AVS', t:v.facturada_en, fin:true}
   ];
-  let actual=P.findIndex(p=>!p.ok);
-  if(est==='cancelada'&&actual>=0) P[actual].mal='Venta caída'+(v.motivo?': '+v.motivo:'');
+  const fin=est==='facturada', actual=fin?-1:n-1;
+  P.forEach((p,i)=>{ p.ok=fin||i<actual; });
+  if(actual>=0){
+    const a=P[actual];
+    if(est==='regresada') a.mal='Regresada: '+(v.motivo||'');
+    else if(est==='rechazada') a.mal='Rechazada'+(v.motivo?': '+v.motivo:'');
+    else if(est==='cancelada') a.mal='Venta caída'+(v.motivo?': '+v.motivo:'');
+    else if(v.evid_rechazo&&est==='en_global') a.mal='Evidencia rechazada: '+v.evid_rechazo;
+  }
   return {P, actual, hechos:P.filter(p=>p.ok).length};
 }
-function lineaVentaHTML(v, evidFecha){
-  const {P,actual}=pasosVenta(v, evidFecha);
-  return `<div class="tile w12 vt-wrap" style="cursor:default;transform:none"><div class="tv-h"><b>Línea del tiempo</b><span>${actual<0?'<b style="color:var(--ok)">Terminada: ya cuenta para todos</b>':'Desde que mesa de control la aprueba cuenta como venta por entregar; para comisión cuenta al quedar terminada'}</span></div>
+function lineaVentaHTML(v){
+  const {P,actual}=pasosVenta(v);
+  return `<div class="tile w12 vt-wrap" style="cursor:default;transform:none"><div class="tv-h"><b>Dónde va</b><span>${actual<0?`<b style="color:var(--ok)">Completada</b>${v.conf_venta==='ok'?' · terminada en Global, ya cuenta':v.conf_venta==='falla'?' · <b style="color:var(--bad)">Global no la trae terminada</b>':' · falta que el reporte de Ventas la confirme'}`:v.responsable?`La tiene: <b>${esc(RESP_TXT(v))}</b>${v.etapa_desde?' · hace '+hace(v.etapa_desde):''}`:''}</span></div>
     <ol class="vt">${P.map((p,i)=>`<li class="${p.mal?'mal':p.ok?'ok':i===actual?'ahora':''} ${p.fin?'fin':''}">
       <i>${p.mal?'!':p.ok?'✓':i+1}</i><div><b>${esc(p.l)}</b>${p.mal?`<small class="err">${esc(p.mal)}</small>`:p.s?`<small>${esc(p.s)}</small>`:''}${p.ok&&p.t?`<small>${fh(p.t)}</small>`:i===actual&&!p.mal?'<small class="ya">Aquí va</small>':''}</div></li>`).join('')}</ol></div>`;
 }
 
-/* ---------- Detalle / formulario de una venta ---------- */
+/* ---------- Registro y detalle de una venta ---------- */
 async function abrirVentaReg(id){
   $('#main').innerHTML='<div class="empty">Cargando…</div>';
   S.ventaSucia=false;
   const papel=await papelVentas();
-  const [rv,rd,rb,rp,re,rc,rpe]=await Promise.all([
-    id?sb.from('v_ventas_registro').select('*').eq('id',id).single():{data:null},
-    id?sb.from('ventas_registro_docs').select('*').eq('venta_id',id).is('borrado_en',null):{data:[]},
-    id?sb.rpc('historial_venta_reg',{p_id:id}).then(r=>r.error?sb.from('ventas_registro_bitacora').select('*').eq('venta_id',id).order('en').then(b=>({data:(b.data||[]).map(x=>({en:x.en,accion:x.accion,detalle:x.motivo,usuario:'',origen:'Plataforma'}))})):r):{data:[]},
-    sb.from('planes').select('id,nombre').eq('activo',true).order('orden'),
-    ['mesa','direccion'].includes(papel)?sb.from('empleados').select('id,nombre_completo').eq('estatus','activo').order('nombre_completo'):{data:[]},
-    sb.from('catalogo_equipos').select('*').eq('activo',true).order('marca').order('modelo').limit(5000),
-    sb.from('puntos_entrega').select('*').eq('activo',true).order('region').order('nombre')
+  const sec=(t,h,cls='',extra='')=>`<div class="tile w12 ${cls}" style="cursor:default;transform:none${extra}"><div class="tv-h"><b>${t}</b></div>${h}</div>`;
+  const g3='display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px';
+  const volver=()=>vistaVentasReg();
+
+  // ---- Registro nuevo: solo folio, DN y PT
+  if(!id){
+    $('#main').innerHTML=`<div class="head"><div><h1>Registrar venta</h1><p>Captúrala primero en AVS y en Global. Aquí solo van el folio, el DN y el PT; tu nombre y la fecha se ponen solos.</p></div>
+      <div class="acts"><button class="btn" id="vf-volver">← Ventas</button></div></div>
+      ${sec('Datos de la venta',`<div style="${g3}">
+        <div><label>Folio del contrato</label><input id="rf-folio" inputmode="numeric" maxlength="12" placeholder="4100714005" style="${ESTILO_CAMPO}"><small style="font-size:11.5px;color:var(--txt-3)">10 dígitos. Si trae A al final, va sin ella. No es el DN.</small></div>
+        <div><label>DN</label><input id="rf-dn" inputmode="numeric" maxlength="14" placeholder="5512345678" style="${ESTILO_CAMPO}"><small style="font-size:11.5px;color:var(--txt-3)">El número del cliente, 10 dígitos.</small></div>
+        <div><label>PT de Global</label><input id="rf-pt" maxlength="10" placeholder="PT25642" style="${ESTILO_CAMPO};text-transform:uppercase"><small style="font-size:11.5px;color:var(--txt-3)">La programación que te dio Global.</small></div></div>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap"><button class="btn btn-p" id="rf-ok">Registrar y mandar a revisión</button><span id="rf-msg" style="font-size:12.5px;color:var(--txt-3)"></span></div>`)}`;
+    $('#vf-volver').onclick=volver;
+    ['#rf-folio','#rf-dn','#rf-pt'].forEach(q=>$(q).addEventListener('input',()=>{ S.ventaSucia=true;
+      const f=$('#rf-folio').value.replace(/\D/g,''), d=$('#rf-dn').value.replace(/\D/g,'');
+      $('#rf-msg').innerHTML=f&&d&&f===d?'<b style="color:var(--bad)">El folio no puede ser igual al DN: revisa el contrato.</b>':''; }));
+    $('#rf-ok').onclick=async()=>{
+      const b=$('#rf-ok'); b.disabled=true;
+      const {data,error}=await sb.rpc('registrar_venta',{p_folio:$('#rf-folio').value,p_dn:$('#rf-dn').value,p_pt:$('#rf-pt').value});
+      b.disabled=false;
+      if(error) return toast(error.message,'bad');
+      S.ventaSucia=false; toast('Venta registrada. Ya está con mesa de control.','ok'); abrirVentaReg(data);
+    };
+    return;
+  }
+
+  const [rv,rd,rb]=await Promise.all([
+    sb.from('v_ventas_registro').select('*').eq('id',id).single(),
+    sb.from('ventas_registro_docs').select('*').eq('venta_id',id).is('borrado_en',null),
+    sb.rpc('historial_venta_reg',{p_id:id})
   ]);
-  const err=[rv,rd,rp].find(x=>x.error);
-  if(err){ $('#main').innerHTML=`<div class="empty"><b>No se pudo abrir</b>${esc(err.error.message)}</div>`; return; }
-  const CAT=rc.error?[]:(rc.data||[]), PE=rpe.error?[]:(rpe.data||[]);
-  const v=rv.data||{estatus:'borrador',con_equipo:true,pago_inicial:false,entrega_tipo:'dhl',tipo_sim:'fisica'};
-  const verifHTML=id?await cajaVerificacionVenta(v).catch(()=>''):'';
-  const docs=Object.fromEntries((rd.data||[]).map(d=>[d.tipo,d]));
-  const yo=S.perfil?.empleado_id;
-  const esDueno=!id||v.empleado_id===yo;
-  const editable=['borrador','regresada','asignada'].includes(v.estatus)&&(esDueno||['mesa','direccion'].includes(papel));
-  const mesa=['mesa','direccion'].includes(papel);
-  const dis=editable?'':'disabled';
-  const val=k=>esc(v[k]??'');
-  const campo=(k,l,ph='',extra='')=>`<div><label>${l}</label><input id="vf-${k}" value="${val(k)}" placeholder="${ph}" ${dis} style="${ESTILO_CAMPO}" ${extra}></div>`;
-  const opc=(k,arr)=>arr.map(([a,b])=>`<option value="${a}" ${String(v[k]??'')===String(a)?'selected':''}>${b}</option>`).join('');
-  const sec=(t,h,cls='')=>`<div class="tile w12 ${cls}" style="cursor:default;transform:none"><div class="tv-h"><b>${t}</b></div>${h}</div>`;
-  const g2='display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px';
-  const ACEPTA={pdf:'application/pdf',img:'image/*',pdfimg:'application/pdf,image/*'};
-  const slotHTML=([k,l,tipo])=>{
-    const d=docs[k];
-    const puedeSubir=k==='evidencia_entrega'?(v.estatus==='en_global'&&(esDueno||mesa)):editable;
-    return `<div><b>${l}</b><small>${tipo==='pdf'?'PDF':tipo==='img'?'Imagen':'PDF o imagen'}${d?' · '+esc(d.nombre||'')+' · '+fh(d.subido_en):k==='comprobante_pago'?' · obligatorio si lleva pago':' · obligatorio'}</small></div>
-      <div style="display:flex;gap:6px">${d?`<button class="btn" data-ver="${esc(d.path)}">Ver</button>`:''}
-        ${puedeSubir?`<label class="btn ${d?'':'btn-p'}" style="margin:0">${d?'Cambiar':'Subir'}<input type="file" accept="${ACEPTA[tipo]}" data-subir="${k}" data-tipo="${tipo}" style="display:none"></label>`:''}</div>`;
-  };
-  const docSlot=D=>{
-    const [k]=D;
-    if(k==='evidencia_entrega'&&!['en_global','facturada'].includes(v.estatus)) return '';
-    return `<div class="doc-slot ${docs[k]?'ok':''} ${k==='comprobante_pago'?'vf-pago':''}" data-slot="${k}">${slotHTML(D)}</div>`;
-  };
-
-  // Catálogo de equipos: marca → modelo → capacidad → color
-  const unicos=a=>[...new Set(a.filter(Boolean))];
-  const conCatalogo=false; // el equipo se pega tal cual del sistema (un solo campo)
-  const selEq=(k,l,lista,actual)=>{ const L=unicos(lista); if(actual&&!L.includes(actual)) L.unshift(actual);
-    return `<div><label>${l}</label><select id="vf-${k}" ${dis} style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${L.map(x=>`<option ${x===actual?'selected':''}>${esc(x)}</option>`).join('')}</select></div>`; };
-  const equipoHTML=()=>{
-    if(!conCatalogo) return `<div style="grid-column:1/-1"><label>Equipo</label><input id="vf-equipo_modelo" value="${esc([v.equipo_modelo,v.equipo_capacidad,v.equipo_color].filter(Boolean).filter((x,i,a)=>!a[0]||i===0||!String(a[0]).toUpperCase().includes(String(x).toUpperCase())).join(' '))}" placeholder="Pégalo tal cual del sistema, ej. XIAOMIREDMINOTE17PRO NEGRO BDLHTAG" autocomplete="off" ${dis} style="${ESTILO_CAMPO};text-transform:uppercase"><small style="font-size:11.5px;color:var(--txt-3)">Copia y pega el equipo completo: modelo, capacidad y color.</small></div>`;
-    if(v.equipo_fuera_lista) return `${campo('equipo_marca','Marca','Ej. Apple')}${campo('equipo_modelo','Modelo','Ej. iPhone 17 Pro Max')}${campo('equipo_capacidad','Capacidad','Ej. 256 GB')}${campo('equipo_color','Color','Ej. Plata')}
-      ${conCatalogo?`<div style="grid-column:1/-1;font-size:12.5px;color:var(--warn)"><b>Equipo capturado a mano: no está en la lista de precios.</b> Mesa de control lo revisa. ${editable?'<a href="#" id="eq-alista">Volver a buscar en la lista</a>':''}</div>`:''}`;
-    const ma=v.equipo_marca||'', mo=v.equipo_modelo||'', ca=v.equipo_capacidad||'';
-    const deMarca=CAT.filter(x=>x.marca===ma), deModelo=deMarca.filter(x=>x.modelo===mo);
-    const caps=unicos(deModelo.map(x=>x.capacidad)), deCap=caps.length?deModelo.filter(x=>(x.capacidad||'')===ca):deModelo;
-    const colores=unicos(deCap.map(x=>x.color));
-    return `${selEq('equipo_marca','Marca',CAT.map(x=>x.marca),ma)}
-      <div class="eq-ac"><label>Modelo</label><input id="vf-equipo_modelo" value="${esc(mo)}" placeholder="Escribe: 18 pro, a26, moto g…" autocomplete="off" ${dis} style="${ESTILO_CAMPO}"><div class="eq-lista" id="eq-lista"></div></div>
-      ${mo&&!caps.length?'':selEq('equipo_capacidad','Capacidad',caps,ca)}
-      ${colores.length||!deModelo.length?selEq('equipo_color','Color',colores,v.equipo_color||''):''}`;
-  };
-
-  // Puntos de entrega
-  const puntoOpts=tipo=>{ const L=PE.filter(p=>p.tipo===tipo);
-    if(tipo==='hub') return L.map(p=>`<option value="${p.id}" ${v.punto_entrega_id===p.id?'selected':''}>${esc(p.nombre)}</option>`).join('');
-    const regs=unicos(L.map(p=>p.region));
-    return regs.map(r=>`<optgroup label="${esc(r.replace(/^\d+\.\s*/,''))}">${L.filter(p=>p.region===r).map(p=>`<option value="${p.id}" ${v.punto_entrega_id===p.id?'selected':''}>${esc(p.nombre.replace(/^EXP\s+/,''))} · ${esc(p.plaza||'')}</option>`).join('')}</optgroup>`).join(''); };
-  const MAPAS=[['Puebla','https://www.google.com/maps/d/edit?mid=15fELzg9nNDg0sgmRziynTMNFk4vgbg0&usp=sharing'],['Monterrey','https://www.google.com/maps/d/viewer?hl=es-419&mid=1dEdFgaOlOagtU-cI3sUHhNSSXKOoAWQ'],
-    ['Tijuana','https://www.google.com/maps/d/edit?mid=15tUHXAex6RYhD-NQR5ZDhr79ZyCkjHI&usp=sharing'],['Veracruz','https://www.google.com/maps/d/edit?mid=1X3u_5b1wDwAB9XmsVPCsIcMZUl1ccAg&usp=sharing'],
-    ['México y Toluca','https://www.google.com/maps/d/viewer?hl=es-419&mid=1OiCGKK9cVUBdLutmbPNapevr1yO9DCs'],['Guadalajara','https://www.google.com/maps/d/viewer?mid=1Tsd84_dsXyMLGm4xgCl2NtvyQ8dRAw0']];
-  const ent=v.entrega_tipo==='mensajero'?'mensajero':v.entrega_tipo||'dhl';
+  if(rv.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo abrir</b>${esc(rv.error.message)}</div>`; return; }
+  const v=rv.data, docs=Object.fromEntries((rd.data||[]).map(d=>[d.tipo,d]));
+  const yo=S.perfil?.empleado_id, esDueno=v.empleado_id===yo, mesa=['mesa','direccion'].includes(papel), perla=['factura','direccion'].includes(papel);
+  const verifHTML=await cajaVerificacionVenta(v).catch(()=>'');
+  const dato=(l,x)=>`<div><span style="font-size:11.5px;color:var(--txt-3)">${l}</span><div style="font-size:13.5px;font-weight:600">${x||'<span style="color:var(--txt-3);font-weight:400">—</span>'}</div></div>`;
+  const destino=[v.dest_municipio||v.global_municipio,v.dest_estado||v.global_estado].filter(Boolean).join(', ');
+  const guiaTxt=v.envio_tipo==='dhl'?v.guia_dhl:v.envio_tipo==='interna'?'Ruta interna'+(v.turno_ruta?' · '+v.turno_ruta:''):(v.guia||'');
+  const ck=v.checklist||{}, cz=v.cierre||{};
+  const viejos=Object.values(docs).filter(d=>d.tipo!=='evidencia_entrega');
+  const solover=!mesa&&!perla&&!esDueno;
 
   $('#main').innerHTML=`
-  <div class="head"><div><button class="tv-volver" id="vf-volver">← Ventas</button>
-    <h1>${id?`Venta ${esc(v.folio||'#'+id)}`:'Registrar venta'}</h1>
-    <p>${id?`<span class="p ${ETAPA_CLASE(v.etapa||'')}">${esc(v.etapa||'')}</span> · ${esc(v.agente||'')}${v.pt?' · '+esc(v.pt):''}`:'Llena todo y sube el expediente completo. Nada se pierde mientras capturas: al final eliges guardar o enviar.'}</p></div></div>
-  ${v.motivo&&['regresada','rechazada','cancelada','asignada'].includes(v.estatus)?`<div class="note" style="margin-bottom:14px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">${v.estatus==='rechazada'?'Rechazada':v.estatus==='cancelada'?'Cancelada':'Regresada para corregir'}</b>${esc(v.motivo)}</div>`:''}
-  ${id&&v.equipo_fuera_lista?`<div class="note" style="margin-bottom:14px;background:var(--warn-l,#fff6e5);border-color:var(--warn)"><b style="color:var(--warn)">Equipo fuera de la lista de precios</b>El agente lo capturó a mano: ${esc(eqTexto(v))}. Revisa que exista y que el precio sea correcto.</div>`:''}
-  ${v.previa?`<div class="note" style="margin-bottom:14px"><b>Venta previa a la plataforma</b>Se hizo antes del 17 de noviembre: no requiere expediente. Se termina sola cuando Global la marque como terminada.</div>`:''}
-  ${v.estatus==='asignada'?`<div class="note" style="margin-bottom:14px"><b>Registro tardío</b>Esta venta apareció en Global sin registro. ${new Date()>=new Date('2026-12-01T00:00:00')?'No cuenta para tu meta ni comisión hasta que subas el expediente y mesa de control la apruebe.':'Sube su expediente para dejarla completa.'}</div>`:''}
-  <div class="dash" style="gap:14px" id="vf-form">
-    ${id?lineaVentaHTML(v, docs.evidencia_entrega?.subido_en):''}
+  <div class="head"><div><h1>Venta ${esc(v.folio||'#'+v.id)}</h1>
+    <p><span class="p ${ETAPA_CLASE(v.etapa||'')}">${esc(v.etapa||'')}</span> · ${esc(v.agente||'')}${v.registro_tardio?' · <span class="p p-warn">apareció en Global sin registro</span>':''}${papel==='direccion'?' · <small style="color:var(--txt-3)">Dirección puede mover cualquier etapa; queda en el historial</small>':''}</p></div>
+    <div class="acts"><button class="btn" id="vf-volver">← Ventas</button></div></div>
+  <div class="grid">
+    ${lineaVentaHTML(v)}
+    ${candadosHTML(v)}
     ${verifHTML}
-    ${mesa&&editable?sec('Agente',`<select id="vf-empleado_id" style="${ESTILO_CAMPO}">${(re.data||[]).map(e=>`<option value="${e.id}" ${(v.empleado_id||yo)===e.id?'selected':''}>${esc(e.nombre_completo)}</option>`).join('')}</select>`):''}
-    ${sec('Venta',`<div style="${g2}">
-      ${campo('folio','Folio del contrato','Ej. 4091405416','inputmode="numeric" title="Solo números. Si el contrato trae una A al final, se guarda sin ella."')}
-      ${campo('dn','DN (10 dígitos)','5512345678','inputmode="numeric" maxlength="12"')}
-      ${campo('cliente','Cliente','Nombre completo')}
-      ${campo('cliente_rfc','RFC','ABCD900101XXX','maxlength="13" autocomplete="off" style="text-transform:uppercase"')}
-      ${campo('cliente_nacimiento','Fecha de nacimiento','','type="date" max="'+new Date(Date.now()-18*365.25*864e5).toISOString().slice(0,10)+'"')}
-      ${campo('cliente_correo','Correo electrónico','cliente@correo.com','type="email" autocomplete="off"')}
-      <div><label>Tipo de venta</label><select id="vf-tipo_venta" ${dis} style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${opc('tipo_venta',Object.entries(TIPO_VENTA))}</select></div>
-      <div><label>Plan</label><select id="vf-plan_id" ${dis} style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${opc('plan_id',(rp.data||[]).map(p=>[p.id,p.nombre]))}</select></div>
-      <div><label>Plazo</label><select id="vf-plazo" ${dis} style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${opc('plazo',[[24,'24 meses'],[30,'30 meses'],[36,'36 meses'],[0,'Sin plazo (solo SIM)']])}</select></div>
-    </div>`)}
-    ${sec('Equipo',`<div style="${g2}">
-      <div><label>¿Lleva equipo?</label><select id="vf-con_equipo" ${dis} style="${ESTILO_CAMPO}">${opc('con_equipo',[[true,'Sí, con equipo'],[false,'No, solo SIM']])}</select></div>
-      <div><label>Tipo de SIM</label><select id="vf-tipo_sim" ${dis} style="${ESTILO_CAMPO}">${opc('tipo_sim',[['fisica','Física'],['esim','eSIM (virtual)']])}</select></div>
-    </div><div class="vf-eq" style="margin-top:12px"><div id="vf-eqbox" style="${g2}">${equipoHTML()}</div></div>
-    ${!conCatalogo&&editable?'<div class="vf-eq" style="font-size:12px;color:var(--txt-3);margin-top:8px">Aún no hay lista de precios cargada: escribe el equipo exacto.</div>':''}`)}
-    ${sec('Pago inicial',`<div style="${g2}">
-      <div><label>¿Lleva pago inicial?</label><select id="vf-pago_inicial" ${dis} style="${ESTILO_CAMPO}">${opc('pago_inicial',[[false,'No'],[true,'Sí']])}</select></div>
-      <div class="vf-pago">${campo('pago_inicial_monto','Monto','$','inputmode="decimal"')}</div></div>
-      <div class="vf-pago" style="font-size:12px;color:var(--txt-3);margin-top:8px">Sube el comprobante en el expediente, abajo.</div>`)}
-    ${sec('Entrega',`<div style="${g2}">
-      <div><label>Forma de entrega</label><select id="vf-entrega_tipo" ${dis} style="${ESTILO_CAMPO}">${[['dhl','DHL'],['mensajero','Mensajería interna'],['hub','Recoge en hub'],['tienda','Recoge en tienda']].map(([a,b])=>`<option value="${a}" ${ent===a?'selected':''}>${b}</option>`).join('')}</select></div>
-      ${campo('telefono_contacto','Teléfono de contacto','10 dígitos','inputmode="numeric" maxlength="12"')}
-    </div>
-    <div class="vf-dom" style="margin-top:12px">
-      <div class="vf-msj note" style="margin-bottom:12px"><b>Cobertura de mensajería interna</b>El domicilio debe estar a máximo 20 minutos de una tienda AT&T. Revisa el mapa de la región:
-        ${MAPAS.map(([n,u])=>`<a href="${u}" target="_blank" rel="noopener" style="margin-right:10px">${n}</a>`).join('')}</div>
-      <div style="${g2}">
-        <div><label>Código postal</label><input id="vf-cp" value="${val('cp')}" placeholder="5 dígitos" inputmode="numeric" maxlength="5" ${dis} style="${ESTILO_CAMPO}"><small id="vf-cpmsg" style="font-size:11.5px;color:var(--txt-3)"></small></div>
-        <div><label>Colonia</label><select id="vf-colsel" ${dis} style="${ESTILO_CAMPO}"><option value="">${v.colonia?esc(v.colonia):'Primero el código postal'}</option></select>
-          <input id="vf-colonia" value="${val('colonia')}" placeholder="Escribe la colonia" ${dis} style="${ESTILO_CAMPO};margin-top:6px;display:none"></div>
-        ${campo('municipio','Municipio o alcaldía','Se llena con el CP')}${campo('estado_dir','Estado','Se llena con el CP')}
-        ${campo('calle','Calle')}${campo('numero_ext','Número exterior')}${campo('numero_int','Número interior','Opcional')}
-      </div><div style="margin-top:12px">${campo('referencias','Referencias','Entre calles, color de fachada…')}</div>
-    </div>
-    <div class="vf-pto" style="margin-top:12px">
-      <div><label id="vf-ptol">Elige</label><select id="vf-punto" ${dis} style="${ESTILO_CAMPO}"></select></div>
-      <div id="vf-ptoinfo" style="margin-top:10px"></div>
-    </div>`)}
-    ${sec('Expediente',`<div class="doc-grid">${DOCS_VENTA.map(docSlot).join('')}</div>
-      ${editable?'<div style="font-size:12px;color:var(--txt-3);margin-top:8px">Máximo 15 MB por archivo. Al subir el primer documento la venta se guarda como borrador para no perder nada. Los documentos son privados: solo los ven el agente, mesa de control, facturación y dirección.</div>':''}`)}
-    ${v.estatus==='en_revision'&&mesa?sec('Revisión de mesa de control',`
-      ${v.minutos_en_revision!=null?`<div style="font-size:12.5px;margin-bottom:10px;color:${v.minutos_en_revision>30?'var(--bad)':'var(--txt-2)'}">Lleva <b>${v.minutos_en_revision} min</b> esperando revisión (máximo 30).</div>`:''}
-      ${CHECK_MESA.map(([k,l])=>`<label style="display:flex;gap:10px;align-items:flex-start;margin:8px 0;font-weight:500"><input type="checkbox" data-chk="${k}" style="width:auto;margin-top:3px">${l}</label>`).join('')}
-      <textarea id="vf-motivo" placeholder="Motivo (obligatorio para regresar o rechazar)" style="${ESTILO_CAMPO};min-height:60px;margin-top:8px"></textarea>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn btn-p" id="vf-aprobar">Aprobar</button><button class="btn" id="vf-regresar">Regresar al agente</button><button class="btn" id="vf-rechazar" style="color:var(--bad)">Rechazar</button></div>`):''}
-    ${v.estatus==='aprobada'&&mesa?sec('Captura en Global',`<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="vf-pt" placeholder="PT de Global, ej. PT24899" style="${ESTILO_CAMPO};max-width:260px"><button class="btn btn-p" id="vf-capturar">Ya la capturé en Global</button></div>`):''}
-    ${v.estatus==='en_global'&&['factura','direccion'].includes(papel)?sec('Facturación y activación',v.con_evidencia
-      ?`<button class="btn btn-p" id="vf-facturar">Facturada y SIM activada</button>`
-      :`<div style="color:var(--warn);font-size:13px">Falta la evidencia de entrega. Sin evidencia no se factura.</div>`):''}
-    ${id&&(rb.data||[]).length?sec('Historial de la venta',`<div class="tw"><table class="vr-htab"><thead><tr><th>Acción</th><th>Fecha</th><th>Usuario</th></tr></thead><tbody>${(rb.data||[]).map(b=>`<tr><td><b style="font-size:13px">${esc(b.accion)}</b>${b.detalle?`<div style="font-size:11.5px;color:var(--txt-3)">${esc(b.detalle)}</div>`:''}</td><td style="white-space:nowrap;font-size:12.5px">${b.en?fh(b.en):'—'}</td><td style="font-size:12.5px">${esc(b.usuario||'')}${b.origen==='Global'?' <span class="p p-teal" style="font-size:10.5px">Global</span>':''}</td></tr>`).join('')}</tbody></table></div>`):''}
-  </div>
-  <div class="vr-barra">
-    ${papel==='direccion'&&id&&!v.terminada_global?'<button class="btn" id="vf-eliminar" style="color:var(--bad)">Eliminar venta</button>':''}
-    ${editable?`${id&&v.estatus==='borrador'&&papel!=='direccion'?'<button class="btn" id="vf-borrar" style="color:var(--bad)">Borrar borrador</button>':''}<span style="flex:1"></span>
-      <button class="btn" id="vf-guardar">Guardar borrador</button><button class="btn btn-p" id="vf-enviar">Enviar a revisión</button>`:'<span style="flex:1"></span>'}
-    ${mesa&&id&&!['facturada','cancelada','rechazada','borrador'].includes(v.estatus)?'<button class="btn" id="vf-cancelar" style="color:var(--bad)">Venta caída</button>':''}
+    ${sec('Datos de la venta',`<div style="${g3}">
+      ${dato('Folio',esc(v.folio||''))}${dato('DN',esc(v.dn||''))}${dato('PT',esc(v.pt||''))}${dato('Agente',esc(v.agente||''))}
+      ${dato('Fecha de venta',v.fecha_venta?fecha(v.fecha_venta):'')}${dato('Registrada',fh(v.fecha_subida))}
+      ${dato('Cliente',esc(v.cliente||v.global_cliente||''))}${dato('Plan',esc(v.plan||v.global_plan||''))}${dato('Equipo',esc(eqTexto(v)||v.global_equipo||''))}
+      ${dato('Destino',esc(destino)+(v.dest_cp||v.global_cp?` · CP ${esc(v.dest_cp||v.global_cp)}`:''))}${dato('Sale de',esc(v.hub_real||v.global_region||'')+(v.hub_ideal&&v.hub_real&&v.hub_ideal!==v.hub_real?` <span class="p p-bad" style="font-size:10.5px">el sugerido era ${esc(v.hub_ideal)}</span>`:v.hub_ideal?' <span class="p p-ok" style="font-size:10.5px">el sugerido</span>':''))}
+      ${dato('Estatus en Global',esc(v.envio_estatus||''))}${dato('Envío',esc(guiaTxt||''))}${dato('Series en Global',esc([v.global_equipo_serie,v.global_sim_serie].filter(Boolean).join(' · ')))}</div>
+      ${!v.global_back_office_en&&!v.envio_estatus&&v.pt?'<div style="font-size:12px;color:var(--txt-3);margin-top:10px">El PT todavía no aparece en el reporte de Detalle de Global. Los datos de Global se llenan solos al cargar el reporte.</div>':''}`)}
+    <div id="vf-acciones" style="display:contents"></div>
+    ${viejos.length?sec('Documentos del flujo anterior',`<div style="display:flex;gap:8px;flex-wrap:wrap">${viejos.map(d=>`<button class="btn" data-ver="${esc(d.path)}">${esc((DOCS_VENTA.find(x=>x[0]===d.tipo)||[0,d.tipo])[1])}</button>`).join('')}</div>`):''}
+    ${(rb.data||[]).length?sec('Historial de la venta',`<div class="tw"><table class="vr-htab"><thead><tr><th>Acción</th><th>Fecha</th><th>Usuario</th></tr></thead><tbody>${(rb.data||[]).map(b=>`<tr><td><b style="font-size:13px">${esc(b.accion)}</b>${b.detalle?`<div style="font-size:11.5px;color:var(--txt-3)">${esc(b.detalle)}</div>`:''}</td><td style="white-space:nowrap;font-size:12.5px">${b.en?fh(b.en):'—'}</td><td style="font-size:12.5px">${esc(b.usuario||'')}${b.origen==='Global'?' <span class="p p-teal" style="font-size:10.5px">Global</span>':''}</td></tr>`).join('')}</tbody></table></div>`):''}
   </div>`;
+  $('#vf-volver').onclick=volver;
+  const A=$('#vf-acciones'), acc=[];
 
-  /* ---- comportamiento del formulario (sin recargar la página) ---- */
-  const sinc=()=>{ const eq=$('#vf-con_equipo')?.value==='true', pg=$('#vf-pago_inicial')?.value==='true', en=$('#vf-entrega_tipo')?.value;
-    document.querySelectorAll('.vf-eq').forEach(e=>e.style.display=eq?'':'none');
-    document.querySelectorAll('.vf-pago').forEach(e=>e.style.display=pg?'':'none');
-    const pl=$('#vf-plazo'); if(pl){ const o0=pl.querySelector('option[value="0"]'); o0.hidden=eq; o0.disabled=eq; if(eq&&pl.value==='0') pl.value=''; }
-    document.querySelectorAll('.vf-dom').forEach(e=>e.style.display=['dhl','mensajero'].includes(en)?'':'none');
-    document.querySelectorAll('.vf-msj').forEach(e=>e.style.display=en==='mensajero'?'':'none');
-    document.querySelectorAll('.vf-pto').forEach(e=>e.style.display=['hub','tienda'].includes(en)?'':'none');
-  };
-  const pintarPunto=()=>{ const en=$('#vf-entrega_tipo').value; if(!['hub','tienda'].includes(en)) return;
-    const s=$('#vf-punto'), prev=s.value||v.punto_entrega_id;
-    if(s.dataset.tipo!==en){ s.innerHTML=`<option value="">Elegir ${en==='hub'?'hub':'tienda'}…</option>${puntoOpts(en)}`; s.dataset.tipo=en; if(prev&&[...s.options].some(o=>o.value==String(prev))) s.value=String(prev); }
-    $('#vf-ptol').textContent=en==='hub'?'Hub donde recoge':'Tienda donde recoge';
-    const p=PE.find(x=>String(x.id)===s.value);
-    $('#vf-ptoinfo').innerHTML=p?`<div class="vf-ptocard"><b>${esc(p.nombre)}</b><span>${esc(p.direccion)}</span>${p.referencia?`<small>${esc(p.referencia)}</small>`:''}
-      <div>${p.sla?`<em>Entrega en ${esc(p.sla.toLowerCase())}</em>`:''}<a href="${esc(p.link||'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(p.direccion))}" target="_blank" rel="noopener">Ver en Maps</a></div></div>`:'';
-  };
-  const MODELOS=unicos(CAT.map(x=>x.marca+'|'+x.modelo)).map(k=>{ const [marca,modelo]=k.split('|');
-    const noms=unicos(CAT.filter(x=>x.marca===marca&&x.modelo===modelo).map(x=>x.nombre)).join(' ');
-    const q=(marca+' '+modelo+' '+noms).toLowerCase(); return {marca,modelo,q,qc:q.replace(/[^a-z0-9]/g,'')}; });
-  const engancharEquipo=()=>{
-    if(!conCatalogo||!editable) return;
-    if(v.equipo_fuera_lista){ const a=$('#eq-alista'); if(a) a.onclick=e=>{ e.preventDefault(); v.equipo_fuera_lista=false;
-      v.equipo_marca=''; v.equipo_modelo=''; v.equipo_capacidad=''; v.equipo_color=''; $('#vf-eqbox').innerHTML=equipoHTML(); engancharEquipo(); $('#vf-equipo_modelo').focus(); };
-      return; }
-    // Modelo: escribe y se filtra (cualquier parte del nombre); al elegir, se llena la marca
-    const inp=$('#vf-equipo_modelo'), lst=$('#eq-lista'); let act=-1, res=[];
-    const elegir=m=>{ v.equipo_marca=m.marca; v.equipo_modelo=m.modelo; v.equipo_capacidad=''; v.equipo_color='';
-      $('#vf-eqbox').innerHTML=equipoHTML(); engancharEquipo(); S.ventaSucia=true;
-      const c=$('#vf-equipo_capacidad')||$('#vf-equipo_color'); if(c&&c.tagName==='SELECT'){ if(c.options.length===2) c.selectedIndex=1; c.focus(); } };
-    const pintar=()=>{ const q=inp.value.toLowerCase().trim(), ma=$('#vf-equipo_marca').value;
-      const toks=q.split(/\s+/).filter(Boolean);
-      const qc=q.replace(/[^a-z0-9]/g,'');
-      res=MODELOS.filter(m=>(!ma||m.marca===ma||!q)&&(toks.every(t=>m.q.includes(t)||m.qc.includes(t.replace(/[^a-z0-9]/g,'')))||(qc.length>=4&&m.qc.includes(qc))));
-      if(!q&&ma) res=MODELOS.filter(m=>m.marca===ma);
-      res=res.sort((x,y)=>x.modelo.length-y.modelo.length||x.q.localeCompare(y.q)).slice(0,14); act=res.length?0:-1;
-      lst.innerHTML=res.length?res.map((m,i)=>`<button type="button" class="${i===act?'on':''}" data-i="${i}"><small>${esc(m.marca)}</small>${esc(m.modelo)}</button>`).join('')
-        :`<div class="eq-nada">No está en la lista de precios.<button type="button" class="btn" id="eq-amano" style="margin-top:6px;width:100%">Capturarlo a mano</button></div>`;
-      const am=lst.querySelector('#eq-amano'); if(am) am.onmousedown=e=>{ e.preventDefault(); const t=inp.value.trim();
-        v.equipo_fuera_lista=true; v.equipo_marca=$('#vf-equipo_marca').value||''; v.equipo_modelo=t.toUpperCase(); v.equipo_capacidad=''; v.equipo_color='';
-        $('#vf-eqbox').innerHTML=equipoHTML(); engancharEquipo(); S.ventaSucia=true; ($('#vf-equipo_marca').value?$('#vf-equipo_capacidad'):$('#vf-equipo_marca')).focus(); };
-      lst.classList.toggle('on',!!q||!!ma);
-      lst.querySelectorAll('[data-i]').forEach(b=>b.onmousedown=e=>{ e.preventDefault(); elegir(res[Number(b.dataset.i)]); }); };
-    inp.oninput=()=>{ v.equipo_modelo=''; pintar(); };
-    inp.onfocus=pintar;
-    inp.onblur=()=>setTimeout(()=>lst.classList.remove('on'),150);
-    inp.onkeydown=e=>{ if(!lst.classList.contains('on')||!res.length) return;
-      if(e.key==='ArrowDown'||e.key==='ArrowUp'){ e.preventDefault(); act=(act+(e.key==='ArrowDown'?1:-1)+res.length)%res.length;
-        lst.querySelectorAll('[data-i]').forEach((b,i)=>b.classList.toggle('on',i===act)); lst.children[act]?.scrollIntoView({block:'nearest'}); }
-      else if(e.key==='Enter'){ e.preventDefault(); elegir(res[Math.max(act,0)]); } };
-    ['marca','capacidad'].forEach(k=>{ const i=k==='marca'?0:2; const el=$('#vf-equipo_'+k); if(!el) return; el.onchange=()=>{
-      v.equipo_marca=$('#vf-equipo_marca').value; v.equipo_modelo=i>=1?$('#vf-equipo_modelo').value:''; v.equipo_capacidad=i>=2?$('#vf-equipo_capacidad').value:''; v.equipo_color='';
-      if(i===0){ v.equipo_modelo=''; } $('#vf-eqbox').innerHTML=equipoHTML(); engancharEquipo(); S.ventaSucia=true;
-    }; });
-  };
-  // CP → colonias, municipio y estado
-  let cpMod=null;
-  const buscarCP=async()=>{
-    const cp=$('#vf-cp').value.replace(/\D/g,''), msg=$('#vf-cpmsg'), sel=$('#vf-colsel'), txt=$('#vf-colonia');
-    if(cp.length!==5){ msg.textContent=''; return; }
-    msg.textContent='Buscando…';
-    try{
-      cpMod=cpMod||await import('https://cdn.jsdelivr.net/npm/@webrek/mx-cp@0.2.0/dist/index.js');
-      const r=await cpMod.buscaCP(cp);
-      if(!r){ msg.textContent='No encontramos ese CP: revisa o escribe la colonia.'; sel.style.display='none'; txt.style.display=''; return; }
-      $('#vf-municipio').value=r.municipio.toUpperCase(); $('#vf-estado_dir').value=r.estado.toUpperCase();
-      const cols=r.asentamientos.map(a=>a.nombre.toUpperCase()), act=($('#vf-colonia').value||v.colonia||'').toUpperCase();
-      sel.innerHTML=`<option value="">Elegir colonia…</option>${cols.map(c=>`<option ${c===act?'selected':''}>${esc(c)}</option>`).join('')}<option value="__otra">Otra (escribirla)</option>`;
-      if(act&&!cols.includes(act)){ sel.value='__otra'; txt.style.display=''; } else { txt.style.display='none'; if(cols.length===1&&!act){ sel.selectedIndex=1; txt.value=cols[0]; } }
-      sel.style.display=''; msg.textContent=`${r.municipio}, ${r.estado}`;
-    }catch(e){ msg.textContent='No se pudo consultar el CP; escribe colonia, municipio y estado.'; sel.style.display='none'; txt.style.display=''; }
-  };
-  if(editable){
-    $('#vf-cp').addEventListener('input',()=>{ if($('#vf-cp').value.replace(/\D/g,'').length===5) buscarCP(); });
-    $('#vf-colsel').onchange=e=>{ const o=e.target.value; if(o==='__otra'){ $('#vf-colonia').style.display=''; $('#vf-colonia').value=''; $('#vf-colonia').focus(); } else { $('#vf-colonia').style.display='none'; $('#vf-colonia').value=o; } };
-    if(v.cp) buscarCP();
-  } else { $('#vf-colsel').style.display='none'; $('#vf-colonia').style.display=''; }
-  sinc(); pintarPunto(); engancharEquipo();
-  // RFC → fecha de nacimiento (si está vacía) y aviso si no coinciden
-  if(editable&&$('#vf-cliente_rfc')) $('#vf-cliente_rfc').addEventListener('input',e=>{
-    const r=e.target.value.toUpperCase().replace(/[^A-Z0-9&Ñ]/g,''); e.target.value=r;
-    const m=r.match(/^[A-Z&Ñ]{4}(\d{2})(\d{2})(\d{2})/); if(!m) return;
-    const yy=Number(m[1]), anio=(yy>Number(String(new Date().getFullYear()).slice(2))?1900:2000)+yy, f=`${anio}-${m[2]}-${m[3]}`;
-    const n=$('#vf-cliente_nacimiento'); if(!n.value) n.value=f;
-    else if(n.value!==f&&(r.length===10||r.length===13)) toast('La fecha del RFC no coincide con la fecha de nacimiento: revisa cuál está mal.','bad'); });
-  ['vf-con_equipo','vf-pago_inicial','vf-entrega_tipo'].forEach(k=>$('#'+k)&&$('#'+k).addEventListener('change',()=>{ sinc(); pintarPunto(); }));
-  $('#vf-punto').onchange=pintarPunto;
-  // Cambios sin guardar
-  if(editable) $('#vf-form').addEventListener('input',e=>{ if(e.target.type!=='file'&&!e.target.dataset.chk&&e.target.id!=='vf-motivo'&&e.target.id!=='vf-pt') S.ventaSucia=true; });
-  if(editable) $('#vf-form').addEventListener('change',e=>{ if(e.target.type!=='file'&&!e.target.dataset.chk) S.ventaSucia=true; });
-  $('#vf-volver').onclick=()=>{ if(S.ventaSucia&&!confirm('Tienes datos capturados sin guardar. Si sales se pierden.\n\n¿Salir de todos modos?')) return; S.ventaSucia=false; vistaVentasReg(); };
+  // ---- 1 · Nuevo: el agente corrige lo regresado (solo folio, DN y PT)
+  if(v.estatus==='regresada'&&(esDueno||papel==='direccion')) acc.push(sec('Corrige y vuelve a mandar',`
+    <div class="note" style="margin-bottom:12px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">Mesa de control la regresó</b>${esc(v.motivo||'')}</div>
+    <div style="font-size:12.5px;color:var(--txt-2);margin-bottom:10px">Si lo que estaba mal es algo de Global o AVS, corrígelo allá. Aquí solo cambias el folio, el DN o el PT si estaban mal.</div>
+    <div style="${g3}"><div><label>Folio</label><input id="rc-folio" value="${esc(v.folio||'')}" style="${ESTILO_CAMPO}"></div>
+      <div><label>DN</label><input id="rc-dn" value="${esc(v.dn||'')}" style="${ESTILO_CAMPO}"></div>
+      <div><label>PT</label><input id="rc-pt" value="${esc(v.pt||'')}" style="${ESTILO_CAMPO};text-transform:uppercase"></div></div>
+    <button class="btn btn-p" id="rc-ok" style="margin-top:12px">Listo, mandar a revisión otra vez</button>`));
+
+  // ---- 2 · Revisión (mesa): checklist + hub DHL
+  if(v.estatus==='en_revision'&&mesa) acc.push(sec('2 · Revisión de mesa de control',`
+    <div style="font-size:12.5px;color:var(--txt-2);margin-bottom:10px">Busca la venta en Global con el PT <b>${esc(v.pt||'')}</b> y en AVS con el folio <b>${esc(v.folio||'')}</b>, y marca cada punto.</div>
+    <div class="tile" style="cursor:default;transform:none;background:var(--line-2);padding:14px;margin-bottom:12px">
+      <b style="font-size:13px">Hub DHL</b>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:8px;align-items:end">
+        <div><label>CP de entrega</label><input id="dh-cp" value="${esc(v.dest_cp||v.global_cp||'')}" maxlength="5" inputmode="numeric" style="${ESTILO_CAMPO}"></div>
+        <div><label>Estado</label><input id="dh-edo" value="${esc(v.dest_estado||v.global_estado||'')}" style="${ESTILO_CAMPO}"></div>
+        <div><label>Municipio</label><input id="dh-mun" value="${esc(v.dest_municipio||v.global_municipio||'')}" style="${ESTILO_CAMPO}"></div>
+        <div><label>Sale de (hub)</label><select id="dh-real" style="${ESTILO_CAMPO}"><option value="">— elige —</option>${HUBS_DHL.map(h=>`<option ${String(v.hub_real||v.global_region||'')===h?'selected':''}>${h}</option>`).join('')}</select></div>
+        <button class="btn" id="dh-calc">Calcular</button></div>
+      <div id="dh-res" style="margin-top:10px"></div></div>
+    ${CHECK_MESA.map(([k,l])=>`<label style="display:flex;gap:10px;align-items:flex-start;margin:8px 0;font-weight:500;font-size:13.5px">
+      ${k==='pago'?`<select data-ck="pago" style="${ESTILO_CAMPO};width:auto;padding:4px 6px"><option value="">—</option><option value="true" ${ck.pago===true||ck.pago==='true'?'selected':''}>✓ Correcto</option><option value="na" ${ck.pago==='na'?'selected':''}>No lleva pago</option></select>`
+        :`<input type="checkbox" data-ck="${k}" ${ck[k]===true?'checked':''} ${k==='hub'?'disabled':''} style="margin-top:3px;width:17px;height:17px">`}<span>${l}</span></label>`).join('')}
+    <div style="margin-top:12px"><label>Motivo (si la regresas o la rechazas)</label><textarea id="mr-mot" rows="2" style="${ESTILO_CAMPO}" placeholder="Ej. el RFC en Global no coincide con el contrato"></textarea></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn btn-p" id="mr-ok">Aprobar · pasa a Back Office</button>
+      <button class="btn" id="mr-reg">Regresar al agente</button><button class="btn" style="color:var(--bad)" id="mr-rech">Rechazar</button></div>`));
+
+  // ---- 3 · Back Office (mesa): series + guía DHL o ruta interna con turno
+  if(v.estatus==='aprobada'&&mesa&&!v.previa){
+    const gNum=/^\d{10}$/.test(String(v.guia||''))?v.guia:'';
+    acc.push(sec('3 · Back Office · series y envío',`
+      ${v.global_back_office_en?`<div style="font-size:12.5px;color:var(--ok);margin-bottom:8px">✓ Ya aparece en Back Office en Global (${fh(v.global_back_office_en)}).</div>`:'<div style="font-size:12.5px;color:var(--txt-3);margin-bottom:8px">Pásala a Back Office en Global. El reporte de Detalle del día siguiente lo confirma.</div>'}
+      <label style="display:flex;gap:10px;align-items:center;font-size:13.5px;margin:8px 0"><input type="checkbox" id="lg-ser" style="width:17px;height:17px" ${v.global_equipo_serie||v.global_sim_serie?'checked':''}> Series asignadas en Global${v.global_equipo_serie||v.global_sim_serie?` <small style="color:var(--txt-3)">(el reporte ya trae: ${esc([v.global_equipo_serie,v.global_sim_serie].filter(Boolean).join(' · '))})</small>`:''}</label>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin:10px 0;font-size:13.5px"><label><input type="radio" name="lg-t" value="dhl" ${v.envio_tipo!=='interna'&&!/INTER/i.test(String(v.guia||''))?'checked':''}> Guía DHL</label><label><input type="radio" name="lg-t" value="interna" ${v.envio_tipo==='interna'||/INTER/i.test(String(v.guia||''))?'checked':''}> Ruta interna</label></div>
+      <div id="lg-gbox" style="max-width:260px"><label>Número de guía DHL</label><input id="lg-guia" value="${esc(v.guia_dhl||gNum)}" maxlength="10" inputmode="numeric" placeholder="10 dígitos" style="${ESTILO_CAMPO}"></div>
+      <div id="lg-tbox" style="max-width:260px"><label>Turno de la ruta</label><select id="lg-turno" style="${ESTILO_CAMPO}"><option value="">— elige —</option><option value="matutino" ${v.turno_ruta==='matutino'?'selected':''}>Matutino</option><option value="vespertino" ${v.turno_ruta==='vespertino'?'selected':''}>Vespertino</option></select></div>
+      <button class="btn btn-p" id="lg-ok" style="margin-top:12px">Guardar · pasa a En ruta</button>`));
+  }
+
+  // ---- 4 · En ruta: evidencia (solo DHL)
+  if(v.estatus==='en_global'&&!v.previa&&v.envio_tipo==='dhl'&&(esDueno||mesa)){
+    acc.push(sec('4 · Evidencia de entrega',`
+      ${v.evid_rechazo?`<div class="note" style="margin-bottom:12px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">Facturación rechazó la evidencia</b>${esc(v.evid_rechazo)}</div>`:''}
+      <div style="font-size:13px;color:var(--txt-2)">Cuando el cliente reciba, sube la foto donde se vea <b>la etiqueta con el número de guía</b>${v.guia_dhl?` (<b class="mono">${esc(v.guia_dhl)}</b>)`:''}. Al subirla la venta pasa a <b>Entregada</b>.</div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><label class="btn btn-p" style="margin:0">Subir evidencia<input type="file" accept="image/*,application/pdf" id="ev-f" style="display:none"></label></div>`));
+  }
+  if(v.estatus==='en_global'&&!v.previa&&v.envio_tipo==='interna') acc.push(sec('4 · En ruta interna',`<div style="font-size:13px;color:var(--txt-2)">Turno <b>${esc(v.turno_ruta||'sin turno')}</b>. Pasa sola a <b>Entregada</b> cuando el reporte de Detalle de Global la traiga entregada. No lleva evidencia.</div>`));
+
+  // ---- 5 · Entregada (Perla): cierre
+  if(v.estatus==='entregada'&&perla){
+    const ev=docs.evidencia_entrega, dhl=v.envio_tipo==='dhl', CK=CHECK_PERLA.filter(([k])=>dhl||k!=='evidencia');
+    acc.push(sec('5 · Cierre de facturación',`
+      ${dhl?`<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px">${ev?`<button class="btn" data-ver="${esc(ev.path)}">Ver evidencia</button>`:''}
+        <span style="font-size:13px">Guía registrada: <b class="mono">${esc(v.guia_dhl||'—')}</b></span></div>`:`<div style="font-size:12.5px;color:var(--txt-3);margin-bottom:8px">Ruta interna (${esc(v.turno_ruta||'')}): entregada según el Detalle de Global, no lleva evidencia.</div>`}
+      ${CK.map(([k,l])=>`<label style="display:flex;gap:10px;align-items:flex-start;margin:8px 0;font-size:13.5px"><input type="checkbox" data-cz="${k}" ${cz[k]===true?'checked':''} style="margin-top:3px;width:17px;height:17px"><span>${l}</span></label>`).join('')}
+      ${dhl?`<div style="margin-top:10px"><label>Qué está mal (si rechazas la evidencia)</label><input id="pz-mot" style="${ESTILO_CAMPO}" placeholder="Ej. no se ve el número de guía"></div>`:''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn btn-p" id="pz-ok">Completar</button><button class="btn" id="pz-g">Guardar avance</button>${dhl?'<button class="btn" style="color:var(--bad)" id="pz-rech">Rechazar evidencia · regresa a En ruta</button>':''}</div>
+      <div style="font-size:12px;color:var(--txt-3);margin-top:8px">El reporte de Ventas del día siguiente confirma que quedó terminada.</div>`));
+  }
+  if(solover||(!mesa&&!perla&&esDueno&&!['regresada','en_global'].includes(v.estatus))) acc.push(`<div style="grid-column:1/-1;font-size:12.5px;color:var(--txt-3)">Esta etapa la mueve ${esc(RESP_TXT(v)||'otra área')}; aquí solo la ves.</div>`);
+
+  // ---- Mesa: cancelar
+  if(mesa&&!['facturada','cancelada','rechazada'].includes(v.estatus)) acc.push(`<div style="grid-column:1/-1;display:flex;justify-content:flex-end"><button class="btn" style="color:var(--bad)" id="vf-cancelar">La venta se cayó · cancelar</button></div>`);
+  A.outerHTML=acc.join('');
   engancharVerificacion(id);
 
-  const leer=()=>{ const o={id:id||null};
-    ['folio','dn','cliente','tipo_venta','plan_id','plazo','con_equipo','tipo_sim','equipo_marca','equipo_modelo','equipo_color','equipo_capacidad',
-     'pago_inicial','pago_inicial_monto','entrega_tipo','calle','numero_ext','numero_int','colonia','cp','municipio','estado_dir','referencias','telefono_contacto','empleado_id']
-      .forEach(k=>{ const el=$('#vf-'+k); if(el) o[k]=el.value; });
-    if(!conCatalogo&&o.equipo_modelo!==undefined){ const eq=String(o.equipo_modelo||'').replace(/\s+/g,' ').trim().toUpperCase(); o.equipo_modelo=eq;
-      const f=MARCAS_EQ.find(([re])=>re.test(eq)); o.equipo_marca=eq?(f?f[1]:eq.split(' ')[0].slice(0,20)):''; o.equipo_capacidad=''; o.equipo_color=''; }
-    if($('#vf-colsel')&&$('#vf-colsel').style.display!=='none'&&$('#vf-colsel').value&&$('#vf-colsel').value!=='__otra') o.colonia=$('#vf-colsel').value;
-    o.punto_entrega_id=['hub','tienda'].includes(o.entrega_tipo)?$('#vf-punto').value:null;
-    return o; };
-  const guardar=async(silencio)=>{
-    if(conCatalogo&&!v.equipo_fuera_lista&&$('#vf-con_equipo')?.value==='true'){ const mo=($('#vf-equipo_modelo')?.value||'').trim();
-      if(mo&&!CAT.some(x=>x.modelo===mo&&x.marca===$('#vf-equipo_marca').value)){ toast('El modelo no está en la lista de precios: escríbelo y elígelo de las opciones.','bad'); $('#vf-equipo_modelo').focus(); return null; } }
-    const {data,error}=await sb.rpc('guardar_venta_reg',{p:leer()});
-    if(error){ toast(error.message,'bad'); return null; }
-    const ex={cliente_rfc:($('#vf-cliente_rfc')?.value||'').toUpperCase().replace(/[^A-Z0-9&Ñ]/g,''),cliente_nacimiento:$('#vf-cliente_nacimiento')?.value||'',cliente_correo:$('#vf-cliente_correo')?.value||'',equipo_fuera_lista:false};
-    if(ex.cliente_correo&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(ex.cliente_correo.trim())) toast('Revisa el correo del cliente: no tiene formato válido.','bad');
-    const r2=await sb.rpc('guardar_venta_cliente',{p_id:data,p:ex});
-    if(r2.error){ toast(r2.error.message.includes('guardar_venta_cliente')?'Falta correr el SQL 163 para guardar nacimiento y correo.':r2.error.message,'bad'); } if(!silencio) toast('Guardado.','ok'); id=data; S.ventaSucia=false; return data; };
-  const alListado=tab=>{ S.ventaSucia=false; S.vr=S.vr||{q:''}; S.vr.tab=tab; S.vr.q=''; vistaVentasReg(); };
+  const recargar=()=>abrirVentaReg(id);
+  if($('#rc-ok')) $('#rc-ok').onclick=async()=>{ const {error}=await sb.rpc('corregir_venta',{p_id:id,p_folio:$('#rc-folio').value,p_dn:$('#rc-dn').value,p_pt:$('#rc-pt').value});
+    if(error) return toast(error.message,'bad'); toast('Enviada otra vez a revisión.','ok'); recargar(); };
 
-  if($('#vf-guardar')) $('#vf-guardar').onclick=async()=>{ const b=$('#vf-guardar'); b.classList.add('cargando'); const i=await guardar(true); b.classList.remove('cargando');
-    if(i){ toast('Borrador guardado. Lo encuentras arriba de tu lista.','ok'); alListado(papel==='agente'?'mias':'todas'); } };
-  if($('#vf-enviar')) $('#vf-enviar').onclick=async()=>{
-    const b=$('#vf-enviar'); b.classList.add('cargando');
-    const i=await guardar(true); if(!i){ b.classList.remove('cargando'); return; }
-    const {data,error}=await sb.rpc('enviar_venta_reg',{p_id:i}); b.classList.remove('cargando');
-    if(error) return toast(error.message,'bad');
-    if(data.ok){ toast('Enviada a mesa de control. Ya aparece en tu lista como "En revisión".','ok'); return alListado(papel==='agente'?'mias':'revisar'); }
-    const nom=Object.fromEntries(DOCS_VENTA.map(d=>[d[0],d[1]]));
-    const msg=data.duplicado?data.duplicado:[ (data.faltan_datos||[]).length?'Falta: '+data.faltan_datos.join(', '):'', (data.faltan_docs||[]).length?'Faltan documentos: '+data.faltan_docs.map(d=>nom[d]||d).join(', '):'' ].filter(Boolean).join('. ');
-    toast(msg+' (Lo capturado quedó guardado como borrador.)','bad'); };
-  if($('#vf-borrar')) $('#vf-borrar').onclick=async()=>{ if(!confirm('¿Borrar este borrador y sus documentos?')) return;
-    const {data,error}=await sb.rpc('borrar_borrador_reg',{p_id:id}); if(error) return toast(error.message,'bad');
-    if((data||[]).length) await sb.storage.from('expedientes').remove(data); toast('Borrador eliminado.','ok'); alListado(papel==='agente'?'mias':'todas'); };
-  if($('#vf-eliminar')) $('#vf-eliminar').onclick=async()=>{
-    const m=prompt(`Se eliminará la venta ${v.folio||'#'+id} con todo su expediente y su historial. No se puede deshacer.\n\n¿Por qué se elimina? (ej. registro de prueba)`); if(!m) return;
-    const {data,error}=await sb.rpc('eliminar_venta_reg',{p_id:id,p_motivo:m}); if(error) return toast(error.message,'bad');
-    if((data||[]).length) await sb.storage.from('expedientes').remove(data).catch(()=>{});
-    toast('Venta eliminada.','ok'); alListado('todas'); };
+  // Hub DHL en la revisión
+  let HUB=null;
+  const pintarHub=async()=>{
+    const real=$('#dh-real').value;
+    try{
+      const r=await cotizarHubCP($('#dh-cp').value.trim(),$('#dh-edo').value.trim(),$('#dh-mun').value.trim(),v.equipo_modelo||null);
+      $('#dh-edo').value=r.edo; $('#dh-mun').value=r.mun;
+      const sug=r.C.find(x=>x.sugerido), cr=r.C.find(x=>x.hub===real);
+      if(cr&&!cr.permitido){ HUB=null; $('#dh-res').innerHTML=tablaHubsHTML(r.C,real)+'<div style="color:var(--bad);font-size:13px;margin-top:6px"><b>Tijuana solo entrega en Baja California.</b> Cámbialo en Global.</div>'; marcarHub(); return; }
+      const caro=cr&&sug&&cr.hub!==sug.hub;
+      HUB={cp:$('#dh-cp').value.trim(),estado:r.edo,municipio:r.mun,hub_real:real,hub_ideal:sug?sug.hub:null,costo_real:cr?cr.costo:null,costo_ideal:sug?sug.costo:null,motivo:''};
+      $('#dh-res').innerHTML=tablaHubsHTML(r.C,real)+`<div style="font-size:13px;margin-top:8px">${!real?'<span style="color:var(--warn)">Elige de qué hub sale.</span>':caro?`<b style="color:var(--bad)">No sale del sugerido (${sug.hub}).</b>${Number(cr.costo)>Number(sug.costo)?` Se pagan ${money(cr.costo-sug.costo)} de más.`:''} Corrígelo en Global o elige el motivo:
+        <select id="dh-mot" style="${ESTILO_CAMPO};width:auto;display:inline-block;margin-left:6px"><option value="">— motivo —</option>${MOTIVOS_HUB.map(m=>`<option>${m}</option>`).join('')}</select>`
+        :`<b style="color:var(--ok)">✓ Sale del sugerido (${real}).</b>`}</div>`;
+      if($('#dh-mot')) $('#dh-mot').onchange=e=>{ HUB.motivo=e.target.value; marcarHub(); };
+    }catch(e){ HUB=null; $('#dh-res').innerHTML=`<span style="color:var(--bad);font-size:12.5px">${esc(e.message)}</span>`; }
+    marcarHub();
+  };
+  const marcarHub=()=>{ const c=document.querySelector('[data-ck="hub"]'); if(!c) return;
+    c.checked=!!(HUB&&HUB.hub_real&&HUB.hub_ideal&&(HUB.hub_real===HUB.hub_ideal||HUB.motivo)); };
+  if($('#dh-calc')){
+    $('#dh-calc').onclick=pintarHub; $('#dh-real').onchange=pintarHub;
+    $('#dh-cp').addEventListener('change',()=>{ if(/^\d{5}$/.test($('#dh-cp').value.trim())){ $('#dh-edo').value=''; $('#dh-mun').value=''; pintarHub(); } });
+    if(($('#dh-edo').value&&$('#dh-mun').value)||/^\d{5}$/.test($('#dh-cp').value)) pintarHub();
+  }
+  const leerCk=()=>Object.fromEntries(CHECK_MESA.map(([k])=>{ const el=document.querySelector(`[data-ck="${k}"]`); return [k,k==='pago'?(el.value==='true'?true:el.value||null):el.checked]; }));
+  if($('#mr-ok')) $('#mr-ok').onclick=async()=>{
+    const chk=leerCk();
+    if(!HUB||!HUB.hub_real) return toast('Calcula el hub DHL: CP de entrega y de qué hub sale.','bad');
+    const falta=CHECK_MESA.filter(([k])=>!(chk[k]===true||chk[k]==='na')).map(([,l])=>l);
+    if(falta.length) return toast('Falta: '+falta[0],'bad');
+    const {error}=await sb.rpc('mesa_revisar_venta',{p_id:id,p_accion:'aprobar',p_motivo:null,p_checklist:chk,p_hub:HUB});
+    if(error) return toast(error.message,'bad'); toast('Aprobada. Pásala a Back Office en Global.','ok'); recargar(); };
+  const rev=acc2=>async()=>{ const m=$('#mr-mot').value.trim(); if(!m) return toast('Escribe el motivo.','bad');
+    if(acc2==='rechazar'&&!confirm('¿Rechazar la venta? Ya no sigue el flujo.')) return;
+    const {error}=await sb.rpc('mesa_revisar_venta',{p_id:id,p_accion:acc2,p_motivo:m,p_checklist:leerCk(),p_hub:HUB||{}});
+    if(error) return toast(error.message,'bad'); toast(acc2==='regresar'?'Regresada al agente.':'Rechazada.','ok'); vistaVentasReg(); };
+  if($('#mr-reg')) $('#mr-reg').onclick=rev('regresar');
+  if($('#mr-rech')) $('#mr-rech').onclick=rev('rechazar');
 
-  const revisar=async acc=>{ const chk=Object.fromEntries([...document.querySelectorAll('[data-chk]')].map(c=>[c.dataset.chk,c.checked]));
-    const {error}=await sb.rpc('revisar_venta_reg',{p_id:id,p_accion:acc,p_motivo:$('#vf-motivo').value||null,p_checklist:chk});
-    if(error) return toast(error.message,'bad'); toast({aprobar:'Aprobada. Ya cuenta como venta por entregar.',regresar:'Regresada al agente.',rechazar:'Rechazada.'}[acc],'ok'); vistaVentasReg(); };
-  if($('#vf-aprobar')) $('#vf-aprobar').onclick=()=>revisar('aprobar');
-  if($('#vf-regresar')) $('#vf-regresar').onclick=()=>revisar('regresar');
-  if($('#vf-rechazar')) $('#vf-rechazar').onclick=()=>revisar('rechazar');
-  if($('#vf-capturar')) $('#vf-capturar').onclick=async()=>{ const {error}=await sb.rpc('capturar_global_reg',{p_id:id,p_pt:$('#vf-pt').value});
-    if(error) return toast(error.message,'bad'); toast('Queda en tránsito.','ok'); abrirVentaReg(id); };
-  if($('#vf-facturar')) $('#vf-facturar').onclick=async()=>{ const {error}=await sb.rpc('facturar_venta_reg',{p_id:id});
-    if(error) return toast(error.message,'bad'); toast('Facturada y activada.','ok'); vistaVentasReg(); };
+  // Back Office
+  if($('#lg-ok')){
+    const sinc=()=>{ const d=document.querySelector('[name="lg-t"]:checked')?.value==='dhl'; $('#lg-gbox').style.display=d?'':'none'; $('#lg-tbox').style.display=d?'none':''; };
+    document.querySelectorAll('[name="lg-t"]').forEach(r=>r.onchange=sinc); sinc();
+    $('#lg-ok').onclick=async()=>{ const tipo=document.querySelector('[name="lg-t"]:checked')?.value;
+      if(tipo==='dhl'&&!/^\d{10}$/.test($('#lg-guia').value.trim())) return toast('La guía DHL lleva 10 dígitos.','bad');
+      if(tipo==='interna'&&!$('#lg-turno').value) return toast('Elige el turno de la ruta: matutino o vespertino.','bad');
+      const {error}=await sb.rpc('mesa_logistica',{p_id:id,p_series:$('#lg-ser').checked,p_tipo:tipo,p_guia:tipo==='dhl'?$('#lg-guia').value.trim():null,p_turno:tipo==='interna'?$('#lg-turno').value:null});
+      if(error) return toast(error.message,'bad'); toast('Listo: la venta va en ruta. Al agente le llega el aviso.','ok'); recargar(); };
+  }
+
+  // Perla
+  const leerCz=()=>Object.fromEntries(CHECK_PERLA.map(([k])=>{ const el=document.querySelector(`[data-cz="${k}"]`); return [k,el?el.checked:null]; }).filter(x=>x[1]!==null));
+  if($('#pz-g')) $('#pz-g').onclick=async()=>{ const {error}=await sb.rpc('perla_cierre_venta',{p_id:id,p_accion:'guardar',p_checklist:leerCz()});
+    if(error) return toast(error.message,'bad'); toast('Avance guardado.','ok'); };
+  if($('#pz-ok')) $('#pz-ok').onclick=async()=>{ const z=leerCz(), falta=CHECK_PERLA.filter(([k])=>k in z&&!z[k]).map(([,l])=>l);
+    if(falta.length) return toast('Falta: '+falta[0],'bad');
+    const {error}=await sb.rpc('perla_cierre_venta',{p_id:id,p_accion:'cerrar',p_checklist:z});
+    if(error) return toast(error.message,'bad'); toast('Venta completada.','ok'); vistaVentasReg(); };
+  if($('#pz-rech')) $('#pz-rech').onclick=async()=>{ const m=$('#pz-mot').value.trim(); if(!m) return toast('Escribe qué está mal en la evidencia.','bad');
+    const {error}=await sb.rpc('perla_cierre_venta',{p_id:id,p_accion:'rechazar_evidencia',p_checklist:leerCz(),p_motivo:m});
+    if(error) return toast(error.message,'bad'); toast('Evidencia rechazada: regresa a En ruta y al agente le llega el aviso.','ok'); vistaVentasReg(); };
+
+  // Cancelar
   if($('#vf-cancelar')) $('#vf-cancelar').onclick=async()=>{ const m=prompt('¿Por qué se cayó la venta?'); if(!m) return;
     const {error}=await sb.rpc('cancelar_venta_reg',{p_id:id,p_motivo:m}); if(error) return toast(error.message,'bad'); toast('Cancelada.','ok'); vistaVentasReg(); };
 
-  // Documentos: se suben y solo se actualiza su recuadro, sin recargar
-  const engancharDocs=raiz=>{
-    raiz.querySelectorAll('[data-ver]').forEach(b=>b.onclick=async()=>{
-      const w=window.open('','_blank');
-      const {data,error}=await sb.storage.from('expedientes').createSignedUrl(b.dataset.ver,300);
-      if(error){ w&&w.close(); return toast(error.message,'bad'); } if(w) w.location=data.signedUrl; else location.href=data.signedUrl; });
-    raiz.querySelectorAll('[data-subir]').forEach(inp=>inp.onchange=async()=>{
-      const f=inp.files[0]; if(!f) return;
-      const tipo=inp.dataset.tipo, k=inp.dataset.subir, pdf=f.type==='application/pdf', img=/^image\//.test(f.type);
-      if(tipo==='pdf'&&!pdf) return toast('Ese documento debe ser PDF.','bad');
-      if(tipo==='img'&&!img) return toast('Sube una imagen (captura de pantalla).','bad');
-      if(!pdf&&!img) return toast('Solo PDF o imagen.','bad');
-      if(f.size>15*1024*1024) return toast('El archivo pesa más de 15 MB.','bad');
-      const lbl=inp.closest('label'); lbl.classList.add('cargando');
-      try{
-        let vid=id;
-        if(editable){ const sucia=S.ventaSucia; vid=await guardar(true); if(!vid) throw new Error('No se pudo guardar el borrador.'); S.ventaSucia=false; void sucia; }
-        const blob=img?await comprimirFoto(f):f, ext=img?'jpg':'pdf';
-        const ruta=`${vid}/${k}_${Date.now()}.${ext}`;
-        const up=await sb.storage.from('expedientes').upload(ruta,blob,{contentType:img?'image/jpeg':'application/pdf'});
-        if(up.error) throw new Error(up.error.message);
-        const {error}=await sb.rpc('agregar_doc_venta',{p_id:vid,p_tipo:k,p_path:ruta,p_nombre:f.name,p_bytes:blob.size});
-        if(error){ await sb.storage.from('expedientes').remove([ruta]); throw new Error(error.message); }
-        if(docs[k]) sb.storage.from('expedientes').remove([docs[k].path]).catch(()=>{});
-        docs[k]={tipo:k,path:ruta,nombre:f.name,subido_en:new Date().toISOString()};
-        const slot=document.querySelector(`[data-slot="${k}"]`); const D=DOCS_VENTA.find(d=>d[0]===k);
-        slot.classList.add('ok'); slot.innerHTML=slotHTML(D); engancharDocs(slot);
-        toast('Documento cargado.','ok');
-        if(k==='evidencia_entrega') abrirVentaReg(vid);
-      }catch(e){ toast(e.message,'bad'); lbl.classList.remove('cargando'); }
-    });
-  };
-  engancharDocs(document);
-}
+  // Ver archivos
+  document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=async()=>{
+    const w=window.open('','_blank');
+    const {data,error}=await sb.storage.from('expedientes').createSignedUrl(b.dataset.ver,300);
+    if(error){ w&&w.close(); return toast(error.message,'bad'); } if(w) w.location=data.signedUrl; else location.href=data.signedUrl; });
 
-
-/* ---------- Lista de precios → catálogo de equipos ---------- */
-const MARCAS_EQ=[[/iphone|ipad|apple/i,'APPLE'],[/galaxy|samsung/i,'SAMSUNG'],[/moto|motorola|razr/i,'MOTOROLA'],[/redmi|xiaomi|poco/i,'XIAOMI'],[/honor/i,'HONOR'],
-  [/oppo|reno/i,'OPPO'],[/zte|blade|nubia/i,'ZTE'],[/huawei|nova/i,'HUAWEI'],[/pixel|google/i,'GOOGLE'],[/vivo/i,'VIVO'],[/realme/i,'REALME'],[/tcl/i,'TCL'],[/alcatel/i,'ALCATEL'],[/nokia/i,'NOKIA']];
-async function pintarListaPrecios(c){
-  const {data,error}=await sb.from('catalogo_equipos').select('*').eq('activo',true).order('marca').order('modelo').limit(5000);
-  if(error){ c.innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 157.</span></div>`; return; }
-  const L=data||[], marcas=[...new Set(L.map(x=>x.marca))], modelos=new Set(L.map(x=>x.marca+'|'+x.modelo)).size;
-  c.innerHTML=`<div class="kpis">
-      <div class="kpi t"><span>Lista vigente</span><b style="font-size:20px">${esc(L[0]?.lista||'Sin lista')}</b><small>${L[0]?'cargada '+fh(L[0].cargado_en):'sube la primera'}</small></div>
-      <div class="kpi"><span>Marcas</span><b>${marcas.length}</b></div><div class="kpi"><span>Modelos</span><b>${modelos}</b></div><div class="kpi"><span>Combinaciones</span><b>${L.length}</b><small>modelo · capacidad · color</small></div></div>
-    <div class="tile w12" style="cursor:default;transform:none;margin:14px 0"><div class="tv-h"><b>Subir lista de precios nueva</b><span>Reemplaza la vigente. Los agentes eligen el equipo de aquí.</span></div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
-        <div><label>Nombre de la lista</label><input id="lp-nom" value="Lista ${esc(new Date().toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}))}" style="${ESTILO_CAMPO}"></div>
-        <div><label>Archivo (Excel o CSV)</label><input type="file" id="lp-f" accept=".xlsx,.xlsm,.xls,.csv" style="${ESTILO_CAMPO}"></div></div>
-      <div id="lp-map" style="margin-top:12px"></div></div>
-    <div id="lp-l"></div>`;
-  tablaPaginada($('#lp-l'),L,'<th>Marca</th><th>Modelo</th><th>Capacidad</th><th>Color</th><th class="num">Precio</th>',
-    x=>`<tr><td>${esc(x.marca)}</td><td><b style="font-size:13px">${esc(x.modelo)}</b></td><td>${esc(x.capacidad||'—')}</td><td>${esc(x.color||'—')}</td><td class="num">${x.precio!=null?money(x.precio):'—'}</td></tr>`,
-    {vacio:'Todavía no hay lista de precios. Mientras tanto, los agentes escriben el equipo a mano.'});
-  $('#lp-f').onchange=async e=>{
+  // Subir evidencia → Entregada
+  if($('#ev-f')) $('#ev-f').onchange=async e=>{
     const f=e.target.files[0]; if(!f) return;
-    let aoa; try{ aoa=await bdLeerArchivo(f); }catch(err){ return toast('No se pudo leer: '+err.message,'bad'); }
-    const hi=Math.max(0,aoa.findIndex(r=>r.filter(v=>/modelo|equipo|marca|precio|capacidad|color|memoria|almacenamiento|sku/i.test(String(v??''))).length>=2));
-    const cab=(aoa[hi]||[]).map(x=>String(x??'')), datos=aoa.slice(hi+1);
-    const g={marca:bdAdivina(cab,/marca|fabricante/),modelo:bdAdivina(cab,/modelo|equipo|descripcion|producto/),capacidad:bdAdivina(cab,/capacidad|memoria|almacenamiento|gb/),
-      color:bdAdivina(cab,/color/),precio:bdAdivina(cab,/precio|contado|costo|pvp/),nombre:bdAdivina(cab,/nombre completo|descripcion completa/),sku:bdAdivina(cab,/^sku$/)};
-    if(g.nombre>=0&&g.modelo===g.nombre) g.modelo=bdAdivina(cab,/^modelo$/);
-    const colPlanes=cab.map((h,i)=>/\d+\s*mes/i.test(h)?i:-1).filter(i=>i>=0);
-    const opc=s=>`<option value="-1">— (no viene)</option>${cab.map((h,i)=>`<option value="${i}" ${i===s?'selected':''}>${esc(h)}</option>`).join('')}`;
-    $('#lp-map').innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px">
-      ${[['marca','Marca'],['modelo','Modelo *'],['capacidad','Capacidad'],['color','Color(es)'],['nombre','Nombre completo (de aquí sale el color)'],['precio','Precio de contado']].map(([k,l])=>`<div><label>${l}</label><select data-lp="${k}" style="${ESTILO_CAMPO}">${opc(g[k])}</select></div>`).join('')}</div>
-      ${colPlanes.length?`<label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px"><input type="checkbox" id="lp-solo" checked style="width:auto">Solo equipos con precio en algún plan (${colPlanes.length} columnas de plazos); los que vienen en 0 o NA no se pueden vender</label>`:''}
-      <div style="font-size:12px;color:var(--txt-3);margin-top:8px">Si no viene la marca, se deduce del modelo (iPhone → Apple, Galaxy → Samsung…). Si la capacidad viene dentro del modelo ("128GB"), se separa sola. Varios colores en una celda ("Negro / Azul") se separan.</div>
-      <div id="lp-prev" style="margin-top:12px"></div>`;
-    const armar=()=>{
-      const ix=Object.fromEntries([...document.querySelectorAll('[data-lp]')].map(s=>[s.dataset.lp,Number(s.value)]));
-      if(ix.modelo<0) return [];
-      const out=[];
-      const solo=$('#lp-solo')?.checked, nrm=x=>String(x??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
-      datos.forEach(r=>{
-        if(solo&&!colPlanes.some(i=>Number(r[i])>0)) return;
-        let mo=String(r[ix.modelo]??'').replace(/\s+/g,' ').trim(); if(!mo||/^total/i.test(mo)) return;
-        const moOrig=mo;
-        let cap=ix.capacidad>=0?String(r[ix.capacidad]??'').trim():'';
-        const m=mo.match(/\b(\d+)\s*(GB|TB)\b/i); if(m){ if(!cap) cap=m[1]+' '+m[2].toUpperCase(); mo=mo.replace(m[0],'').replace(/\s+/g,' ').trim(); }
-        if(!cap&&ix.nombre>=0){ const m2=String(r[ix.nombre]??'').match(/\b(\d+)\s*(GB|TB)\b/i); if(m2) cap=m2[1]+' '+m2[2].toUpperCase(); }
-        if(/^\d+$/.test(cap)) cap+=' GB';
-        let ma=ix.marca>=0?String(r[ix.marca]??'').trim():'';
-        if(!ma){ const f=MARCAS_EQ.find(([re])=>re.test(mo)); ma=f?f[1]:''; }
-        if(ma&&mo.toUpperCase().startsWith(ma.toUpperCase()+' ')) mo=mo.slice(ma.length+1);
-        const pr=ix.precio>=0?Number(String(r[ix.precio]??'').replace(/[^\d.]/g,''))||null:null;
-        let cols=ix.color>=0?String(r[ix.color]??'').split(/\/|,|;|\by\b|\n/i).map(x=>x.trim()).filter(Boolean):[];
-        const nomC=ix.nombre>=0?String(r[ix.nombre]??'').replace(/[\u200b-\u200d\ufeff]/g,'').replace(/\s+/g,' ').trim():'';
-        if(!cols.length&&nomC){ // color = palabras antes del bundle/accesorio que no son del modelo
-          let full=nomC.split(' '); const cut=full.findIndex((w,k)=>k>0&&/^(BDL|BND|BNDL|BUNDLE|CON|\+)/i.test(w)); if(cut>0) full=full.slice(0,cut);
-          while(full.length&&/^(AT&T|ATT)$/i.test(full[full.length-1])) full.pop();
-          const mt=new Set(nrm(moOrig).replace(/GB/g,' GB').split(/\s+/)), mk=new Set(nrm(ma).split(/\s+/)), cl=[];
-          for(let k=full.length-1;k>=0;k--){ const t=nrm(full[k]); if(mt.has(t)||/\d/.test(t)||/GB|TB/.test(t)||mk.has(t)||k===0) break; cl.unshift(full[k].toUpperCase()); }
-          if(!cl.length){ // sin color antes del bundle: busca un color conocido en todo el nombre
-            const CL=/^(NEGRO|NEGRA|BLANCO|BLANCA|AZUL|VERDE|GRIS|ROJO|ROSA|MORADO|DORADO|PLATA|ORO|LAVANDA|NARANJA|AMARILLO|WHITE|BLACK|GREEN|BLUE|GOLD|SILVER|GRAY|GREY|PURPLE|RED|CYAN|ORANGE|PINK)$/;
-            const w=nomC.split(' ').map(x=>nrm(x)).reverse().find(x=>CL.test(x)); if(w) cl.push(w); }
-          if(cl.length) cols=[cl.join(' ')];
-        }
-        const sku=ix.sku>=0?String(r[ix.sku]??'').trim():'';
-        (cols.length?cols:[null]).forEach(co=>out.push({marca:ma,modelo:mo,capacidad:cap||null,color:co,precio:pr,nombre:nomC||null,sku:sku||null}));
-      });
-      return out;
-    };
-    const prev=()=>{ const F=armar(), sinMarca=F.filter(x=>!x.marca).length;
-      $('#lp-prev').innerHTML=F.length?`<div class="tw" style="max-height:260px;overflow:auto"><table><thead><tr><th>Marca</th><th>Modelo</th><th>Capacidad</th><th>Color</th><th class="num">Precio</th></tr></thead>
-        <tbody>${F.slice(0,12).map(x=>`<tr><td>${x.marca?esc(x.marca):'<span class="p p-bad">sin marca</span>'}</td><td>${esc(x.modelo)}</td><td>${esc(x.capacidad||'—')}</td><td>${esc(x.color||'—')}</td><td class="num">${x.precio?money(x.precio):'—'}</td></tr>`).join('')}</tbody></table></div>
-        <p style="font-size:13px;margin:10px 0"><b>${F.length}</b> combinaciones${sinMarca?` · <b style="color:var(--bad)">${sinMarca} sin marca</b> (no se cargan; agrega la columna de marca)`:''}.</p>
-        <button class="btn btn-p" id="lp-go">Reemplazar la lista vigente</button>`:'<div class="empty">Indica la columna del modelo.</div>';
-      if($('#lp-go')) $('#lp-go').onclick=async()=>{
-        if(!confirm('La lista nueva reemplaza a la vigente. Las ventas ya registradas no cambian. ¿Continuar?')) return;
-        const {data:r,error:e2}=await sb.rpc('cargar_catalogo_equipos',{p_filas:F.filter(x=>x.marca),p_lista:$('#lp-nom').value});
-        if(e2) return toast(e2.message,'bad'); toast(`Lista cargada: ${r.marcas} marcas, ${r.modelos} modelos.`,'ok'); pintarListaPrecios(c); };
-    };
-    document.querySelectorAll('[data-lp]').forEach(s=>s.onchange=prev); if($('#lp-solo')) $('#lp-solo').onchange=prev; prev();
+    const pdf=f.type==='application/pdf', img=/^image\//.test(f.type);
+    if(!pdf&&!img) return toast('Sube una foto o un PDF.','bad');
+    if(f.size>15*1024*1024) return toast('El archivo pesa más de 15 MB.','bad');
+    const lbl=e.target.closest('label'); lbl.classList.add('cargando');
+    try{
+      const blob=img?await comprimirFoto(f):f, ruta=`${id}/evidencia_entrega_${Date.now()}.${img?'jpg':'pdf'}`;
+      const up=await sb.storage.from('expedientes').upload(ruta,blob,{contentType:img?'image/jpeg':'application/pdf'});
+      if(up.error) throw new Error(up.error.message);
+      const {error}=await sb.rpc('agregar_doc_venta',{p_id:id,p_tipo:'evidencia_entrega',p_path:ruta,p_nombre:f.name,p_bytes:blob.size});
+      if(error){ await sb.storage.from('expedientes').remove([ruta]); throw new Error(error.message); }
+      toast('Evidencia cargada: la venta pasó a Entregada.','ok'); recargar();
+    }catch(err){ toast(err.message,'bad'); lbl.classList.remove('cargando'); }
   };
 }
+
+/* CP → estado y municipio (catálogo SEPOMEX) */
+let _cpMod=null;
+async function buscaCP(cp){ _cpMod=_cpMod||await import('https://cdn.jsdelivr.net/npm/@webrek/mx-cp@0.2.0/dist/index.js'); return _cpMod.buscaCP(cp); }
+
 
 /* ---------- Ventas en Global sin registro ---------- */
 async function pintarSinRegistro(c,SR){
@@ -10466,98 +10435,6 @@ async function pintarSinRegistro(c,SR){
       const emp=Number(el.querySelector(`[data-sel="${CSS.escape(b.dataset.asg)}"]`).value); if(!emp) return toast('Elige el agente.','bad');
       const {error}=await sb.rpc('asignar_sin_registro',{p_folio:b.dataset.asg,p_emp:emp}); if(error) return toast(error.message,'bad');
       toast('Asignada como registro tardío.','ok'); vistaVentasReg(); })});
-}
-
-/* ---------- Cierre mensual de expedientes ---------- */
-let _jszip=null;
-function cargarJSZip(){ if(window.JSZip) return Promise.resolve(); if(_jszip) return _jszip;
-  _jszip=new Promise((ok,mal)=>{ const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-    s.onload=()=>ok(); s.onerror=()=>{ _jszip=null; mal(new Error('No se pudo cargar el compresor.')); }; document.head.appendChild(s); }); return _jszip; }
-
-async function pintarCierreExpedientes(c){
-  const t=S.vrCierre||(S.vrCierre={mes:hoyMexico().slice(0,7)});
-  c.innerHTML='<div class="empty">Cargando…</div>';
-  const [rm,rb]=await Promise.all([sb.rpc('expedientes_del_mes',{p_mes:t.mes}), sb.rpc('expedientes_para_borrar')]);
-  if(rm.error||rb.error){ c.innerHTML=`<div class="empty">${esc((rm.error||rb.error).message)}</div>`; return; }
-  const V=rm.data||[], B=rb.data||[];
-  const bytes=V.reduce((a,x)=>a+(x.docs||[]).reduce((b,d)=>b+Number(d.bytes||0),0),0);
-  const sinResp=V.filter(x=>!x.respaldado_en);
-  const meses=[]; { const d=new Date(hoyMexico()+'T12:00:00'); for(let i=0;i<12;i++){ meses.push(d.toISOString().slice(0,7)); d.setMonth(d.getMonth()-1); } }
-  c.innerHTML=`
-  <div class="note" style="margin-bottom:14px"><b>Cómo funciona</b>1) Cada mes descargas el respaldo: un ZIP con una carpeta por venta (folio y cliente) y un índice en Excel. Guárdalo en el Drive de la empresa con acceso restringido.
-    2) Al confirmar, la venta queda como respaldada. 3) Los archivos se quedan en la plataforma hasta cumplir 210 días (por reclamos, chargeback y permanencia); después se pueden borrar aquí. Las rechazadas o canceladas se borran a los 30 días sin respaldo.</div>
-  <div class="bar" style="gap:10px;margin-bottom:12px"><select id="ce-mes" style="${ESTILO_CAMPO};max-width:220px">${meses.map(m=>`<option value="${m}" ${m===t.mes?'selected':''}>${esc(new Date(m+'-15T12:00:00').toLocaleDateString('es-MX',{month:'long',year:'numeric'}))}</option>`).join('')}</select></div>
-  <div class="kpis">
-    <div class="kpi t"><span>Ventas terminadas con expediente</span><b>${V.length}</b><small>${(bytes/1048576).toFixed(0)} MB</small></div>
-    <div class="kpi ${sinResp.length?'w':''}"><span>Sin respaldar</span><b>${sinResp.length}</b><small>del mes elegido</small></div>
-    <div class="kpi"><span>Listos para borrar</span><b>${B.length}</b><small>ya cumplieron su plazo</small></div>
-  </div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0">
-    <button class="btn btn-p" id="ce-zip" ${V.length?'':'disabled'}>Descargar respaldo del mes</button>
-    <button class="btn" id="ce-borrar" ${B.length?'':'disabled'} style="color:var(--bad)">Borrar de la plataforma lo que ya cumplió su plazo (${B.length})</button>
-  </div>
-  <div id="ce-prog" style="font-size:13px;color:var(--txt-2)"></div>
-  <div id="ce-l" style="margin-top:10px"></div>`;
-  tablaPaginada($('#ce-l'),V,`<th>Folio</th><th>Cliente</th><th>Agente</th><th class="num">Documentos</th><th>Respaldo</th>`,
-    x=>`<tr><td class="mono">${esc(x.folio||'')}</td><td style="font-size:12.5px">${esc(x.cliente||'')}</td><td style="font-size:12.5px">${esc(nomCorto(x.agente||''))}</td>
-      <td class="num">${(x.docs||[]).length}</td><td>${x.respaldado_en?`<span class="p p-ok">Respaldada ${fh(x.respaldado_en)}</span>`:'<span class="p p-warn">Pendiente</span>'}</td></tr>`,{vacio:'No hay ventas terminadas con expediente en ese mes.'});
-  $('#ce-mes').onchange=e=>{ t.mes=e.target.value; pintarCierreExpedientes(c); };
-  $('#ce-zip').onclick=()=>descargarRespaldo(t.mes,V);
-  $('#ce-borrar').onclick=()=>borrarExpedientes(B);
-}
-
-async function descargarRespaldo(mes,V){
-  const prog=$('#ce-prog'), b=$('#ce-zip'); b.disabled=true;
-  try{
-    await cargarJSZip();
-    const nom=Object.fromEntries(DOCS_VENTA.map(d=>[d[0],d[1]]));
-    const limpio=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w\s.-]/g,'').replace(/\s+/g,' ').trim().slice(0,60);
-    // Índice en Excel
-    const idx=[['Folio','Cliente','DN','Agente','Plan','Equipo','Tipo de SIM','Fecha de venta','PT','Terminada en Global','Carpeta','Documentos']];
-    V.forEach(x=>idx.push([String(x.folio||''),x.cliente,x.dn,x.agente,x.plan,x.equipo,x.tipo_sim,x.fecha_venta,x.pt,x.terminada_global,`${limpio(x.folio)} - ${limpio(x.cliente)}`,(x.docs||[]).length]));
-    idx.push(['TOTAL','','','','','','','','','','',null]);
-    const ws=XLSX.utils.aoa_to_sheet(idx); ws['L'+idx.length]={t:'n',f:`SUM(L2:L${idx.length-1})`};
-    ws['!cols']=[14,30,12,28,14,30,10,12,10,12,40,10].map(w=>({wch:w}));
-    const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Índice');
-    const indice=XLSX.write(wb,{type:'array',bookType:'xlsx'});
-
-    const LIM=450*1024*1024; let zip=new JSZip(), acum=0, parte=1, total=0, esperados=0, ids=[], idsParte=[];
-    const cerrar=async()=>{ zip.file(`indice_${mes}.xlsx`,indice);
-      const blob=await zip.generateAsync({type:'blob',compression:'STORE'});
-      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`respaldo_expedientes_${mes}_parte${parte}.zip`; a.click();
-      setTimeout(()=>URL.revokeObjectURL(a.href),60000); ids.push(...idsParte); idsParte=[]; parte++; zip=new JSZip(); acum=0; };
-    for(const [i,x] of V.entries()){
-      const carpeta=`${mes}/${limpio(x.folio)} - ${limpio(x.cliente)}/`;
-      let bien=0;
-      for(const d of x.docs||[]){ esperados++;
-        prog.textContent=`Descargando ${i+1} de ${V.length} · ${nom[d.tipo]||d.tipo}…`;
-        const {data,error}=await sb.storage.from('expedientes').download(d.path);
-        if(error) throw new Error(`No se pudo descargar ${nom[d.tipo]} del folio ${x.folio}: ${error.message}`);
-        if(acum+data.size>LIM && acum>0) await cerrar();
-        zip.file(carpeta+`${limpio(nom[d.tipo]||d.tipo)}.${d.path.split('.').pop()}`,data); acum+=data.size; total++; bien++;
-      }
-      if(bien===(x.docs||[]).length) idsParte.push(x.id);
-    }
-    if(acum>0||idsParte.length) await cerrar();
-    if(total!==esperados) throw new Error(`Se esperaban ${esperados} archivos y se descargaron ${total}. No se marca nada.`);
-    prog.innerHTML=`Listo: ${total} archivos de ${V.length} ventas en ${parte-1} archivo${parte-1===1?'':'s'} ZIP.`;
-    if(confirm(`Se descargaron ${parte-1} archivo(s) ZIP con ${total} documentos.\n\n¿Ya los guardaste en el Drive de la empresa? Al aceptar, estas ${ids.length} ventas quedan marcadas como respaldadas.`)){
-      const {error}=await sb.rpc('marcar_respaldado',{p_ids:ids,p_archivo:`respaldo_expedientes_${mes}`});
-      if(error) throw new Error(error.message); toast('Respaldo registrado.','ok'); pintarCierreExpedientes($('#vr-cuerpo'));
-    }
-  }catch(e){ toast(e.message,'bad'); prog.textContent=''; }
-  b.disabled=false;
-}
-
-async function borrarExpedientes(B){
-  const n=B.reduce((a,x)=>a+(x.paths||[]).length,0);
-  if(!confirm(`Se borrarán de la plataforma ${n} archivos de ${B.length} ventas.\nLas terminadas ya tienen respaldo y cumplieron 210 días; las rechazadas o canceladas tienen más de 30 días.\n\nEsto no se puede deshacer. ¿Continuar?`)) return;
-  try{
-    const paths=B.flatMap(x=>x.paths||[]);
-    for(let i=0;i<paths.length;i+=100){ const {error}=await sb.storage.from('expedientes').remove(paths.slice(i,i+100)); if(error) throw new Error(error.message); }
-    const {error}=await sb.rpc('marcar_borrados',{p_ids:B.map(x=>x.id)}); if(error) throw new Error(error.message);
-    toast(`${n} archivos borrados.`,'ok'); pintarCierreExpedientes($('#vr-cuerpo'));
-  }catch(e){ toast(e.message,'bad'); }
 }
 
 /* ============================================================
@@ -12929,7 +12806,7 @@ function pintarDinamicaNiveles(el,d,A,jefe,yo,dias,errAv=''){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v94';
+const VERSION_APP='v96';
 window.addEventListener('beforeunload',e=>{ if(S&&S.ventaSucia){ e.preventDefault(); e.returnValue=''; } });
 async function revisarVersion(){
   try{
