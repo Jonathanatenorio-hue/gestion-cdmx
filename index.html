@@ -9975,28 +9975,30 @@ async function vistaVentasReg(){
   const papel=await papelVentas();
   if(!papel){ $('#main').innerHTML='<div class="empty"><b>Sin acceso</b>Tu puesto no registra ni revisa ventas.</div>'; return; }
   const tabs={
-    agente:   [['mias','Mis ventas'],['anteriores','Anteriores'],['calc','Calculadora DHL']],
-    jefe:     [['todas','Ventas de mi equipo'],['calc','Calculadora DHL']],
-    mesa:     [['revisar','Revisión'],['bo','Back Office'],['ruta','En ruta'],['nocuadra','No cuadra'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['anteriores','Anteriores'],['calc','Calculadora DHL']],
-    factura:  [['cerrar','Entregadas · por cerrar'],['nocuadra','No cuadra'],['todas','Todas'],['calc','Calculadora DHL']],
-    direccion:[['revisar','Revisión'],['bo','Back Office'],['ruta','En ruta'],['cerrar','Entregadas'],['nocuadra','No cuadra'],['cuadre','Cuadre diario'],['dhl','Envíos DHL'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['anteriores','Anteriores'],['calc','Calculadora DHL']]
+    agente:   [['mias','Mis ventas'],['pendant','Pendientes anteriores'],['calc','Calculadora DHL']],
+    jefe:     [['todas','Ventas de mi equipo'],['pendant','Pendientes anteriores'],['calc','Calculadora DHL']],
+    mesa:     [['revisar','Revisión'],['bo','Back Office'],['ruta','En ruta'],['nocuadra','No cuadra'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['pendant','Pendientes anteriores'],['calc','Calculadora DHL']],
+    factura:  [['pendant','Pendientes anteriores'],['cerrar','Entregadas · por cerrar'],['nocuadra','No cuadra'],['todas','Todas'],['calc','Calculadora DHL']],
+    direccion:[['revisar','Revisión'],['bo','Back Office'],['ruta','En ruta'],['cerrar','Entregadas'],['nocuadra','No cuadra'],['cuadre','Cuadre diario'],['dhl','Envíos DHL'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['pendant','Pendientes anteriores'],['calc','Calculadora DHL']]
   }[papel];
   const t=S.vr||(S.vr={tab:tabs[0][0],q:''});
   if(!tabs.some(x=>x[0]===t.tab)) t.tab=tabs[0][0];
   const staff=['mesa','factura','direccion'].includes(papel);
 
-  const [rl,rs,aviso]=await Promise.all([
+  const [rl,rs,aviso,rp]=await Promise.all([
     traerTodo(()=>sb.from('v_ventas_registro').select('*').order('actualizado_en',{ascending:false}).order('id')),
     ['mesa','direccion'].includes(papel)?sb.from('v_global_sin_registro').select('*').order('fecha_venta',{ascending:false}):{data:[]},
-    staff?avisoReportesGlobal():''
+    staff?avisoReportesGlobal():'',
+    sb.from('v_pendientes_anteriores').select('*').order('fecha_venta')
   ]);
+  const PA=rp&&!rp.error?(rp.data||[]):[];
   const err=[rl,rs].find(x=>x.error);
   if(err){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(err.error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 178.</span></div>`; return; }
   const TODO=rl.data||[], SR=rs.data||[];
   const L=TODO.filter(x=>!x.previa), ANT=TODO.filter(x=>x.previa);
   const vivas=x=>!['rechazada','cancelada'].includes(x.estatus);
   const filtro={
-    mias:()=>L, todas:()=>L, anteriores:()=>ANT,
+    mias:()=>L, todas:()=>L,
     revisar:()=>L.filter(x=>x.estatus==='en_revision').sort((a,b)=>new Date(a.enviado_en)-new Date(b.enviado_en)),
     bo:()=>L.filter(x=>x.estatus==='aprobada'),
     ruta:()=>L.filter(x=>x.estatus==='en_global'),
@@ -10004,7 +10006,7 @@ async function vistaVentasReg(){
     nocuadra:()=>L.filter(x=>x.no_cuadra&&vivas(x)),
     dhl:()=>L.filter(x=>vivas(x)&&(x.hub_real||x.hub_ideal))
   };
-  const n=k=>['sinreg'].includes(k)?SR.length:['salvan','cuadre','calc'].includes(k)?'':(filtro[k]?filtro[k]().length:0);
+  const n=k=>k==='pendant'?PA.filter(x=>!x.estado_final).length:['sinreg'].includes(k)?SR.length:['salvan','cuadre','calc'].includes(k)?'':(filtro[k]?filtro[k]().length:0);
   const atrasadas=L.filter(x=>x.estatus==='en_revision'&&x.minutos_en_revision>60).length;
   const pend=papel==='agente'?L.filter(x=>x.estatus==='regresada'||(x.estatus==='en_global'&&x.envio_tipo==='dhl'&&(x.evid_rechazo||x.envio_estatus==='Entregado'||x.envio_status==='Entregado'))):[];
 
@@ -10026,9 +10028,10 @@ async function vistaVentasReg(){
   else if(t.tab==='dhl') pintarEnviosDHL(c,filtro.dhl());
   else if(t.tab==='cuadre') pintarCuadreDiario(c,L);
   else if(t.tab==='calc') pintarCalculadoraDHL(c);
+  else if(t.tab==='pendant') pintarPendientesAnteriores(c,PA,papel,rp&&rp.error);
   else {
     const filas=filtro[t.tab]();
-    c.innerHTML=`${t.tab==='anteriores'?'<div class="note" style="margin-bottom:12px"><b>Ventas anteriores al 23 de noviembre</b>Ya no pasan por el flujo: quedan con su agente y Global decide (se cierran solas al salir terminadas). Solo para consulta.</div>':''}<details class="vr-ley"><summary>¿Cómo avanza una venta?</summary><div>
+    c.innerHTML=`<details class="vr-ley"><summary>¿Cómo avanza una venta?</summary><div>
         <p><b>1 · Nuevo</b> · el agente registra folio, DN y PT y pasa sola a revisión. Si mesa la regresa, vuelve aquí y el agente solo corrige folio, DN o PT.</p>
         <p><b>2 · Revisión</b> · Itzel revisa en Global y AVS con el checklist y el hub DHL. La aprueba o la regresa con motivo.</p>
         <p><b>3 · Back Office</b> · Itzel asigna series y captura la guía DHL (10 dígitos) o la ruta interna con su turno.</p>
@@ -10056,6 +10059,66 @@ async function vistaVentasReg(){
   }
   document.querySelectorAll('[data-vrt]').forEach(b=>b.onclick=()=>{ t.tab=b.dataset.vrt; vistaVentasReg(); });
   if($('#vr-nueva')) $('#vr-nueva').onclick=()=>abrirVentaReg(null);
+}
+
+/* Pendientes anteriores: ventas de antes del 23-nov en tránsito, sin flujo; seguimiento uno a uno hasta 0 */
+async function pintarPendientesAnteriores(c,PA,papel,err){
+  if(err){ c.innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(err.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 183.</span></div>`; return; }
+  const t=S.vrPA||(S.vrPA={ver:'pend',sel:null});
+  const staff=['mesa','factura','direccion'].includes(papel), puedeActivar=['factura','direccion'].includes(papel), puedeAgente=['mesa','direccion'].includes(papel);
+  const pend=PA.filter(x=>!x.estado_final), act=PA.filter(x=>x.estado_final==='activada'), cai=PA.filter(x=>x.estado_final==='caida');
+  const listas=PA.filter(x=>!x.estado_final&&/lista para activar|ya la trae activada/.test(x.situacion||''));
+  let agentes=[];
+  if(puedeAgente&&pend.some(x=>!x.empleado_id)){ const {data:ag}=await sb.from('empleados').select('id,nombre_completo,puestos(clave)').eq('estatus','activo').order('nombre_completo');
+    agentes=(ag||[]).filter(e=>['EJEC','SUP'].includes(e.puestos?.clave)); }
+  const F=t.ver==='pend'?pend:t.ver==='listas'?listas:PA;
+  const cl=x=>x.estado_final==='activada'?'p-ok':x.estado_final==='caida'?'p-bad':/lista para activar|ya la trae/.test(x.situacion)?'p-warn':'p-teal';
+  const ultNota=x=>{ const n=(x.notas||[]).slice(-1)[0]; return n?`${esc(n.texto)} <span style="color:var(--txt-3)">· ${esc(nomCorto(n.por||''))} ${fh(n.en)}</span>`:''; };
+  c.innerHTML=`<div class="note" style="margin-bottom:12px"><b>Ventas anteriores al 23 de noviembre que siguen en tránsito</b>No llevan el flujo de etapas. Se siguen una por una hasta que todas queden activadas o caídas. El estatus de Global se actualiza solo al cargar el Detalle.</div>
+    <div class="kpis">
+      <div class="kpi ${pend.length?'bad':'t'}"><span>Pendientes</span><b>${pend.length}</b><small>de ${PA.length}</small></div>
+      <div class="kpi ${listas.length?'':'t'}"><span>Listas para activar</span><b>${listas.length}</b><small>entregadas o ya activas en Global</small></div>
+      <div class="kpi t"><span>Activadas</span><b>${act.length}</b></div>
+      <div class="kpi"><span>Caídas</span><b>${cai.length}</b></div></div>
+    <div style="display:flex;gap:8px;margin:12px 0;flex-wrap:wrap">${[['pend','Pendientes'],['listas','Listas para activar'],['todas','Todas']].map(([k,l])=>`<button class="btn ${t.ver===k?'btn-p':''}" data-pav="${k}">${l}</button>`).join('')}</div>
+    <div id="pa-det"></div><div id="pa-l"></div>`;
+  c.querySelectorAll('[data-pav]').forEach(b=>b.onclick=()=>{ t.ver=b.dataset.pav; t.sel=null; pintarPendientesAnteriores(c,PA,papel); });
+  tablaPaginada($('#pa-l'),F,'<th>Folio · PT</th><th>Cliente</th><th>Agente</th><th>Venta</th><th>Global</th><th>Último seguimiento</th>',
+    x=>`<tr style="cursor:pointer${t.sel===x.id?';background:var(--line-2)':''}" data-pa="${x.id}"><td class="mono">${esc(x.folio)}<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.pt||'')}${x.guia?' · guía '+esc(x.guia):''}</div></td>
+      <td style="font-size:12.5px">${esc(x.cliente||'')}<div style="font-size:11.5px;color:var(--txt-3)">${esc([x.municipio,x.estado].filter(Boolean).join(', '))}${x.hub?' · sale de '+esc(x.hub):''}</div></td>
+      <td style="font-size:12.5px;white-space:nowrap">${x.agente?esc(nomCorto(x.agente)):'<span class="p p-warn">sin agente</span>'}</td>
+      <td style="font-size:12px;white-space:nowrap">${fecha(x.fecha_venta)}<div style="color:var(--txt-3)">hace ${x.dias} d</div></td>
+      <td><span class="p ${cl(x)}">${esc(x.situacion||'')}</span></td>
+      <td style="font-size:12px;max-width:280px">${ultNota(x)}</td></tr>`,
+    {vacio:t.ver==='pend'?'Ya no queda ninguna pendiente.':'Nada aquí.',despues:el=>el.querySelectorAll('[data-pa]').forEach(tr=>tr.onclick=()=>{ t.sel=Number(tr.dataset.pa); detalle(); el.querySelectorAll('[data-pa]').forEach(r=>r.style.background=Number(r.dataset.pa)===t.sel?'var(--line-2)':''); })});
+  const recargar=async()=>{ const {data}=await sb.from('v_pendientes_anteriores').select('*').order('fecha_venta'); pintarPendientesAnteriores(c,data||[],papel); };
+  const detalle=()=>{
+    const x=PA.find(y=>y.id===t.sel), D=$('#pa-det'); if(!x){ D.innerHTML=''; return; }
+    const ck=x.checklist||{};
+    D.innerHTML=`<div class="tile w12" style="cursor:default;transform:none;margin-bottom:14px"><div class="tv-h"><b>Folio ${esc(x.folio)} · ${esc(x.cliente||'')}</b><span><span class="p ${cl(x)}">${esc(x.situacion)}</span> <button class="btn" id="pa-x" style="margin-left:8px">Cerrar</button></span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;font-size:13px;margin-bottom:12px">
+        <div><span style="font-size:11.5px;color:var(--txt-3)">Agente</span><div><b>${esc(x.agente||'Sin agente')}</b></div></div>
+        <div><span style="font-size:11.5px;color:var(--txt-3)">PT · Guía</span><div><b>${esc(x.pt||'')}</b>${x.guia?' · '+esc(x.guia):''}</div></div>
+        <div><span style="font-size:11.5px;color:var(--txt-3)">Teléfono</span><div><b>${esc(x.telefono||'')}</b></div></div>
+        <div><span style="font-size:11.5px;color:var(--txt-3)">Venta</span><div><b>${fecha(x.fecha_venta)}</b> · hace ${x.dias} días</div></div></div>
+      ${puedeAgente&&!x.estado_final?`<div style="display:flex;gap:8px;align-items:end;margin-bottom:12px;flex-wrap:wrap"><div style="min-width:240px"><label>${x.agente?'Cambiar agente':'Ponerle agente'}</label><select id="pa-emp" style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${agentes.map(a=>`<option value="${a.id}">${esc(a.nombre_completo)}</option>`).join('')}</select></div><button class="btn" id="pa-emp-ok">Guardar agente</button></div>`:''}
+      ${puedeActivar&&!x.estado_final?`<div style="border-top:1px solid var(--line);padding-top:10px"><b style="font-size:13px">Activación (Perla)</b>
+        ${[['activada_global','Activada en Global'],['facturada_asd','Facturada en ASD'],['reprogramada_avs','Línea reprogramada en AVS']].map(([k,l])=>`<label style="display:flex;gap:10px;align-items:center;margin:7px 0;font-size:13.5px"><input type="checkbox" data-pck="${k}" ${ck[k]===true?'checked':''} style="width:17px;height:17px">${l}</label>`).join('')}
+        <button class="btn btn-p" id="pa-act">Marcar activada</button></div>`:''}
+      ${staff&&!x.estado_final?`<div style="border-top:1px solid var(--line);padding-top:10px;margin-top:12px"><label>Seguimiento</label><input id="pa-nota" style="${ESTILO_CAMPO}" placeholder="Ej. DHL dice que reintenta mañana; cliente confirma que sí la recibe">
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn" id="pa-nota-ok">Guardar nota</button><button class="btn" style="color:var(--bad)" id="pa-caida">Se cayó (con la nota como motivo)</button></div></div>`:''}
+      ${papel==='direccion'&&x.resultado?'<button class="btn" id="pa-reabrir" style="margin-top:10px">Reabrir</button>':''}
+      ${(x.notas||[]).length?`<div style="margin-top:12px;font-size:12.5px">${(x.notas||[]).slice().reverse().map(n=>`<div style="padding:6px 0;border-top:1px solid var(--line)"><b>${esc(n.texto)}</b> <span style="color:var(--txt-3)">· ${esc(nomCorto(n.por||''))} · ${fh(n.en)}</span></div>`).join('')}</div>`:''}</div>`;
+    $('#pa-x').onclick=()=>{ t.sel=null; D.innerHTML=''; };
+    const run=async(acc,extra,okMsg)=>{ const {error}=await sb.rpc('pendiente_anterior',{p_id:x.id,p_accion:acc,...extra}); if(error) return toast(error.message,'bad'); toast(okMsg,'ok'); recargar(); };
+    const leer=()=>Object.fromEntries([...D.querySelectorAll('[data-pck]')].map(i=>[i.dataset.pck,i.checked]));
+    if($('#pa-act')) $('#pa-act').onclick=()=>{ const z=leer(); if(Object.values(z).some(v=>!v)) return toast('Marca los tres puntos.','bad'); run('activar',{p_checklist:z},'Activada.'); };
+    if($('#pa-nota-ok')) $('#pa-nota-ok').onclick=()=>{ const n=$('#pa-nota').value.trim(); if(!n) return toast('Escribe la nota.','bad'); run('nota',{p_nota:n,p_checklist:$('#pa-act')?leer():null},'Nota guardada.'); };
+    if($('#pa-caida')) $('#pa-caida').onclick=()=>{ const n=$('#pa-nota').value.trim(); if(!n) return toast('Escribe en la nota por qué se cayó.','bad'); if(!confirm('¿Marcarla como caída?')) return; run('caida',{p_nota:n},'Marcada como caída.'); };
+    if($('#pa-emp-ok')) $('#pa-emp-ok').onclick=()=>{ const e=Number($('#pa-emp').value); if(!e) return toast('Elige el agente.','bad'); run('agente',{p_emp:e},'Agente guardado.'); };
+    if($('#pa-reabrir')) $('#pa-reabrir').onclick=()=>run('reabrir',{},'Reabierta.');
+  };
+  if(t.sel) detalle();
 }
 
 /* Cuadre diario: lo que se marcó contra lo que confirman los reportes */
@@ -12816,7 +12879,7 @@ function pintarDinamicaNiveles(el,d,A,jefe,yo,dias,errAv=''){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v98';
+const VERSION_APP='v99';
 window.addEventListener('beforeunload',e=>{ if(S&&S.ventaSucia){ e.preventDefault(); e.returnValue=''; } });
 async function revisarVersion(){
   try{
