@@ -9918,11 +9918,240 @@ const CHECK_MESA=[
   ['buro','Carta buró']
 ];
 const CHECK_PERLA=[
-  ['evidencia','La evidencia es correcta: el cliente recibió y la guía de la etiqueta coincide'],
-  ['activada_global','Activada en Global'],
-  ['facturada_asd','Facturada en ASD'],
-  ['reprogramada_avs','Línea reprogramada en AVS']
+  ['evidencia','La evidencia es correcta','El cliente recibió y la guía de la etiqueta coincide con la capturada.'],
+  ['activada_global','Orden activada en Global','Activa la orden en Global para el control de pago interno.'],
+  ['facturada_asd','Factura generada en ASD','En ASD se genera la factura de la venta.'],
+  ['reprogramada_avs','SIM activada en AVS','En AVS se activa el SIM nuevo del cliente para que su línea quede activa en ese SIM.']
 ];
+const CHECK_PERLA_ANT=CHECK_PERLA.filter(([k])=>k!=='evidencia');
+/* ---------- Incidencias: lo que traba una venta, en un solo lugar ---------- */
+const INCID={
+  modelado:{n:'Error de modelado',d:'AT&T no deja modelar la venta. Lo reporta el agente; Itzel lo escala.'},
+  orden_no_avanza:{n:'La orden no avanza',d:'Global no deja asignar series o guía. Itzel lo escala.'},
+  cambio_folio:{n:'Cambio de folio',d:'Se necesita otro folio. Al resolverse se captura el nuevo y el anterior queda guardado.'},
+  facturacion:{n:'Error en facturación',d:'Global, ASD o AVS marcan error al activar. Perla lo escala.'},
+  recoleccion:{n:'Recolección de equipo',d:'El cliente no quiere o no recibió lo que pidió. Itzel lo escala; se cierra con la evidencia de que logística recibió el equipo.'}
+};
+const SIST_FACT={global:'Global (orden para el control de pago)',asd:'ASD (factura)',avs:'AVS (activación del SIM)'};
+const estadoIncid=x=>x.estado==='resuelta'?['Resuelta','p-ok']:x.estado==='cancelada'?['Cancelada','']:
+  x.cierre_obligatorio?['Venta completada: ciérrala','p-bad']:
+  x.estado==='abierta'?[`Sin escalar · ${hace(x.abierta_en)}`,x.min_abierta>=30?'p-bad':'p-warn']:
+  [`Escalada con ${x.escalado_a||''} · hace ${hace(x.escalado_en)}`,x.min_escalada>=60?'p-bad':'p-teal'];
+
+/* Formulario para abrir una incidencia */
+function formIncidencia(tipo,{venta=null,pendiente=null,ref='',despues=null}={}){
+  const I=INCID[tipo], id='ov-inc';
+  const ov=modalCaja(id,I.n+(ref?` · ${esc(ref)}`:''),`
+    <div style="font-size:12.5px;color:var(--txt-2);margin-bottom:10px">${I.d}</div>
+    ${tipo==='modelado'?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label>DN del cliente</label><input id="fi-dn" inputmode="numeric" maxlength="10" style="${ESTILO_CAMPO}"></div><div><label>Nombre del cliente</label><input id="fi-cli" style="${ESTILO_CAMPO}"></div></div>`:''}
+    ${tipo==='facturacion'?`<label>¿Dónde marcó error?</label><select id="fi-sis" style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${Object.entries(SIST_FACT).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select>`:''}
+    <label style="margin-top:10px">${tipo==='recoleccion'?'¿Por qué se recolecta?':tipo==='cambio_folio'?'¿Por qué cambia el folio?':'¿Qué pasa? (el error tal cual)'}</label>
+    <textarea id="fi-det" rows="3" style="${ESTILO_CAMPO}" placeholder="${tipo==='recoleccion'?'Ej. el cliente se echó para atrás / llegó otro color':'Ej. mensaje de error que marca el sistema'}"></textarea>
+    <div style="font-size:12px;color:var(--txt-3);margin-top:8px">${tipo==='recoleccion'?'La venta regresa a mesa de control con el ticket de recolección.':'Al guardarla le llega a quien la atiende. Debe escalarse de inmediato: si en 1 hora no hay respuesta, avisa para escalar con Yelitza o Jonathan.'}</div>`,'Reportar');
+  $('#'+id+'-ok').onclick=async()=>{
+    const det=$('#fi-det').value.trim(); if(!det) return toast('Escribe qué pasa.','bad');
+    if(tipo==='facturacion'&&!$('#fi-sis').value) return toast('Elige dónde marcó error.','bad');
+    if(tipo==='recoleccion'&&!confirm('La venta regresa a mesa de control para la recolección. ¿Seguir?')) return;
+    const {error}=await sb.rpc('abrir_incidencia',{p_tipo:tipo,p_venta:venta,p_pendiente:pendiente,p_detalle:det,
+      p_dn:$('#fi-dn')?.value||null,p_cliente:$('#fi-cli')?.value||null,p_sistema:$('#fi-sis')?.value||null});
+    if(error) return toast(error.message,'bad');
+    ov.classList.remove('on'); toast('Reportada. Ya le llegó a quien la atiende.','ok'); if(despues) despues();
+  };
+}
+
+/* Bloque de incidencias dentro de una venta */
+function incidenciasVentaHTML(I){
+  if(!I.length) return '';
+  return `<div class="tile w12" style="cursor:default;transform:none;border-color:${I.some(x=>['abierta','escalada'].includes(x.estado))?'var(--bad)':'var(--line)'}"><div class="tv-h"><b>Incidencias</b><span>Se trabajan en la pestaña Incidencias</span></div>
+    ${I.map(x=>{ const [t,c]=estadoIncid(x); return `<div data-inc="${x.id}" style="cursor:pointer;padding:8px 0;border-top:1px solid var(--line);font-size:13px">
+      <b>${esc(INCID[x.tipo]?.n||x.tipo)}</b> <span class="p ${c}" style="font-size:11px">${esc(t)}</span>${x.sistema?` · ${esc(SIST_FACT[x.sistema]||x.sistema)}`:''}
+      <div style="font-size:12px;color:var(--txt-2)">${esc(x.detalle)}${x.solucion?` · <b>${esc(x.solucion)}</b>`:''}</div></div>`; }).join('')}</div>`;
+}
+
+async function pintarIncidencias(c,papel){
+  const t=S.vrInc||(S.vrInc={ver:'abiertas',sel:null});
+  const {data,error}=await sb.from('v_incidencias').select('*').order('abierta_en',{ascending:false});
+  if(error){ c.innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 187.</span></div>`; return; }
+  const A=data||[], abiertas=A.filter(x=>['abierta','escalada'].includes(x.estado));
+  const miArea=papel==='factura'?'factura':papel==='mesa'?'mesa':null;
+  const atiendo=x=>papel==='direccion'||x.area===miArea;
+  const F=t.ver==='abiertas'?abiertas:t.ver==='mias'?abiertas.filter(atiendo):A;
+  const sinEsc=abiertas.filter(x=>x.estado==='abierta').length, sinResp=abiertas.filter(x=>x.estado==='escalada'&&x.min_escalada>=60).length;
+  c.innerHTML=`<div class="note" style="margin-bottom:12px"><b>Lo que traba una venta y cómo va su solución</b>Al abrirse se escala de inmediato y se registra con quién. Si en 1 hora no hay respuesta, escálala con Yelitza o Jonathan.</div>
+    <div class="kpis"><div class="kpi ${abiertas.length?'bad':'t'}"><span>Abiertas</span><b>${abiertas.length}</b></div>
+      <div class="kpi ${sinEsc?'bad':''}"><span>Sin escalar</span><b>${sinEsc}</b></div>
+      <div class="kpi ${sinResp?'bad':''}"><span>Escaladas sin respuesta 1 h+</span><b>${sinResp}</b></div>
+      <div class="kpi"><span>Resueltas</span><b>${A.filter(x=>x.estado==='resuelta').length}</b></div></div>
+    <div style="display:flex;gap:8px;margin:12px 0;flex-wrap:wrap">${[['abiertas','Abiertas'],...(miArea?[['mias','Las que atiendo']]:[]),['todas','Todas']].map(([k,l])=>`<button class="btn ${t.ver===k?'btn-p':''}" data-icv="${k}">${l}</button>`).join('')}
+      ${['agente','mesa','direccion'].includes(papel)?'<button class="btn" id="inc-mod" style="margin-left:auto">+ Reportar error de modelado</button>':''}</div>
+    <div id="inc-det"></div><div id="inc-l"></div>`;
+  c.querySelectorAll('[data-icv]').forEach(b=>b.onclick=()=>{ t.ver=b.dataset.icv; t.sel=null; pintarIncidencias(c,papel); });
+  if($('#inc-mod')) $('#inc-mod').onclick=()=>formIncidencia('modelado',{despues:()=>pintarIncidencias(c,papel)});
+  tablaPaginada($('#inc-l'),F,'<th>Incidencia</th><th>Venta</th><th>Agente</th><th>Abierta</th><th>Estado</th>',
+    x=>{ const [et,ec]=estadoIncid(x); return `<tr style="cursor:pointer" data-inc="${x.id}"><td><b style="font-size:13px">${esc(x.tipo_nombre||'')}</b><div style="font-size:11.5px;color:var(--txt-3);max-width:320px">${esc(x.detalle)}</div></td>
+      <td class="mono" style="font-size:12.5px">${esc(x.folio||'')}${x.dn_venta?`<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.dn_venta)}${x.cliente?' · '+esc(x.cliente):''}</div>`:''}</td>
+      <td style="font-size:12.5px;white-space:nowrap">${esc(nomCorto(x.agente||''))}</td><td style="font-size:12px;white-space:nowrap">${fh(x.abierta_en)}<div style="color:var(--txt-3)">${esc(nomCorto(x.abierta_por_nombre||''))}</div></td>
+      <td><span class="p ${ec}">${esc(et)}</span></td></tr>`; },
+    {vacio:t.ver==='todas'?'No hay incidencias.':'No hay incidencias abiertas.',despues:el=>el.querySelectorAll('[data-inc]').forEach(tr=>tr.onclick=()=>{ t.sel=Number(tr.dataset.inc); det(); window.scrollTo({top:0,behavior:'smooth'}); })});
+  const det=()=>{
+    const x=A.find(y=>y.id===t.sel), D=$('#inc-det'); if(!x){ D.innerHTML=''; return; }
+    const abierta=['abierta','escalada'].includes(x.estado), yoAtiendo=atiendo(x)&&abierta, [et,ec]=estadoIncid(x);
+    D.innerHTML=`<div class="tile w12" style="cursor:default;transform:none;margin-bottom:14px"><div class="tv-h"><b>${esc(x.tipo_nombre)}${x.folio?' · folio '+esc(x.folio):''}</b><span><span class="p ${ec}">${esc(et)}</span> <button class="btn" id="inc-x" style="margin-left:8px">Cerrar</button></span></div>
+      <div style="font-size:13.5px;margin-bottom:10px">${esc(x.detalle)}${x.sistema?`<div style="font-size:12.5px;color:var(--txt-2)">Dónde: ${esc(SIST_FACT[x.sistema]||x.sistema)}</div>`:''}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;font-size:12.5px;margin-bottom:10px">
+        <div><span style="color:var(--txt-3)">Abierta</span><div><b>${fh(x.abierta_en)}</b> · ${esc(nomCorto(x.abierta_por_nombre||''))}</div></div>
+        <div><span style="color:var(--txt-3)">Escalada</span><div><b>${x.escalado_en?fh(x.escalado_en):'—'}</b>${x.escalado_a?' · '+esc(x.escalado_a):''}</div></div>
+        <div><span style="color:var(--txt-3)">Resuelta</span><div><b>${x.resuelta_en?fh(x.resuelta_en):'—'}</b>${x.resuelta_por_nombre?' · '+esc(nomCorto(x.resuelta_por_nombre)):''}</div></div>
+        ${x.folio_nuevo?`<div><span style="color:var(--txt-3)">Folio</span><div><b>${esc(x.folio_nuevo)}</b> (antes otro)</div></div>`:''}</div>
+      ${x.cierre_obligatorio?'<div class="note" style="margin-bottom:10px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">La venta ya se completó y este ticket sigue abierto</b>Ciérralo: escribe cómo se resolvió.</div>':''}
+      ${yoAtiendo?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;border-top:1px solid var(--line);padding-top:10px">
+        <div><label>${x.estado==='abierta'?'Escalar con':'Escalar otra vez con'} <span style="font-weight:400;color:var(--txt-3)">(quién y número de ticket)</span></label><input id="inc-esc" style="${ESTILO_CAMPO}" placeholder="${x.estado==='abierta'?'Ej. Soporte Global · ticket 4512':'Ej. Yelitza / Jonathan'}"><button class="btn" id="inc-esc-ok" style="margin-top:6px">Registrar escalamiento</button></div>
+        <div><label>Resolver <span style="font-weight:400;color:var(--txt-3)">(cómo se resolvió)</span></label>
+          ${x.tipo==='cambio_folio'?`<input id="inc-fol" placeholder="Folio nuevo (10 dígitos)" maxlength="12" inputmode="numeric" style="${ESTILO_CAMPO};margin-bottom:6px">`:''}
+          ${x.tipo==='recoleccion'?`<div style="font-size:12px;color:var(--txt-2)">La recolección se cierra desde la venta: ahí se sube la evidencia de que logística recibió el equipo.</div><button class="btn" id="inc-venta" style="margin-top:6px">Abrir la venta</button>`
+            :`<input id="inc-sol" style="${ESTILO_CAMPO}" placeholder="Ej. Global liberó la orden"><button class="btn btn-p" id="inc-sol-ok" style="margin-top:6px">Marcar resuelta</button>`}</div></div>`:''}
+      ${x.tipo==='modelado'&&!x.venta_id&&(papel==='agente'||['mesa','direccion'].includes(papel))?`<div style="display:flex;gap:8px;align-items:end;margin-top:10px;flex-wrap:wrap"><div><label>Ligar a la venta ya registrada</label><input id="inc-lig" placeholder="Folio" style="${ESTILO_CAMPO}"></div><button class="btn" id="inc-lig-ok">Ligar</button></div>`:''}
+      <div style="display:flex;gap:8px;align-items:end;margin-top:10px;flex-wrap:wrap"><div style="flex:1;min-width:240px"><label>Nota de seguimiento</label><input id="inc-nota" style="${ESTILO_CAMPO}"></div><button class="btn" id="inc-nota-ok">Guardar nota</button>
+        ${x.venta_id&&x.tipo!=='recoleccion'?'<button class="btn" id="inc-venta2">Ver la venta</button>':''}${yoAtiendo?'<button class="btn" style="color:var(--bad)" id="inc-can">Cancelar (fue un error)</button>':''}</div>
+      ${(x.notas||[]).length?`<div style="margin-top:12px;font-size:12.5px">${(x.notas||[]).slice().reverse().map(n=>`<div style="padding:6px 0;border-top:1px solid var(--line)"><b>${esc(n.texto)}</b> <span style="color:var(--txt-3)">· ${esc(nomCorto(n.por||''))} · ${fh(n.en)}</span></div>`).join('')}</div>`:''}</div>`;
+    const run=async(acc,extra,msg)=>{ const {error}=await sb.rpc('incidencia_accion',{p_id:x.id,p_accion:acc,...extra}); if(error) return toast(error.message,'bad'); toast(msg,'ok'); pintarIncidencias(c,papel); };
+    $('#inc-x').onclick=()=>{ t.sel=null; D.innerHTML=''; };
+    if($('#inc-esc-ok')) $('#inc-esc-ok').onclick=()=>{ const v=$('#inc-esc').value.trim(); if(!v) return toast('Escribe con quién la escalaste.','bad'); run('escalar',{p_texto:v},'Escalamiento registrado.'); };
+    if($('#inc-sol-ok')) $('#inc-sol-ok').onclick=()=>{ const v=$('#inc-sol').value.trim(); if(!v) return toast('Escribe cómo se resolvió.','bad'); run('resolver',{p_texto:v,p_folio_nuevo:$('#inc-fol')?.value||null},'Resuelta.'); };
+    if($('#inc-nota-ok')) $('#inc-nota-ok').onclick=()=>{ const v=$('#inc-nota').value.trim(); if(!v) return toast('Escribe la nota.','bad'); run('nota',{p_texto:v},'Nota guardada.'); };
+    if($('#inc-can')) $('#inc-can').onclick=()=>{ const v=prompt('¿Por qué se cancela?'); if(v) run('cancelar',{p_texto:v},'Cancelada.'); };
+    if($('#inc-lig-ok')) $('#inc-lig-ok').onclick=async()=>{ const f=$('#inc-lig').value.replace(/\D/g,''); const {data:v}=await sb.from('v_ventas_registro').select('id').eq('folio',f).limit(1);
+      if(!v||!v.length) return toast('No encontré esa venta registrada.','bad'); run('vincular',{p_venta:v[0].id},'Ligada a la venta.'); };
+    [$('#inc-venta'),$('#inc-venta2')].forEach(b=>{ if(b) b.onclick=()=>abrirVentaReg(x.venta_id); });
+  };
+  if(t.sel) det();
+}
+
+/* ---------- Expedientes: completada → requiere expediente → cotejo → sellado ---------- */
+async function pintarExpedientes(c,papel){
+  const t=S.vrExp||(S.vrExp={ver:'pendientes'});
+  const [rq,re,rc]=await Promise.all([
+    sb.from('v_expedientes').select('*').order('activada_en'),
+    sb.from('entregas_expedientes').select('*,entregas_expedientes_folios(*)').order('fecha_envio',{ascending:false}),
+    sb.rpc('expedientes_calendario',{p_desde:null,p_n:4})
+  ]);
+  const err=[rq,re,rc].find(x=>x.error);
+  if(err){ c.innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(err.error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 187.</span></div>`; return; }
+  const Q=rq.data||[], E=re.data||[], CAL=rc.data||[];
+  const por=Q.filter(x=>x.estado==='por_entregar'), ent=Q.filter(x=>x.estado==='entregado'), conf=Q.filter(x=>x.estado==='confirmado');
+  const prox=CAL[0], fd=d=>d?new Date(d+'T12:00:00').toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'}):'—';
+  const sinSello=E.filter(e=>e.estado==='enviada');
+  c.innerHTML=`<div class="note" style="margin-bottom:12px"><b>Expedientes para Torre Diana</b>Toda venta completada (facturada y activada) requiere su expediente. Se entregan en viernes ${'cada '+(CAL.length>1?Math.round((new Date(CAL[1].viernes)-new Date(CAL[0].viernes))/604800000):'')} semana(s); si el viernes es festivo, el miércoles anterior. Al entregar se sube el cotejo en Excel y después el cotejo sellado o firmado de recibido.</div>
+    <div class="kpis">
+      <div class="kpi ${por.length?'':'t'}"><span>Por entregar</span><b>${por.length}</b><small>van en la próxima entrega</small></div>
+      <div class="kpi"><span>Próxima entrega</span><b style="font-size:20px" data-anim="1">${fd(prox?.fecha)}</b><small>${prox&&prox.fecha!==prox.viernes?'se recorrió por festivo':'luego '+CAL.slice(1,3).map(x=>fd(x.fecha)).join(' · ')}</small></div>
+      <div class="kpi ${sinSello.length?'bad':''}"><span>Entregadas sin sello</span><b>${ent.length}</b><small>${sinSello.length} cotejo(s) por confirmar</small></div>
+      <div class="kpi t"><span>Confirmadas</span><b>${conf.length}</b><small>con cotejo sellado</small></div></div>
+    <div style="display:flex;gap:8px;margin:12px 0;flex-wrap:wrap">${[['pendientes','Por entregar'],['entregas','Entregas'],['todos','Todos']].map(([k,l])=>`<button class="btn ${t.ver===k?'btn-p':''}" data-exv="${k}">${l}</button>`).join('')}
+      <span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="ex-desc" ${por.length?'':'disabled'}>Descargar cotejo de la próxima entrega</button>
+      <label class="btn btn-p" style="margin:0">Subir cotejo entregado (Excel)<input type="file" id="ex-up" accept=".xlsx,.xls" style="display:none"></label></span></div>
+    <div id="ex-prev"></div><div id="ex-l"></div>`;
+  c.querySelectorAll('[data-exv]').forEach(b=>b.onclick=()=>{ t.ver=b.dataset.exv; pintarExpedientes(c,papel); });
+  const estChip=x=>x.estado==='por_entregar'?'<span class="p p-warn">Por entregar</span>':x.estado==='entregado'?`<span class="p p-teal">Entregado ${fd(x.fecha_envio)} · falta sello</span>`:`<span class="p p-ok">Confirmado ${fd(x.fecha_envio)}</span>`;
+  if(t.ver==='entregas'){
+    tablaPaginada($('#ex-l'),E,'<th>Fecha de envío</th><th>Mensajero</th><th class="num">Folios</th><th>Cruce</th><th>Estado</th><th></th>',
+      e=>{ const F=e.entregas_expedientes_folios||[], k=z=>F.filter(f=>f.coincide===z).length;
+        return `<tr><td><b>${fd(e.fecha_envio)}</b><div style="font-size:11.5px;color:var(--txt-3)">subió ${esc(nomCorto(e.subido_por_nombre||''))} · ${fh(e.subido_en)}</div></td><td style="font-size:12.5px">${esc(e.mensajero||'')}</td>
+          <td class="num">${F.length}${e.total_declarado&&e.total_declarado!==F.length?` <small style="color:var(--bad)">(dice ${e.total_declarado})</small>`:''}</td>
+          <td style="font-size:12px">${k('venta')+k('anterior')} ✓${k('no_activada')?` · <b style="color:var(--warn)">${k('no_activada')} sin activar</b>`:''}${k('sin_venta')?` · <b style="color:var(--bad)">${k('sin_venta')} sin venta</b>`:''}${k('repetido')?` · <b style="color:var(--bad)">${k('repetido')} repetidos</b>`:''}</td>
+          <td>${e.estado==='confirmada'?`<span class="p p-ok">Sellado ${fh(e.confirmado_en)}</span>`:'<span class="p p-warn">Falta el sellado</span>'}</td>
+          <td style="white-space:nowrap">${e.archivo_cotejo?`<button class="btn" data-vcot="${esc(e.archivo_cotejo)}">Excel</button>`:''} ${e.archivo_sello?`<button class="btn" data-vcot="${esc(e.archivo_sello)}">Sellado</button>`:`<label class="btn btn-p" style="margin:0">Subir sellado<input type="file" accept="image/*,application/pdf" data-sello="${e.id}" style="display:none"></label>`}
+            ${F.some(f=>!['venta','anterior'].includes(f.coincide))?` <button class="btn" data-vdif="${e.id}">Ver diferencias</button>`:''}</td></tr>`; },
+      {vacio:'Todavía no se sube ningún cotejo.',despues:el=>{
+        el.querySelectorAll('[data-vcot]').forEach(b=>b.onclick=async()=>{ const w=window.open('','_blank'); const {data,error}=await sb.storage.from('cotejos').createSignedUrl(b.dataset.vcot,300); if(error){ w&&w.close(); return toast(error.message,'bad'); } if(w) w.location=data.signedUrl; });
+        el.querySelectorAll('[data-sello]').forEach(i=>i.onchange=async()=>{ const f=i.files[0]; if(!f) return; const ruta=`sellos/${i.dataset.sello}_${Date.now()}.${(f.name.split('.').pop()||'pdf').toLowerCase()}`;
+          const up=await sb.storage.from('cotejos').upload(ruta,f,{contentType:f.type||'application/octet-stream'}); if(up.error) return toast(up.error.message,'bad');
+          const {error}=await sb.rpc('cotejo_accion',{p_id:Number(i.dataset.sello),p_accion:'sello',p_path:ruta}); if(error) return toast(error.message,'bad'); toast('Entrega confirmada con el cotejo sellado.','ok'); pintarExpedientes(c,papel); });
+        el.querySelectorAll('[data-vdif]').forEach(b=>b.onclick=()=>{ const e=E.find(z=>z.id===Number(b.dataset.vdif)); const F=(e.entregas_expedientes_folios||[]).filter(f=>!['venta','anterior'].includes(f.coincide));
+          modalCaja('ov-dif','Diferencias del cotejo '+fd(e.fecha_envio),`<div style="font-size:12.5px">${F.map(f=>`<div style="padding:6px 0;border-top:1px solid var(--line)"><b class="mono">${esc(f.folio)}</b> · ${esc(f.nombre||'')}<div style="color:var(--bad)">${{sin_venta:'No existe venta con ese folio en la plataforma',no_activada:'La venta existe pero todavía no está completada',repetido:'Ese folio ya venía en otro cotejo'}[f.coincide]}</div></div>`).join('')}</div>`,'Entendido');
+          $('#ov-dif-ok').onclick=()=>$('#ov-dif').classList.remove('on'); });
+      }});
+  } else {
+    const L=t.ver==='pendientes'?por:Q;
+    tablaPaginada($('#ex-l'),L,'<th>Folio</th><th>Cliente</th><th>Agente</th><th>Activada</th><th>Expediente</th>',
+      x=>`<tr${x.venta_id?` style="cursor:pointer" data-vr="${x.venta_id}"`:''}><td class="mono">${esc(x.folio)}${x.origen==='anterior'?' <span class="p" style="font-size:10.5px">anterior</span>':''}</td><td style="font-size:12.5px">${esc(x.cliente||'')}</td>
+        <td style="font-size:12.5px">${esc(nomCorto(x.agente||''))}</td><td style="font-size:12px">${fh(x.activada_en)}<div style="color:var(--txt-3)">hace ${hace(x.activada_en)}</div></td><td>${estChip(x)}</td></tr>`,
+      {vacio:t.ver==='pendientes'?'No hay expedientes por entregar.':'Todavía no hay ventas completadas.',despues:el=>el.querySelectorAll('[data-vr]').forEach(tr=>tr.onclick=()=>abrirVentaReg(Number(tr.dataset.vr)))});
+  }
+  $('#ex-desc').onclick=()=>descargarCotejo(por,prox);
+  $('#ex-up').onchange=e=>leerCotejo(e.target.files[0],c,papel);
+}
+
+/* Cotejo con el formato de Torre Diana, lleno con lo que va en la próxima entrega */
+async function descargarCotejo(L,prox){
+  if(!window.ExcelJS) return toast('No cargó el generador de Excel. Recarga la página.','bad');
+  const wb=new ExcelJS.Workbook(), ws=wb.addWorksheet('Hoja1');
+  ws.columns=[{width:6},{width:22},{width:20},{width:26},{width:30},{width:22},{width:20}];
+  const b={top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}}, F={name:'Arial',size:10}, FB={name:'Arial',size:10,bold:true};
+  const put=(ref,v,f=F)=>{ const c=ws.getCell(ref); c.value=v; c.font=f; c.alignment={vertical:'middle',wrapText:true}; return c; };
+  ws.mergeCells('A1:F1'); put('A1','Notificación de Recepción y Contenido de Remesa',{name:'Arial',size:13,bold:true}).alignment={horizontal:'center'};
+  ws.mergeCells('A2:F2'); put('A2','EXPEDIENTES DE CRÉDITO',{name:'Arial',size:12,bold:true}).alignment={horizontal:'center'};
+  const soloDia=d=>{ const [y,m,dd]=String(d).slice(0,10).split('-').map(Number); return new Date(Date.UTC(y,m-1,dd)); };
+  const fecha=soloDia(prox?.fecha||hoyMexico());
+  [['A4:B4','Número de Guía y/o Remesa ','C4','EXPERTCELL CDMX','D4:E4','Correo electrónico Responsable del Punto de Venta','F4','jonathan.tenorio_a@icloud.com'],
+   ['A5:B5','Nombre del Punto de Venta','C5','EXP OFICINA VERACRUZ','D5:E5','Fecha de envío','F5',fecha],
+   ['A6:B6','Número telefónico del Punto de Venta','C6',5633355495,'D6:E6','Nombre del Mensajero','F6',''],
+   ['A7:B7','Nombre del Responsable Punto de Venta','C7','YELITZA ORSUNA SANCHEZ','D7:E8','Total Expedientes','F7',L.length],
+   ['A8:B8','Número telefónico del Responsable Punto de Venta','C8',5633355495,null,null,'F8','']].forEach(([m1,l1,c1,v1,m2,l2,c2,v2])=>{
+    ws.mergeCells(m1); put(m1.split(':')[0],l1,FB).border=b; put(c1,v1).border=b;
+    if(m2){ ws.mergeCells(m2); put(m2.split(':')[0],l2,FB).border=b; }
+    const cc=put(c2,v2); cc.border=b; if(v2 instanceof Date) cc.numFmt='dd/mm/yyyy'; });
+  ws.mergeCells('G4:G8'); put('G4','SELLO ',FB).alignment={horizontal:'center',vertical:'top'}; ws.getCell('G4').border=b;
+  ws.mergeCells('B10:D10');
+  [['A10','#'],['B10','NOMBRE COMPLETO (APELLIDOS NOMBRE)'],['E10','FOLIO (NUM IMPRESO EN CONTRATO FISICO)'],['F10','CUENTA'],['G10','FECHA MOVIMIENTO']].forEach(([r,v])=>{ const c=put(r,v,FB); c.border=b; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD9D9D9'}}; c.alignment={horizontal:'center',vertical:'middle',wrapText:true}; });
+  ws.getRow(10).height=30;
+  L.forEach((x,i)=>{ const r=11+i; ws.mergeCells(`B${r}:D${r}`);
+    put(`A${r}`,i+1).border=b; put(`B${r}`,x.cliente||'').border=b; put(`E${r}`,x.folio).border=b; put(`F${r}`,'').border=b;
+    const g=put(`G${r}`,x.activada_en?soloDia(diaMX(x.activada_en)):''); g.border=b; g.numFmt='dd/mm/yyyy'; });
+  const buf=await wb.xlsx.writeBuffer(), a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  a.download=`COTEJO_EXPEDIENTES_${(prox?.fecha||hoyMexico()).replaceAll('-','')}.xlsx`; a.click();
+  toast('Revisa que los nombres vayan como en el contrato (apellidos y nombre) y la cuenta.','ok');
+}
+
+/* Leer el cotejo que se entregó y cruzarlo */
+async function leerCotejo(f,c,papel){
+  if(!f) return;
+  try{
+    const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:true}), ws=wb.Sheets[wb.SheetNames[0]];
+    const A=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+    const txt=v=>v instanceof Date?v.toLocaleDateString('en-CA'):String(v??'').trim();
+    let hdr=A.findIndex(r=>r.some(v=>/FOLIO/i.test(String(v))));
+    if(hdr<0) return toast('No encontré la columna FOLIO. Usa el formato de cotejo.','bad');
+    const H=A[hdr].map(v=>String(v).toUpperCase()), ci=re=>H.findIndex(h=>re.test(h));
+    const cF=ci(/FOLIO/), cN=ci(/NOMBRE/), cC=ci(/CUENTA/), cG=ci(/FECHA/);
+    const filas=[]; for(let i=hdr+1;i<A.length;i++){ const r=A[i], fol=String(r[cF]??'').replace(/\D/g,''); if(!fol) continue;
+      filas.push({renglon:Number(r[0])||filas.length+1,folio:fol,nombre:txt(r[cN]),cuenta:txt(r[cC]),fecha:txt(r[cG])}); }
+    if(!filas.length) return toast('El cotejo no trae folios.','bad');
+    // encabezado: fecha de envío, mensajero y total (a la derecha de su etiqueta)
+    const busca=re=>{ for(const r of A.slice(0,hdr)) for(let j=0;j<r.length;j++) if(re.test(String(r[j]))){ for(let k=j+1;k<r.length;k++) if(r[k]!==''&&r[k]!==null) return r[k]; } return ''; };
+    let fe=busca(/Fecha de env/i); fe=fe instanceof Date?fe.toLocaleDateString('en-CA'):(/^\d{4}-\d{2}-\d{2}/.test(String(fe))?String(fe).slice(0,10):'');
+    const men=String(busca(/Mensajero/i)||''), tot=Number(busca(/Total Expedientes/i))||null;
+    const P=$('#ex-prev');
+    P.innerHTML=`<div class="tile w12" style="cursor:default;transform:none;margin-bottom:14px"><div class="tv-h"><b>Cotejo: ${esc(f.name)}</b><span>${filas.length} folios${tot&&tot!==filas.length?` · <b style="color:var(--bad)">el encabezado dice ${tot}</b>`:''}</span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;align-items:end">
+        <div><label>Fecha de envío (entrega)</label><input type="date" id="cx-f" value="${fe||hoyMexico()}" style="${ESTILO_CAMPO}"></div>
+        <div><label>Mensajero</label><input id="cx-m" value="${esc(men)}" style="${ESTILO_CAMPO}"></div>
+        <div><label>Nota (opcional)</label><input id="cx-n" style="${ESTILO_CAMPO}"></div>
+        <button class="btn btn-p" id="cx-ok">Guardar entrega</button></div>
+      <div style="font-size:12px;color:var(--txt-3);margin-top:8px">${filas.slice(0,8).map(x=>esc(x.folio)).join(' · ')}${filas.length>8?' …':''}</div></div>`;
+    $('#cx-ok').onclick=async()=>{ const b=$('#cx-ok'); b.disabled=true;
+      const ruta=`cotejos/${Date.now()}_${f.name.replace(/[^\w.\-]+/g,'_')}`;
+      const up=await sb.storage.from('cotejos').upload(ruta,f,{contentType:f.type||'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      if(up.error){ b.disabled=false; return toast(up.error.message,'bad'); }
+      const {data,error}=await sb.rpc('registrar_cotejo',{p_fecha:$('#cx-f').value,p_mensajero:$('#cx-m').value,p_total:tot,p_path:ruta,p_filas:filas,p_nota:$('#cx-n').value||null});
+      if(error){ b.disabled=false; return toast(error.message,'bad'); }
+      const dif=data.no_activada+data.sin_venta+data.repetido;
+      toast(`Entrega guardada: ${data.coinciden} de ${data.folios} cuadran${dif?`; ${dif} con diferencia (revísalas en Entregas)`:''}. Sube el cotejo sellado cuando lo tengas.`,dif?'bad':'ok');
+      S.vrExp={ver:'entregas'}; pintarExpedientes(c,papel); };
+  }catch(e){ toast('No pude leer el Excel: '+e.message,'bad'); }
+}
+
 const MOTIVOS_HUB=['Sin existencia en el hub sugerido','El cliente pidió que saliera de ahí','Ya estaba capturada y no se pudo cambiar','Otro'];
 const HUBS_DHL=['CDMX','TOL','PUE','GDL','MTY','VER','TIJ'];
 const ETAPA_CLASE=e=>/Completada/.test(e)?'p-ok':/Caída|Rechazada|corregir|rechazada/.test(e)?'p-bad':/Revisión|Back Office/.test(e)?'p-warn':/Nuevo/.test(e)?'':'p-teal';
@@ -9978,11 +10207,11 @@ async function vistaVentasReg(){
   const papel=await papelVentas();
   if(!papel){ $('#main').innerHTML='<div class="empty"><b>Sin acceso</b>Tu puesto no registra ni revisa ventas.</div>'; return; }
   const tabs={
-    agente:   [['mias','Mis ventas'],['pendant','Pendientes anteriores'],['calc','Calculadora DHL']],
-    jefe:     [['todas','Ventas de mi equipo'],['pendant','Pendientes anteriores'],['calc','Calculadora DHL']],
-    mesa:     [['revisar','Revisión'],['bo','Back Office'],['ruta','En ruta'],['nocuadra','No cuadra'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['pendant','Pendientes anteriores'],['calc','Calculadora DHL']],
-    factura:  [['pendant','Pendientes anteriores'],['cerrar','Entregadas · por cerrar'],['nocuadra','No cuadra'],['todas','Todas'],['calc','Calculadora DHL']],
-    direccion:[['revisar','Revisión'],['bo','Back Office'],['ruta','En ruta'],['cerrar','Entregadas'],['nocuadra','No cuadra'],['cuadre','Cuadre diario'],['dhl','Envíos DHL'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['pendant','Pendientes anteriores'],['calc','Calculadora DHL']]
+    agente:   [['mias','Mis ventas'],['incid','Incidencias'],['pendant','Pendientes anteriores'],['calc','Calculadora DHL']],
+    jefe:     [['todas','Ventas de mi equipo'],['incid','Incidencias'],['pendant','Pendientes anteriores'],['calc','Calculadora DHL']],
+    mesa:     [['revisar','Revisión'],['bo','Back Office'],['ruta','En ruta'],['incid','Incidencias'],['nocuadra','No cuadra'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['pendant','Pendientes anteriores'],['calc','Calculadora DHL']],
+    factura:  [['cerrar','Entregadas · por completar'],['pendant','Pendientes anteriores'],['incid','Incidencias'],['exped','Expedientes'],['nocuadra','No cuadra'],['todas','Todas']],
+    direccion:[['revisar','Revisión'],['bo','Back Office'],['ruta','En ruta'],['cerrar','Entregadas'],['incid','Incidencias'],['exped','Expedientes'],['nocuadra','No cuadra'],['cuadre','Cuadre diario'],['dhl','Envíos DHL'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['pendant','Pendientes anteriores'],['calc','Calculadora DHL']]
   }[papel];
   const t=S.vr||(S.vr={tab:tabs[0][0],q:''});
   if(!tabs.some(x=>x[0]===t.tab)) t.tab=tabs[0][0];
@@ -10004,12 +10233,12 @@ async function vistaVentasReg(){
     mias:()=>L, todas:()=>L,
     revisar:()=>L.filter(x=>x.estatus==='en_revision').sort((a,b)=>new Date(a.enviado_en)-new Date(b.enviado_en)),
     bo:()=>L.filter(x=>x.estatus==='aprobada'),
-    ruta:()=>L.filter(x=>x.estatus==='en_global'),
+    ruta:()=>L.filter(x=>['en_global','recoleccion'].includes(x.estatus)),
     cerrar:()=>L.filter(x=>x.estatus==='entregada').sort((a,b)=>new Date(a.entregada_en)-new Date(b.entregada_en)),
     nocuadra:()=>L.filter(x=>x.no_cuadra&&vivas(x)),
     dhl:()=>L.filter(x=>vivas(x)&&(x.hub_real||x.hub_ideal))
   };
-  const n=k=>k==='pendant'?PA.filter(x=>!x.estado_final).length:['sinreg'].includes(k)?SR.length:['salvan','cuadre','calc'].includes(k)?'':(filtro[k]?filtro[k]().length:0);
+  const n=k=>['incid','exped'].includes(k)?'':k==='pendant'?PA.filter(x=>!x.estado_final).length:['sinreg'].includes(k)?SR.length:['salvan','cuadre','calc'].includes(k)?'':(filtro[k]?filtro[k]().length:0);
   const atrasadas=L.filter(x=>x.estatus==='en_revision'&&x.minutos_en_revision>60).length;
   const pend=papel==='agente'?L.filter(x=>x.estatus==='regresada'||(x.estatus==='en_global'&&x.envio_tipo==='dhl'&&(x.evid_rechazo||x.envio_estatus==='Entregado'||x.envio_status==='Entregado'))):[];
 
@@ -10017,7 +10246,7 @@ async function vistaVentasReg(){
   <div class="head"><div><h1>Ventas</h1><p>${papel==='agente'?'Registra cada venta con su folio, DN y PT en cuanto la captures en Global. Lo que no se registra aquí no cuenta para tu meta ni para tu comisión.'
       :papel==='factura'?'Ventas entregadas: valida, activa en Global, factura en ASD y reprograma en AVS para completarlas.'
       :'Dónde va cada venta y quién la tiene. Cada área mueve solo su etapa; los reportes de Global confirman.'}</p></div>
-    <div class="acts">${['agente','mesa','direccion'].includes(papel)?'<button class="btn btn-p" id="vr-nueva">+ Registrar venta</button>':''}</div></div>
+    <div class="acts">${['agente','mesa','direccion'].includes(papel)?'<button class="btn" id="vr-modelado">Error de modelado</button> <button class="btn btn-p" id="vr-nueva">+ Registrar venta</button>':''}</div></div>
   ${aviso||''}
   ${pend.length?`<div class="note" style="margin-bottom:14px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">Tienes ${pend.length} venta${pend.length===1?'':'s'} que necesita${pend.length===1?'':'n'} algo de ti</b>
      ${pend.map(x=>esc(x.folio||'')+' · '+esc(x.estatus==='regresada'?'corrige: '+(x.motivo||''):x.evid_rechazo?'vuelve a subir la evidencia: '+x.evid_rechazo:'ya se entregó: sube la evidencia con la etiqueta')).join('<br>')}</div>`:''}
@@ -10032,6 +10261,8 @@ async function vistaVentasReg(){
   else if(t.tab==='cuadre') pintarCuadreDiario(c,L);
   else if(t.tab==='calc') pintarCalculadoraDHL(c);
   else if(t.tab==='pendant') pintarPendientesAnteriores(c,PA,papel,rp&&rp.error);
+  else if(t.tab==='incid') pintarIncidencias(c,papel);
+  else if(t.tab==='exped') pintarExpedientes(c,papel);
   else {
     const filas=filtro[t.tab]();
     c.innerHTML=`<details class="vr-ley"><summary>¿Cómo avanza una venta?</summary><div>
@@ -10062,6 +10293,7 @@ async function vistaVentasReg(){
   }
   document.querySelectorAll('[data-vrt]').forEach(b=>b.onclick=()=>{ t.tab=b.dataset.vrt; vistaVentasReg(); });
   if($('#vr-nueva')) $('#vr-nueva').onclick=()=>abrirVentaReg(null);
+  if($('#vr-modelado')) $('#vr-modelado').onclick=()=>formIncidencia('modelado',{despues:()=>{ S.vr.tab='incid'; vistaVentasReg(); }});
 }
 
 /* Pendientes anteriores: ventas de antes del 23-nov en tránsito, sin flujo; seguimiento uno a uno hasta 0 */
@@ -10106,8 +10338,8 @@ async function pintarPendientesAnteriores(c,PA,papel,err){
         <div><span style="font-size:11.5px;color:var(--txt-3)">Venta</span><div><b>${fecha(x.fecha_venta)}</b> · hace ${x.dias} días</div></div></div>
       ${puedeAgente&&!x.estado_final?`<div style="display:flex;gap:8px;align-items:end;margin-bottom:12px;flex-wrap:wrap"><div style="min-width:240px"><label>${x.agente?'Cambiar agente':'Ponerle agente'}</label><select id="pa-emp" style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${agentes.map(a=>`<option value="${a.id}">${esc(a.nombre_completo)}</option>`).join('')}</select></div><button class="btn" id="pa-emp-ok">Guardar agente</button></div>`:''}
       ${puedeActivar&&!x.estado_final?`<div style="border-top:1px solid var(--line);padding-top:10px"><b style="font-size:13px">Activación (Perla)</b>
-        ${[['activada_global','Activada en Global'],['facturada_asd','Facturada en ASD'],['reprogramada_avs','Línea reprogramada en AVS']].map(([k,l])=>`<label style="display:flex;gap:10px;align-items:center;margin:7px 0;font-size:13.5px"><input type="checkbox" data-pck="${k}" ${ck[k]===true?'checked':''} style="width:17px;height:17px">${l}</label>`).join('')}
-        <button class="btn btn-p" id="pa-act">Marcar activada</button></div>`:''}
+        ${CHECK_PERLA_ANT.map(([k,l,d])=>`<label style="display:flex;gap:10px;align-items:flex-start;margin:7px 0;font-size:13.5px"><input type="checkbox" data-pck="${k}" ${ck[k]===true?'checked':''} style="margin-top:3px;width:17px;height:17px"><span><b>${l}</b><br><span style="font-size:12px;color:var(--txt-3)">${d}</span></span></label>`).join('')}
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-p" id="pa-act">Marcar activada</button><button class="btn" id="pa-err">Marcó error en Global / ASD / AVS</button></div></div>`:''}
       ${staff&&!x.estado_final?`<div style="border-top:1px solid var(--line);padding-top:10px;margin-top:12px"><label>Seguimiento</label><input id="pa-nota" style="${ESTILO_CAMPO}" placeholder="Ej. DHL dice que reintenta mañana; cliente confirma que sí la recibe">
         <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn" id="pa-nota-ok">Guardar nota</button><button class="btn" style="color:var(--bad)" id="pa-caida">Se cayó (con la nota como motivo)</button></div></div>`:''}
       ${papel==='direccion'&&x.resultado?'<button class="btn" id="pa-reabrir" style="margin-top:10px">Reabrir</button>':''}
@@ -10120,6 +10352,7 @@ async function pintarPendientesAnteriores(c,PA,papel,err){
     if($('#pa-caida')) $('#pa-caida').onclick=()=>{ const n=$('#pa-nota').value.trim(); if(!n) return toast('Escribe en la nota por qué se cayó.','bad'); if(!confirm('¿Marcarla como caída?')) return; run('caida',{p_nota:n},'Marcada como caída.'); };
     if($('#pa-emp-ok')) $('#pa-emp-ok').onclick=()=>{ const e=Number($('#pa-emp').value); if(!e) return toast('Elige el agente.','bad'); run('agente',{p_emp:e},'Agente guardado.'); };
     if($('#pa-reabrir')) $('#pa-reabrir').onclick=()=>run('reabrir',{},'Reabierta.');
+    if($('#pa-err')) $('#pa-err').onclick=()=>formIncidencia('facturacion',{pendiente:x.id,ref:x.folio,despues:recargar});
   };
   if(t.sel) detalle();
 }
@@ -10289,11 +10522,13 @@ async function abrirVentaReg(id){
     return;
   }
 
-  const [rv,rd,rb]=await Promise.all([
+  const [rv,rd,rb,rbi]=await Promise.all([
     sb.from('v_ventas_registro').select('*').eq('id',id).single(),
     sb.from('ventas_registro_docs').select('*').eq('venta_id',id).is('borrado_en',null),
-    sb.rpc('historial_venta_reg',{p_id:id})
+    sb.rpc('historial_venta_reg',{p_id:id}),
+    sb.from('v_incidencias').select('*').eq('venta_id',id).order('abierta_en',{ascending:false})
   ]);
+  const INC=rbi&&!rbi.error?(rbi.data||[]):[];
   if(rv.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo abrir</b>${esc(rv.error.message)}</div>`; return; }
   const v=rv.data, docs=Object.fromEntries((rd.data||[]).map(d=>[d.tipo,d]));
   const yo=S.perfil?.empleado_id, esDueno=v.empleado_id===yo, mesa=['mesa','direccion'].includes(papel), perla=['factura','direccion'].includes(papel);
@@ -10312,6 +10547,7 @@ async function abrirVentaReg(id){
   <div class="grid">
     ${lineaVentaHTML(v)}
     ${candadosHTML(v)}
+    ${incidenciasVentaHTML(INC)}
     ${verifHTML}
     ${sec('Datos de la venta',`<div style="${g3}">
       ${dato('Folio',esc(v.folio||''))}${dato('DN',esc(v.dn||''))}${dato('PT',esc(v.pt||''))}${dato('Agente',esc(v.agente||''))}
@@ -10364,7 +10600,7 @@ async function abrirVentaReg(id){
       <div style="display:flex;gap:16px;flex-wrap:wrap;margin:10px 0;font-size:13.5px"><label><input type="radio" name="lg-t" value="dhl" ${v.envio_tipo!=='interna'&&!/INTER/i.test(String(v.guia||''))?'checked':''}> Guía DHL</label><label><input type="radio" name="lg-t" value="interna" ${v.envio_tipo==='interna'||/INTER/i.test(String(v.guia||''))?'checked':''}> Ruta interna</label></div>
       <div id="lg-gbox" style="max-width:260px"><label>Número de guía DHL</label><input id="lg-guia" value="${esc(v.guia_dhl||gNum)}" maxlength="10" inputmode="numeric" placeholder="10 dígitos" style="${ESTILO_CAMPO}"></div>
       <div id="lg-tbox" style="max-width:260px"><label>Turno de la ruta</label><select id="lg-turno" style="${ESTILO_CAMPO}"><option value="">— elige —</option><option value="matutino" ${v.turno_ruta==='matutino'?'selected':''}>Matutino</option><option value="vespertino" ${v.turno_ruta==='vespertino'?'selected':''}>Vespertino</option></select></div>
-      <button class="btn btn-p" id="lg-ok" style="margin-top:12px">Guardar · pasa a En ruta</button>`));
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn btn-p" id="lg-ok">Guardar · pasa a En ruta</button><button class="btn" id="inc-ona">La orden no avanza</button></div>`));
   }
 
   // ---- 4 · En ruta: evidencia (solo DHL)
@@ -10372,7 +10608,8 @@ async function abrirVentaReg(id){
     acc.push(sec('4 · Evidencia de entrega',`
       ${v.evid_rechazo?`<div class="note" style="margin-bottom:12px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">Facturación rechazó la evidencia</b>${esc(v.evid_rechazo)}</div>`:''}
       <div style="font-size:13px;color:var(--txt-2)">Cuando el cliente reciba, sube la foto donde se vea <b>la etiqueta con el número de guía</b>${v.guia_dhl?` (<b class="mono">${esc(v.guia_dhl)}</b>)`:''}. Al subirla la venta pasa a <b>Entregada</b>.</div>
-      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><label class="btn btn-p" style="margin:0">Subir evidencia<input type="file" accept="image/*,application/pdf" id="ev-f" style="display:none"></label></div>`));
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><label class="btn btn-p" style="margin:0">Subir evidencia<input type="file" accept="image/*,application/pdf" id="ev-f" style="display:none"></label><button class="btn" style="color:var(--bad)" id="inc-rec">Cliente requiere recolección</button></div>
+      <div style="font-size:12px;color:var(--txt-3);margin-top:8px">Si el cliente se echó para atrás o no recibió lo que pidió, marca recolección: la venta regresa a mesa de control con el motivo.</div>`));
   }
   if(v.estatus==='en_global'&&!v.previa&&v.envio_tipo==='interna') acc.push(sec('4 · En ruta interna',`<div style="font-size:13px;color:var(--txt-2)">Turno <b>${esc(v.turno_ruta||'sin turno')}</b>. Pasa sola a <b>Entregada</b> cuando el reporte de Detalle de Global la traiga entregada. No lleva evidencia.</div>`));
 
@@ -10382,12 +10619,27 @@ async function abrirVentaReg(id){
     acc.push(sec('5 · Cierre de facturación',`
       ${dhl?`<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px">${ev?`<button class="btn" data-ver="${esc(ev.path)}">Ver evidencia</button>`:''}
         <span style="font-size:13px">Guía registrada: <b class="mono">${esc(v.guia_dhl||'—')}</b></span></div>`:`<div style="font-size:12.5px;color:var(--txt-3);margin-bottom:8px">Ruta interna (${esc(v.turno_ruta||'')}): entregada según el Detalle de Global, no lleva evidencia.</div>`}
-      ${CK.map(([k,l])=>`<label style="display:flex;gap:10px;align-items:flex-start;margin:8px 0;font-size:13.5px"><input type="checkbox" data-cz="${k}" ${cz[k]===true?'checked':''} style="margin-top:3px;width:17px;height:17px"><span>${l}</span></label>`).join('')}
+      ${CK.map(([k,l,d])=>`<label style="display:flex;gap:10px;align-items:flex-start;margin:8px 0;font-size:13.5px"><input type="checkbox" data-cz="${k}" ${cz[k]===true?'checked':''} style="margin-top:3px;width:17px;height:17px"><span><b>${l}</b><br><span style="font-size:12px;color:var(--txt-3);font-weight:400">${d}</span></span></label>`).join('')}
       ${dhl?`<div style="margin-top:10px"><label>Qué está mal (si rechazas la evidencia)</label><input id="pz-mot" style="${ESTILO_CAMPO}" placeholder="Ej. no se ve el número de guía"></div>`:''}
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn btn-p" id="pz-ok">Completar</button><button class="btn" id="pz-g">Guardar avance</button>${dhl?'<button class="btn" style="color:var(--bad)" id="pz-rech">Rechazar evidencia · regresa a En ruta</button>':''}</div>
-      <div style="font-size:12px;color:var(--txt-3);margin-top:8px">El reporte de Ventas del día siguiente confirma que quedó terminada.</div>`));
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn btn-p" id="pz-ok">Completar</button><button class="btn" id="pz-g">Guardar avance</button><button class="btn" id="pz-err">Marcó error en Global / ASD / AVS</button>${dhl?'<button class="btn" style="color:var(--bad)" id="pz-rech">Rechazar evidencia · regresa a En ruta</button>':''}</div>
+      <div style="font-size:12px;color:var(--txt-3);margin-top:8px">Si alguno marca error, repórtalo de inmediato: queda registrado cuándo lo escalaste y la venta se completa en cuanto se resuelva. El reporte de Ventas del día siguiente confirma que quedó terminada.</div>`));
   }
   if(solover||(!mesa&&!perla&&esDueno&&!['regresada','en_global'].includes(v.estatus))) acc.push(`<div style="grid-column:1/-1;font-size:12.5px;color:var(--txt-3)">Esta etapa la mueve ${esc(RESP_TXT(v)||'otra área')}; aquí solo la ves.</div>`);
+
+  // ---- 4 · Recolección (mesa): se cierra con la evidencia de que logística recibió el equipo
+  if(v.estatus==='recoleccion'){
+    const ir=INC.find(x=>x.tipo==='recoleccion'&&['abierta','escalada'].includes(x.estado)), evr=docs.evidencia_recoleccion;
+    acc.push(sec('4 · Recolección de equipo',`<div class="note" style="margin-bottom:12px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">El cliente requiere recolección</b>${esc(ir?.detalle||'')}</div>
+      ${mesa?`<div style="font-size:13px;color:var(--txt-2);margin-bottom:10px">1) Escálala en Incidencias y registra con quién. 2) Cuando logística reciba el equipo, sube la evidencia. 3) Decide si la venta se cae o se reenvía (regresa a Back Office por una guía nueva).</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">${evr?`<button class="btn" data-ver="${esc(evr.path)}">Ver evidencia de recepción</button>`:''}<label class="btn ${evr?'':'btn-p'}" style="margin:0">${evr?'Cambiar evidencia':'Subir evidencia de que logística recibió el equipo'}<input type="file" accept="image/*,application/pdf" id="rec-f" style="display:none"></label></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:12px;align-items:end">
+          <div><label>¿Qué pasa con la venta?</label><select id="rec-res" style="${ESTILO_CAMPO}"><option value="">Elegir…</option><option value="cancelar">Se cae (cancelada)</option><option value="reenviar">Se reenvía (regresa a Back Office)</option></select></div>
+          <div><label>Cómo se resolvió</label><input id="rec-sol" style="${ESTILO_CAMPO}" placeholder="Ej. DHL recolectó y logística lo recibió"></div>
+          <button class="btn btn-p" id="rec-ok" ${ir?'':'disabled'}>Cerrar recolección</button></div>`:'<div style="font-size:12.5px;color:var(--txt-3)">La atiende mesa de control.</div>'}`));
+  }
+  // ---- Antes de llegar a Perla: cambio de folio
+  if(['en_revision','regresada','aprobada','en_global'].includes(v.estatus)&&!v.previa&&(mesa||esDueno)&&!INC.some(x=>x.tipo==='cambio_folio'&&['abierta','escalada'].includes(x.estado)))
+    acc.push(`<div style="grid-column:1/-1;display:flex;justify-content:flex-start"><button class="btn" id="inc-cf">Se necesita cambio de folio</button></div>`);
 
   // ---- Mesa: cancelar
   if(mesa&&!['facturada','cancelada','rechazada'].includes(v.estatus)) acc.push(`<div style="grid-column:1/-1;display:flex;justify-content:flex-end"><button class="btn" style="color:var(--bad)" id="vf-cancelar">La venta se cayó · cancelar</button></div>`);
@@ -10462,6 +10714,21 @@ async function abrirVentaReg(id){
     if(error) return toast(error.message,'bad'); toast('Evidencia rechazada: regresa a En ruta y al agente le llega el aviso.','ok'); vistaVentasReg(); };
 
   // Cancelar
+  const refV=v.folio||('#'+v.id), recargarInc=()=>abrirVentaReg(id);
+  document.querySelectorAll('[data-inc]').forEach(el=>el.onclick=()=>{ S.vr={tab:'incid',q:''}; S.vrInc={ver:'todas',sel:Number(el.dataset.inc)}; vistaVentasReg(); });
+  if($('#inc-ona')) $('#inc-ona').onclick=()=>formIncidencia('orden_no_avanza',{venta:id,ref:refV,despues:recargarInc});
+  if($('#inc-rec')) $('#inc-rec').onclick=()=>formIncidencia('recoleccion',{venta:id,ref:refV,despues:recargarInc});
+  if($('#inc-cf')) $('#inc-cf').onclick=()=>formIncidencia('cambio_folio',{venta:id,ref:refV,despues:recargarInc});
+  if($('#pz-err')) $('#pz-err').onclick=()=>formIncidencia('facturacion',{venta:id,ref:refV,despues:recargarInc});
+  if($('#rec-f')) $('#rec-f').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; const img=/^image\//.test(f.type);
+    try{ const blob=img?await comprimirFoto(f):f, ruta=`${id}/evidencia_recoleccion_${Date.now()}.${img?'jpg':'pdf'}`;
+      const up=await sb.storage.from('expedientes').upload(ruta,blob,{contentType:img?'image/jpeg':'application/pdf'}); if(up.error) throw new Error(up.error.message);
+      const {error}=await sb.rpc('agregar_doc_venta',{p_id:id,p_tipo:'evidencia_recoleccion',p_path:ruta,p_nombre:f.name,p_bytes:blob.size}); if(error) throw new Error(error.message);
+      toast('Evidencia de recepción cargada.','ok'); recargarInc(); }catch(err){ toast(err.message,'bad'); } };
+  if($('#rec-ok')) $('#rec-ok').onclick=async()=>{ const ir=INC.find(x=>x.tipo==='recoleccion'&&['abierta','escalada'].includes(x.estado)); if(!ir) return;
+    const r=$('#rec-res').value, sol=$('#rec-sol').value.trim(); if(!r) return toast('Elige si la venta se cae o se reenvía.','bad'); if(!sol) return toast('Escribe cómo se resolvió.','bad');
+    const {error}=await sb.rpc('incidencia_accion',{p_id:ir.id,p_accion:'resolver',p_texto:sol,p_resultado:r}); if(error) return toast(error.message,'bad');
+    toast(r==='cancelar'?'Recolección cerrada: la venta quedó caída.':'Recolección cerrada: la venta regresó a Back Office.','ok'); recargarInc(); };
   if($('#vf-cancelar')) $('#vf-cancelar').onclick=async()=>{ const m=prompt('¿Por qué se cayó la venta?'); if(!m) return;
     const {error}=await sb.rpc('cancelar_venta_reg',{p_id:id,p_motivo:m}); if(error) return toast(error.message,'bad'); toast('Cancelada.','ok'); vistaVentasReg(); };
 
@@ -10570,6 +10837,8 @@ async function abrirAviso(n){
   if(!n) return;
   if(!n.leida_en){ n.leida_en=new Date().toISOString(); pintarContadorAvisos(); sb.rpc('marcar_avisos_leidos',{p_ids:[n.id]}); }
   if(n.ref_tipo==='venta'&&n.ref_id){ irA('ventas'); setTimeout(()=>abrirVentaReg(n.ref_id),50); }
+  if(n.ref_tipo==='incidencia'){ S.vr={tab:'incid',q:''}; S.vrInc={ver:'todas',sel:n.ref_id||null}; irA('ventas'); }
+  if(n.ref_tipo==='expedientes'){ S.vr={tab:S.papelVentas==='factura'||S.direccion?'exped':'todas',q:''}; irA('ventas'); }
   if(n.ref_tipo==='dinamica'&&n.ref_id){ irA('dinamicas'); setTimeout(()=>abrirDinamica(n.ref_id),50); }
 }
 
@@ -11668,11 +11937,16 @@ async function vistaMisAvisos(){
 async function vistaPanelFacturacion(esInicio){
   $('#main').innerHTML='<div class="empty">Cargando…</div>';
   const t=S.pf||(S.pf={mes:hoyMexico().slice(0,7)});
-  const [rv,rp,cv]=await Promise.all([
+  const [rv,rp,cv,ri,rx,rc]=await Promise.all([
     traerTodo(()=>sb.from('v_ventas_registro').select('id,folio,agente,estatus,etapa,previa,facturada_en,facturada_por,conf_venta,conf_nota,no_cuadra,entregada_en,envio_tipo').order('id')),
     sb.from('v_pendientes_anteriores').select('*'),
-    sb.rpc('global_ultima_carga',{p_tipo:'ventas'})
+    sb.rpc('global_ultima_carga',{p_tipo:'ventas'}),
+    sb.from('v_incidencias').select('id,tipo,estado,min_escalada').in('estado',['abierta','escalada']),
+    sb.from('v_expedientes').select('estado'),
+    sb.rpc('expedientes_calendario',{p_desde:null,p_n:1})
   ]);
+  const incF=(ri.data||[]).filter(x=>x.tipo==='facturacion'), expPor=(rx.data||[]).filter(x=>x.estado==='por_entregar').length, expSin=(rx.data||[]).filter(x=>x.estado==='entregado').length;
+  const prox=(rc.data||[])[0]?.fecha, proxTxt=prox?new Date(prox+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'short'}):'';
   if(rv.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(rv.error.message)}</div>`; return; }
   const V=rv.data||[], PA=rp.error?[]:(rp.data||[]), yo=S.perfil?.id, mes=t.mes;
   const enMes=d=>d&&diaMX(d).slice(0,7)===mes;
@@ -11691,7 +11965,9 @@ async function vistaPanelFacturacion(esInicio){
       <div class="acts"><select id="pf-mes" style="${ESTILO_CAMPO};width:auto">${meses.map(m=>`<option value="${m}" ${m===mes?'selected':''}>${nomMes(m)}</option>`).join('')}</select></div></div>
     <h3 style="font-size:14px;margin:4px 0 10px">Lo que te toca ahora</h3>
     <div class="kpis">
-      ${etapa('Entregadas · por completar',vivos.filter(x=>x.estatus==='entregada').length,'cerrar','tu bandeja del flujo nuevo')}
+      ${(()=>{ const E=vivos.filter(x=>x.estatus==='entregada'), atr=E.filter(x=>Date.now()-new Date(x.entregada_en)>864e5).length; return etapa('Entregadas · por completar',E.length,'cerrar',atr?`<span style="color:var(--bad);font-weight:600">${atr} con más de un día: atiéndelas hoy</span>`:'atiéndelas el mismo día'); })()}
+      ${etapa('Incidencias de facturación',incF.length,'incid',incF.some(x=>x.estado==='abierta')?'<span style="color:var(--bad);font-weight:600">hay sin escalar</span>':incF.some(x=>x.min_escalada>=60)?'<span style="color:var(--bad);font-weight:600">1 h sin respuesta: escálala con Yelitza o Jonathan</span>':'escaladas y en espera')}
+      ${etapa('Expedientes por entregar',expPor,'exped',`próxima entrega: ${proxTxt}${expSin?` · ${expSin} sin cotejo sellado`:''}`)}
       ${etapa('Pendientes anteriores',pendAnt.length,'pendant',`${listasAnt.length} listas para activar`)}
       ${etapa('No cuadra con Global',vivos.filter(x=>x.no_cuadra&&x.estatus==='facturada').length,'nocuadra','completadas que el reporte no trae')}</div>
     <h3 style="font-size:14px;margin:18px 0 10px">Dónde van las demás <small style="font-weight:400;color:var(--txt-3)">(no te tocan todavía)</small></h3>
@@ -12955,7 +13231,7 @@ function pintarDinamicaNiveles(el,d,A,jefe,yo,dias,errAv=''){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v101';
+const VERSION_APP='v103';
 window.addEventListener('beforeunload',e=>{ if(S&&S.ventaSucia){ e.preventDefault(); e.returnValue=''; } });
 async function revisarVersion(){
   try{
