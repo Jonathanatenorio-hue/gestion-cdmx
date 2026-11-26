@@ -9969,7 +9969,15 @@ function formIncidencia(tipo,{venta=null,pendiente=null,ref='',despues=null}={})
     ${tipo==='facturacion'?`<label>¿Dónde marcó error?</label><select id="fi-sis" style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${Object.entries(SIST_FACT).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select>`:''}
     ${tipo==='modelado'?'':`<label style="margin-top:10px">${tipo==='recoleccion'?'¿Por qué se recolecta?':tipo==='cambio_folio'?'¿Por qué cambia el folio?':'¿Qué pasa? (el error tal cual)'}</label>
     <textarea id="fi-det" rows="3" style="${ESTILO_CAMPO}" placeholder="${tipo==='recoleccion'?'Ej. el cliente se echó para atrás / llegó otro color':'Ej. mensaje de error que marca el sistema'}"></textarea>`}
+    <label style="margin-top:10px">Captura de pantalla del error <span style="font-weight:400;color:var(--txt-3)">(${tipo==='facturacion'?'súbela o pégala con Ctrl+V':'opcional · también la puedes pegar con Ctrl+V'})</span></label>
+    <input type="file" id="fi-cap" accept="image/*,application/pdf" multiple style="${ESTILO_CAMPO}"><div id="fi-cap-l" style="font-size:12px;color:var(--txt-2);margin-top:4px"></div>
     <div style="font-size:12px;color:var(--txt-3);margin-top:8px">${tipo==='modelado'?'Le llega a Itzel para que lo pida a inventarios. Cuando lo muevan te avisa y ya puedes capturar la venta.':tipo==='recoleccion'?'La venta regresa a mesa de control con el ticket de recolección.':'Al guardarla le llega a quien la atiende. Debe escalarse de inmediato: si en 1 hora no hay respuesta, avisa para escalar con Yelitza o Jonathan.'}</div>`,'Reportar');
+  let caps=[];
+  const pintaCaps=()=>{ $('#fi-cap-l').innerHTML=caps.map((f,i)=>`📎 ${esc(f.name)} <a href="#" data-qc="${i}" style="color:var(--bad)">quitar</a>`).join(' · ');
+    $('#fi-cap-l').querySelectorAll('[data-qc]').forEach(a=>a.onclick=e=>{ e.preventDefault(); caps.splice(Number(a.dataset.qc),1); pintaCaps(); }); };
+  $('#fi-cap').onchange=e=>{ caps=caps.concat([...e.target.files]).slice(0,6); e.target.value=''; pintaCaps(); };
+  ov.onpaste=e=>{ const fs=[...(e.clipboardData?.files||[])].filter(f=>f.type.startsWith('image/')); if(!fs.length) return;
+    e.preventDefault(); fs.forEach((f,i)=>caps.push(new File([f],`captura_${Date.now()}_${i}.png`,{type:f.type}))); caps=caps.slice(0,6); pintaCaps(); toast('Captura pegada.','ok'); };
   $('#'+id+'-ok').onclick=async()=>{
     let det;
     if(tipo==='modelado'){ const dn=$('#fi-dn').value.replace(/\D/g,''), eq=$('#fi-eq').value.trim();
@@ -9978,11 +9986,73 @@ function formIncidencia(tipo,{venta=null,pendiente=null,ref='',despues=null}={})
     else { det=$('#fi-det').value.trim(); if(!det) return toast('Escribe qué pasa.','bad'); }
     if(tipo==='facturacion'&&!$('#fi-sis').value) return toast('Elige dónde marcó error.','bad');
     if(tipo==='recoleccion'&&!confirm('La venta regresa a mesa de control para la recolección. ¿Seguir?')) return;
-    const {error}=await sb.rpc('abrir_incidencia',{p_tipo:tipo,p_venta:venta,p_pendiente:pendiente,p_detalle:det,
+    const b=$('#'+id+'-ok'); b.disabled=true;
+    const {data:incId,error}=await sb.rpc('abrir_incidencia',{p_tipo:tipo,p_venta:venta,p_pendiente:pendiente,p_detalle:det,
       p_dn:$('#fi-dn')?.value||null,p_cliente:$('#fi-cli')?.value||null,p_sistema:$('#fi-sis')?.value||null});
-    if(error) return toast(error.message,'bad');
-    ov.classList.remove('on'); toast('Reportada. Ya le llegó a quien la atiende.','ok'); if(despues) despues();
+    if(error){ b.disabled=false; return toast(error.message,'bad'); }
+    const fallo=await subirCapturasIncid(incId,caps);
+    ov.classList.remove('on'); b.disabled=false;
+    toast(fallo?`Reportada, pero ${fallo} captura(s) no se subieron: agrégalas desde la incidencia.`:'Reportada. Ya le llegó a quien la atiende.',fallo?'bad':'ok'); if(despues) despues();
   };
+}
+
+/* Back Office: la guía DHL llega al día siguiente si se aprueba después de las 2, las series si es después de las 6 */
+function boCortes(v){
+  if(!v||!v.revisado_en) return {guiaManana:false,seriesManana:false};
+  const h=Number(new Date(v.revisado_en).toLocaleString('en-US',{timeZone:'America/Mexico_City',hour:'numeric',hour12:false}))%24;
+  const hoy=diaMX(v.revisado_en)===hoyMexico();
+  return {guiaManana:h>=14&&hoy, seriesManana:h>=18&&hoy, hora:h};
+}
+function boFalta(v){
+  const f=[]; if(!v.series_ok) f.push('series');
+  if(v.envio_tipo==='dhl'&&!v.guia_dhl) f.push('guía');
+  else if(v.envio_tipo==='interna'&&!v.turno_ruta) f.push('turno');
+  else if(!v.envio_tipo) f.push('envío');
+  return f;
+}
+
+/* Buscar ventas por serie de SIM o de equipo (lo que trae el Detalle de Global) */
+function buscarSeriesModal(){
+  const ov=modalCaja('ov-ser','Buscar ventas por serie',`
+    <div style="font-size:12.5px;color:var(--txt-2);margin-bottom:8px">Pega las series tal cual (SIM o equipo, con o sin la F), una por renglón o copiadas de Excel. Se buscan en el Detalle de programación cargado.</div>
+    <textarea id="ser-t" rows="5" style="${ESTILO_CAMPO};font-family:var(--mono,monospace)" placeholder="8952050102604872116F&#10;350084461518870"></textarea>
+    <div id="ser-r" style="margin-top:12px"></div>`,'Buscar');
+  ov.querySelector('.md').style.maxWidth='920px';
+  $('#ov-ser-ok').onclick=async()=>{
+    const txt=$('#ser-t').value.trim(); if(!txt) return toast('Pega al menos una serie.','bad');
+    const {data,error}=await sb.rpc('buscar_series',{p_texto:txt}); if(error) return toast(error.message,'bad');
+    const R=data||[], enc=new Set(R.filter(x=>x.coincide==='exacta').map(x=>x.serie));
+    const cls={exacta:'p-ok',parecida:'p-warn','no encontrada':'p-bad'};
+    $('#ser-r').innerHTML=`<div style="font-size:12.5px;margin-bottom:6px"><b>${enc.size}</b> de ${new Set(R.map(x=>x.serie)).size} encontradas exactas.
+        ${R.some(x=>x.coincide==='parecida')?' Las "parecidas" comparten los últimos 6 dígitos: casi siempre es un dígito mal capturado, revísalas.':''}</div>
+      <div class="tw" style="max-height:340px;overflow:auto"><table><thead><tr><th>Serie buscada</th><th></th><th>PT · Folio</th><th>Cliente</th><th>Estatus</th><th>Series en Global</th></tr></thead><tbody>
+      ${R.map(x=>`<tr><td class="mono" style="font-size:12px">${esc(x.serie)}</td><td><span class="p ${cls[x.coincide]||''}">${esc(x.coincide)}</span></td>
+        <td class="mono" style="font-size:12.5px">${esc(x.programacion||'')}<div style="color:var(--txt-3)">${esc(x.folio||'')}</div></td>
+        <td style="font-size:12.5px">${esc(x.cliente||'')}<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.equipo||'')}${x.agente?' · '+esc(nomCorto(x.agente)):''}</div></td>
+        <td style="font-size:12px">${esc(x.estatus||'')}<div style="color:var(--txt-3)">${x.fecha_venta?fecha(x.fecha_venta):''}</div></td>
+        <td class="mono" style="font-size:11.5px">${esc(x.sim_serie||'')}<div>${esc(x.equipo_serie||'')}</div></td></tr>`).join('')}</tbody></table></div>
+      <button class="btn" id="ser-copia" style="margin-top:8px">Copiar resultado</button>`;
+    $('#ser-copia').onclick=()=>{ const t=['Serie\tCoincide\tPT\tFolio\tCliente\tEstatus'].concat(R.map(x=>[x.serie,x.coincide,x.programacion||'',x.folio||'',x.cliente||'',x.estatus||''].join('\t'))).join('\n');
+      navigator.clipboard.writeText(t).then(()=>toast('Copiado: pégalo en Excel o WhatsApp.','ok')); };
+  };
+}
+
+/* Capturas de pantalla de una incidencia (bucket privado "incidencias") */
+async function subirCapturasIncid(incId,files){
+  let fallo=0;
+  for(const f of files){
+    if(f.size>10*1024*1024){ fallo++; continue; }
+    const ruta=`${incId}/${Date.now()}_${f.name.replace(/[^\w.\-]+/g,'_')}`;
+    const {error:eUp}=await sb.storage.from('incidencias').upload(ruta,f,{upsert:false});
+    if(eUp){ fallo++; continue; }
+    const {error}=await sb.rpc('incidencia_adjuntar',{p_id:incId,p_path:ruta,p_nombre:f.name});
+    if(error) fallo++;
+  }
+  return fallo;
+}
+async function verCapturaIncid(ruta){
+  const {data,error}=await sb.storage.from('incidencias').createSignedUrl(ruta,3600);
+  if(error||!data) return toast('No se pudo abrir la captura.','bad'); window.open(data.signedUrl,'_blank');
 }
 
 /* Bloque de incidencias dentro de una venta */
@@ -10022,7 +10092,7 @@ async function pintarIncidencias(c,papel){
     if(b.data&&b.data.length) return formIncidencia('facturacion',{pendiente:b.data[0].id,ref:f,despues:()=>pintarIncidencias(c,papel)});
     toast('Ese folio no está en Entregadas por completar ni en Pendientes anteriores.','bad'); };
   tablaPaginada($('#inc-l'),F,'<th>Incidencia</th><th>Venta</th><th>Agente</th><th>Abierta</th><th>Estado</th>',
-    x=>{ const [et,ec]=estadoIncid(x); return `<tr style="cursor:pointer" data-inc="${x.id}"><td><b style="font-size:13px">${esc(x.tipo_nombre||'')}</b><div style="font-size:11.5px;color:var(--txt-3);max-width:320px">${esc(x.detalle)}</div></td>
+    x=>{ const [et,ec]=estadoIncid(x); return `<tr style="cursor:pointer" data-inc="${x.id}"><td><b style="font-size:13px">${esc(x.tipo_nombre||'')}</b><div style="font-size:11.5px;color:var(--txt-3);max-width:320px">${esc(x.detalle)}${(x.evidencias||[]).length?` · 📎 ${x.evidencias.length}`:''}</div></td>
       <td class="mono" style="font-size:12.5px">${esc(x.folio||'')}${x.dn_venta?`<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.dn_venta)}${x.cliente?' · '+esc(x.cliente):''}</div>`:''}</td>
       <td style="font-size:12.5px;white-space:nowrap">${esc(nomCorto(x.agente||''))}</td><td style="font-size:12px;white-space:nowrap">${fh(x.abierta_en)}<div style="color:var(--txt-3)">${esc(nomCorto(x.abierta_por_nombre||''))}</div></td>
       <td><span class="p ${ec}">${esc(et)}</span></td></tr>`; },
@@ -10038,6 +10108,9 @@ async function pintarIncidencias(c,papel){
         <div><span style="color:var(--txt-3)">Resuelta</span><div><b>${x.resuelta_en?fh(x.resuelta_en):'—'}</b>${x.resuelta_por_nombre?' · '+esc(nomCorto(x.resuelta_por_nombre)):''}</div></div>
         ${x.folio_nuevo?`<div><span style="color:var(--txt-3)">Folio</span><div><b>${esc(x.folio_nuevo)}</b> (antes otro)</div></div>`:''}</div>
       ${x.cierre_obligatorio?'<div class="note" style="margin-bottom:10px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">La venta ya se completó y este ticket sigue abierto</b>Ciérralo: escribe cómo se resolvió.</div>':''}
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12.5px"><span style="color:var(--txt-3)">Capturas:</span>
+        ${(x.evidencias||[]).map((e,i)=>`<button class="btn btn-sm" data-cap="${i}">📎 ${esc(e.nombre||'captura '+(i+1))}</button>`).join('')||'<span style="color:var(--txt-3)">ninguna</span>'}
+        ${abierta?`<label class="btn btn-sm" style="margin:0">+ Agregar captura<input type="file" id="inc-cap" accept="image/*,application/pdf" multiple style="display:none"></label>`:''}</div>
       ${yoAtiendo?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;border-top:1px solid var(--line);padding-top:10px">
         <div><label>${x.estado==='abierta'?'Escalar con':'Escalar otra vez con'} <span style="font-weight:400;color:var(--txt-3)">(quién y número de ticket)</span></label><input id="inc-esc" style="${ESTILO_CAMPO}" placeholder="${x.estado==='abierta'?(x.tipo==='modelado'?'Ej. Inventarios · se pidió por WhatsApp a Juan':'Ej. Soporte Global · ticket 4512'):'Ej. Yelitza / Jonathan'}"><button class="btn" id="inc-esc-ok" style="margin-top:6px">Registrar escalamiento</button></div>
         <div><label>Resolver <span style="font-weight:400;color:var(--txt-3)">(cómo se resolvió)</span></label>
@@ -10050,6 +10123,9 @@ async function pintarIncidencias(c,papel){
       ${(x.notas||[]).length?`<div style="margin-top:12px;font-size:12.5px">${(x.notas||[]).slice().reverse().map(n=>`<div style="padding:6px 0;border-top:1px solid var(--line)"><b>${esc(n.texto)}</b> <span style="color:var(--txt-3)">· ${esc(nomCorto(n.por||''))} · ${fh(n.en)}</span></div>`).join('')}</div>`:''}</div>`;
     const run=async(acc,extra,msg)=>{ const {error}=await sb.rpc('incidencia_accion',{p_id:x.id,p_accion:acc,...extra}); if(error) return toast(error.message,'bad'); toast(msg,'ok'); pintarIncidencias(c,papel); };
     $('#inc-x').onclick=()=>{ t.sel=null; D.innerHTML=''; };
+    D.querySelectorAll('[data-cap]').forEach(b=>b.onclick=()=>verCapturaIncid(x.evidencias[Number(b.dataset.cap)].path));
+    if($('#inc-cap')) $('#inc-cap').onchange=async e=>{ const fs=[...e.target.files]; if(!fs.length) return;
+      const fallo=await subirCapturasIncid(x.id,fs); toast(fallo?`${fallo} no se pudieron subir.`:'Captura agregada.',fallo?'bad':'ok'); pintarIncidencias(c,papel); };
     if($('#inc-esc-ok')) $('#inc-esc-ok').onclick=()=>{ const v=$('#inc-esc').value.trim(); if(!v) return toast('Escribe con quién la escalaste.','bad'); run('escalar',{p_texto:v},'Escalamiento registrado.'); };
     if($('#inc-sol-ok')) $('#inc-sol-ok').onclick=()=>{ const v=$('#inc-sol').value.trim(); if(!v) return toast('Escribe cómo se resolvió.','bad'); run('resolver',{p_texto:v,p_folio_nuevo:$('#inc-fol')?.value||null},'Resuelta.'); };
     if($('#inc-nota-ok')) $('#inc-nota-ok').onclick=()=>{ const v=$('#inc-nota').value.trim(); if(!v) return toast('Escribe la nota.','bad'); run('nota',{p_texto:v},'Nota guardada.'); };
@@ -10285,7 +10361,7 @@ async function vistaVentasReg(){
   <div class="head"><div><h1>Ventas</h1><p>${papel==='agente'?'Registra cada venta con su folio, DN y PT en cuanto la captures en Global. Lo que no se registra aquí no cuenta para tu meta ni para tu comisión.'
       :papel==='factura'?'Ventas entregadas: valida la evidencia, activa la orden en Global y factura en ASD. Después pasa al agente, que activa la línea en AVS y la completa.'
       :'Dónde va cada venta y quién la tiene. Cada área mueve solo su etapa; los reportes de Global confirman.'}</p></div>
-    <div class="acts">${cargaEnc?`<button class="btn" id="rv-cargar" title="Encargada hasta ${esc(fecha(rcg.data.hasta))}">Cargar reportes de Global</button><input type="file" id="rv-file" accept=".xlsx,.xls" multiple style="display:none"> `:''}${['agente','mesa','direccion'].includes(papel)?'<button class="btn" id="vr-modelado">No aparece el equipo</button> <button class="btn btn-p" id="vr-nueva">+ Registrar venta</button>':''}</div></div>
+    <div class="acts">${['mesa','factura','direccion'].includes(papel)?'<button class="btn" id="vr-series">Buscar por serie</button> ':''}${cargaEnc?`<button class="btn" id="rv-cargar" title="Encargada hasta ${esc(fecha(rcg.data.hasta))}">Cargar reportes de Global</button><input type="file" id="rv-file" accept=".xlsx,.xls" multiple style="display:none"> `:''}${['agente','mesa','direccion'].includes(papel)?'<button class="btn" id="vr-modelado">No aparece el equipo</button> <button class="btn btn-p" id="vr-nueva">+ Registrar venta</button>':''}</div></div>
   ${aviso||''}
   ${pend.length?`<div class="note" style="margin-bottom:14px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">Tienes ${pend.length} venta${pend.length===1?'':'s'} que necesita${pend.length===1?'':'n'} algo de ti</b>
      ${pend.map(x=>esc(x.folio||'')+' · '+esc(x.estatus==='regresada'?'corrige: '+(x.motivo||''):x.estatus==='avs'?'activa la línea en AVS para completarla':x.evid_rechazo?'vuelve a subir la evidencia: '+x.evid_rechazo:'ya se entregó: sube la evidencia con la etiqueta')).join('<br>')}</div>`:''}
@@ -10294,6 +10370,7 @@ async function vistaVentasReg(){
   <div id="vr-cuerpo" style="margin-top:14px"></div>`;
 
   const c=$('#vr-cuerpo');
+  if($('#vr-series')) $('#vr-series').onclick=buscarSeriesModal;
   if(cargaEnc){ $('#rv-cargar').onclick=()=>$('#rv-file').click(); $('#rv-file').onchange=e=>cargarReportesGlobal([...e.target.files],vistaVentasReg); }
   if(t.tab==='sinreg') pintarSinRegistro(c,SR);
   else if(t.tab==='salvan') pintarSalvanFalta(c);
@@ -10320,7 +10397,8 @@ async function vistaVentasReg(){
       <td class="mono">${esc(x.folio||'—')}${x.registro_tardio?' <span class="p p-warn" title="Apareció en Global sin registro">tardía</span>':''}<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.dn||'')}${x.pt?' · '+esc(x.pt):''}</div></td>
       <td style="font-size:12.5px">${esc(x.cliente||x.global_cliente||'')}<div style="font-size:11.5px;color:var(--txt-3)">${esc(eqTexto(x)||x.global_equipo||'')}</div></td>
       ${papel!=='agente'?`<td style="font-size:12.5px;white-space:nowrap">${esc(nomCorto(x.agente||''))}</td>`:''}
-      <td><span class="p ${ETAPA_CLASE(x.etapa||'')}">${esc(x.etapa||'')}</span>${(()=>{ const h=pasosVenta(x).hechos; return `<div class="vt-mini" title="${h} de 7 etapas">${Array.from({length:7},(_,i)=>`<i class="${i<h?'ok':''}"></i>`).join('')}</div>`; })()}
+      <td><span class="p ${ETAPA_CLASE(x.etapa||'')}">${esc(x.etapa||'')}</span>${x.estatus==='aprobada'?(()=>{ const f=boFalta(x), k=boCortes(x);
+        return `<div style="font-size:11.5px;color:var(--txt-3);margin-top:3px">✓ ya cuenta · falta ${f.join(' y ')}${k.guiaManana&&f.includes('guía')||k.guiaManana&&f.includes('envío')?' · guía mañana':''}${k.seriesManana&&f.includes('series')?' · series mañana':''}</div>`; })():''}${(()=>{ const h=pasosVenta(x).hechos; return `<div class="vt-mini" title="${h} de 7 etapas">${Array.from({length:7},(_,i)=>`<i class="${i<h?'ok':''}"></i>`).join('')}</div>`; })()}
         <div style="margin-top:4px">${candadosChips(x,true)}</div>
         ${x.motivo&&['regresada','rechazada','cancelada'].includes(x.estatus)?`<div style="font-size:11.5px;color:var(--bad);max-width:240px">${esc(x.motivo)}</div>`:''}${x.evid_rechazo?`<div style="font-size:11.5px;color:var(--bad);max-width:240px">Evidencia: ${esc(x.evid_rechazo)}</div>`:''}</td>
       <td style="font-size:12px;white-space:nowrap">${x.responsable?`<b>${esc(RESP_TXT(x))}</b><div style="color:var(--txt-3)">${x.etapa_desde?'hace '+hace(x.etapa_desde):''}</div>`:'<span style="color:var(--txt-3)">—</span>'}</td>
@@ -10347,18 +10425,22 @@ async function pintarPendientesAnteriores(c,PA,papel,err){
   let agentes=[];
   if(puedeAgente){ const {data:ag}=await sb.from('empleados').select('id,nombre_completo,puestos(clave)').eq('estatus','activo').order('nombre_completo');
     agentes=(ag||[]).filter(e=>['EJEC','SUP'].includes(e.puestos?.clave)); }
-  const F=t.ver==='pend'?pend:t.ver==='listas'?listas:PA;
+  const qn=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+  const Q=qn(t.q).trim();
+  const F=(t.ver==='pend'?pend:t.ver==='listas'?listas:PA).filter(x=>!Q||qn([x.folio,x.pt,x.cliente,x.telefono,x.guia,x.agente].join(' ')).includes(Q));
   const cl=x=>x.estado_final==='activada'?'p-ok':x.estado_final==='caida'?'p-bad':/lista para activar|ya la trae/.test(x.situacion)?'p-warn':'p-teal';
   const ultNota=x=>{ const n=(x.notas||[]).slice(-1)[0]; return n?`${esc(n.texto)} <span style="color:var(--txt-3)">· ${esc(nomCorto(n.por||''))} ${fh(n.en)}</span>`:''; };
-  c.innerHTML=`<div class="note" style="margin-bottom:12px"><b>Ventas anteriores al 23 de noviembre que siguen en tránsito</b>No llevan el flujo de etapas. Se siguen una por una hasta que todas queden activadas o caídas. El estatus de Global se actualiza solo al cargar el Detalle.</div>
+  c.innerHTML=`<div class="note" style="margin-bottom:12px"><b>Ventas anteriores al 26 de noviembre que siguen en tránsito</b>No llevan el flujo de etapas. Se siguen una por una hasta que todas queden activadas o caídas. El estatus de Global se actualiza solo al cargar el Detalle.</div>
     <div class="kpis">
       <div class="kpi ${pend.length?'bad':'t'}"><span>Pendientes</span><b>${pend.length}</b><small>de ${PA.length}</small></div>
       <div class="kpi ${listas.length?'':'t'}"><span>Listas para activar</span><b>${listas.length}</b><small>entregadas o ya activas en Global</small></div>
       <div class="kpi t"><span>Activadas</span><b>${act.length}</b></div>
       <div class="kpi"><span>Caídas</span><b>${cai.length}</b></div></div>
-    <div style="display:flex;gap:8px;margin:12px 0;flex-wrap:wrap">${[['pend','Pendientes'],['listas','Listas para activar'],['todas','Todas']].map(([k,l])=>`<button class="btn ${t.ver===k?'btn-p':''}" data-pav="${k}">${l}</button>`).join('')}</div>
+    <div style="display:flex;gap:8px;margin:12px 0;flex-wrap:wrap;align-items:center">${[['pend','Pendientes'],['listas','Listas para activar'],['todas','Todas']].map(([k,l])=>`<button class="btn ${t.ver===k?'btn-p':''}" data-pav="${k}">${l}</button>`).join('')}
+      <input id="pa-q" value="${esc(t.q||'')}" placeholder="Buscar folio, PT, cliente, teléfono o guía" style="${ESTILO_CAMPO};max-width:340px;margin-left:auto"></div>
     <div id="pa-det"></div><div id="pa-l"></div>`;
   c.querySelectorAll('[data-pav]').forEach(b=>b.onclick=()=>{ t.ver=b.dataset.pav; t.sel=null; pintarPendientesAnteriores(c,PA,papel); });
+  let qT; $('#pa-q').oninput=e=>{ clearTimeout(qT); qT=setTimeout(()=>{ t.q=e.target.value; if(t.q&&t.ver!=='todas') t.ver='todas'; pintarPendientesAnteriores(c,PA,papel); const i=$('#pa-q'); i.focus(); i.setSelectionRange(i.value.length,i.value.length); },250); };
   tablaPaginada($('#pa-l'),F,'<th>Folio · PT</th><th>Cliente</th><th>Agente</th><th>Venta</th><th>Global</th><th>Último seguimiento</th>',
     x=>`<tr style="cursor:pointer${t.sel===x.id?';background:var(--line-2)':''}" data-pa="${x.id}"><td class="mono">${esc(x.folio)}<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.pt||'')}${x.guia?' · guía '+esc(x.guia):''}</div></td>
       <td style="font-size:12.5px">${esc(x.cliente||'')}<div style="font-size:11.5px;color:var(--txt-3)">${esc([x.municipio,x.estado].filter(Boolean).join(', '))}${x.hub?' · sale de '+esc(x.hub):''}</div></td>
@@ -10366,7 +10448,7 @@ async function pintarPendientesAnteriores(c,PA,papel,err){
       <td style="font-size:12px;white-space:nowrap">${fecha(x.fecha_venta)}<div style="color:var(--txt-3)">hace ${x.dias} d</div></td>
       <td><span class="p ${cl(x)}">${esc(x.situacion||'')}</span></td>
       <td style="font-size:12px;max-width:280px">${ultNota(x)}</td></tr>`,
-    {vacio:t.ver==='pend'?'Ya no queda ninguna pendiente.':'Nada aquí.',despues:el=>el.querySelectorAll('[data-pa]').forEach(tr=>tr.onclick=()=>{ t.sel=Number(tr.dataset.pa); detalle(); el.querySelectorAll('[data-pa]').forEach(r=>r.style.background=Number(r.dataset.pa)===t.sel?'var(--line-2)':''); })});
+    {vacio:t.ver==='pend'?'Ya no queda ninguna pendiente.':'Nada aquí.',despues:el=>el.querySelectorAll('[data-pa]').forEach(tr=>tr.onclick=()=>{ t.sel=Number(tr.dataset.pa); detalle(); $('#pa-det').scrollIntoView({behavior:'smooth',block:'start'}); el.querySelectorAll('[data-pa]').forEach(r=>r.style.background=Number(r.dataset.pa)===t.sel?'var(--line-2)':''); })});
   const recargar=async()=>{ const {data}=await sb.from('v_pendientes_anteriores').select('*').order('fecha_venta'); pintarPendientesAnteriores(c,data||[],papel); };
   const detalle=()=>{
     const x=PA.find(y=>y.id===t.sel), D=$('#pa-det'); if(!x){ D.innerHTML=''; return; }
@@ -10388,7 +10470,7 @@ async function pintarPendientesAnteriores(c,PA,papel,err){
     $('#pa-x').onclick=()=>{ t.sel=null; D.innerHTML=''; };
     const run=async(acc,extra,okMsg)=>{ const {error}=await sb.rpc('pendiente_anterior',{p_id:x.id,p_accion:acc,...extra}); if(error) return toast(error.message,'bad'); toast(okMsg,'ok'); recargar(); };
     const leer=()=>Object.fromEntries([...D.querySelectorAll('[data-pck]')].map(i=>[i.dataset.pck,i.checked]));
-    if($('#pa-act')) $('#pa-act').onclick=()=>{ const z=leer(); if(Object.values(z).some(v=>!v)) return toast('Marca los tres puntos.','bad'); run('activar',{p_checklist:z},'Activada.'); };
+    if($('#pa-act')) $('#pa-act').onclick=()=>{ const z=leer(); if(Object.values(z).some(v=>!v)) return toast('Marca Global y ASD.','bad'); run('activar',{p_checklist:z},'Activada.'); };
     if($('#pa-nota-ok')) $('#pa-nota-ok').onclick=()=>{ const n=$('#pa-nota').value.trim(); if(!n) return toast('Escribe la nota.','bad'); run('nota',{p_nota:n,p_checklist:$('#pa-act')?leer():null},'Nota guardada.'); };
     if($('#pa-caida')) $('#pa-caida').onclick=()=>{ const n=$('#pa-nota').value.trim(); if(!n) return toast('Escribe en la nota por qué se cayó.','bad'); if(!confirm('¿Marcarla como caída?')) return; run('caida',{p_nota:n},'Marcada como caída.'); };
     if($('#pa-emp-ok')) $('#pa-emp-ok').onclick=()=>{ const e=Number($('#pa-emp').value); if(!e) return toast('Elige el agente.','bad'); run('agente',{p_emp:e},'Agente guardado.'); };
@@ -10636,13 +10718,16 @@ async function abrirVentaReg(id){
   // ---- 3 · Back Office (mesa): series + guía DHL o ruta interna con turno
   if(v.estatus==='aprobada'&&mesa&&!v.previa){
     const gNum=/^\d{10}$/.test(String(v.guia||''))?v.guia:'';
+    const K=boCortes(v), FB=boFalta(v);
     acc.push(sec('3 · Back Office · series y envío',`
+      <div style="font-size:12.5px;margin-bottom:8px"><span class="p p-ok">✓ Ya cuenta</span> <span style="color:var(--txt-2)">La venta cuenta en la productividad desde que se aprobó${v.revisado_en?' ('+fh(v.revisado_en)+')':''}. Aquí solo falta ${esc(FB.join(' y '))}; puedes guardar cada cosa cuando llegue.</span></div>
+      ${K.guiaManana?`<div style="font-size:12.5px;color:var(--warn);margin-bottom:8px">Se aprobó después de las 2: la guía DHL la asignan mañana${K.seriesManana?' y, por ser después de las 6, también las series':''}. No cuenta como atrasada hasta mañana a las 9.</div>`:''}
       ${v.global_back_office_en?`<div style="font-size:12.5px;color:var(--ok);margin-bottom:8px">✓ Ya aparece en Back Office en Global (${fh(v.global_back_office_en)}).</div>`:'<div style="font-size:12.5px;color:var(--txt-3);margin-bottom:8px">Pásala a Back Office en Global. El reporte de Detalle del día siguiente lo confirma.</div>'}
-      <label style="display:flex;gap:10px;align-items:center;font-size:13.5px;margin:8px 0"><input type="checkbox" id="lg-ser" style="width:17px;height:17px" ${v.global_equipo_serie||v.global_sim_serie?'checked':''}> Series asignadas en Global${v.global_equipo_serie||v.global_sim_serie?` <small style="color:var(--txt-3)">(el reporte ya trae: ${esc([v.global_equipo_serie,v.global_sim_serie].filter(Boolean).join(' · '))})</small>`:''}</label>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;margin:10px 0;font-size:13.5px"><label><input type="radio" name="lg-t" value="dhl" ${v.envio_tipo!=='interna'&&!/INTER/i.test(String(v.guia||''))?'checked':''}> Guía DHL</label><label><input type="radio" name="lg-t" value="interna" ${v.envio_tipo==='interna'||/INTER/i.test(String(v.guia||''))?'checked':''}> Ruta interna</label></div>
-      <div id="lg-gbox" style="max-width:260px"><label>Número de guía DHL</label><input id="lg-guia" value="${esc(v.guia_dhl||gNum)}" maxlength="10" inputmode="numeric" placeholder="10 dígitos" style="${ESTILO_CAMPO}"></div>
+      <label style="display:flex;gap:10px;align-items:center;font-size:13.5px;margin:8px 0"><input type="checkbox" id="lg-ser" style="width:17px;height:17px" ${v.series_ok||v.global_equipo_serie||v.global_sim_serie?'checked':''} ${v.series_ok?'disabled':''}> Series asignadas en Global${v.series_ok?' <small style="color:var(--ok)">(ya guardado)</small>':''}${v.global_equipo_serie||v.global_sim_serie?` <small style="color:var(--txt-3)">(el reporte ya trae: ${esc([v.global_equipo_serie,v.global_sim_serie].filter(Boolean).join(' · '))})</small>`:''}</label>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin:10px 0;font-size:13.5px"><label><input type="radio" name="lg-t" value="dhl" ${v.envio_tipo==='dhl'||v.envio_tipo!=='interna'&&!/INTER/i.test(String(v.guia||''))?'checked':''}> Guía DHL</label><label><input type="radio" name="lg-t" value="interna" ${v.envio_tipo==='interna'||/INTER/i.test(String(v.guia||''))?'checked':''}> Ruta interna</label></div>
+      <div id="lg-gbox" style="max-width:260px"><label>Número de guía DHL <span style="font-weight:400;color:var(--txt-3)">(si aún no la dan, déjala vacía)</span></label><input id="lg-guia" value="${esc(v.guia_dhl||gNum)}" maxlength="10" inputmode="numeric" placeholder="10 dígitos" style="${ESTILO_CAMPO}"></div>
       <div id="lg-tbox" style="max-width:260px"><label>Turno de la ruta</label><select id="lg-turno" style="${ESTILO_CAMPO}"><option value="">— elige —</option><option value="matutino" ${v.turno_ruta==='matutino'?'selected':''}>Matutino</option><option value="vespertino" ${v.turno_ruta==='vespertino'?'selected':''}>Vespertino</option></select></div>
-      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn btn-p" id="lg-ok">Guardar · pasa a En ruta</button><button class="btn" id="inc-ona">La orden no avanza</button></div>`));
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn btn-p" id="lg-ok">Guardar</button><button class="btn" id="inc-ona">La orden no avanza</button></div>`));
   }
 
   // ---- 4 · En ruta: evidencia (solo DHL)
@@ -10746,11 +10831,12 @@ async function abrirVentaReg(id){
   if($('#lg-ok')){
     const sinc=()=>{ const d=document.querySelector('[name="lg-t"]:checked')?.value==='dhl'; $('#lg-gbox').style.display=d?'':'none'; $('#lg-tbox').style.display=d?'none':''; };
     document.querySelectorAll('[name="lg-t"]').forEach(r=>r.onchange=sinc); sinc();
-    $('#lg-ok').onclick=async()=>{ const tipo=document.querySelector('[name="lg-t"]:checked')?.value;
-      if(tipo==='dhl'&&!/^\d{10}$/.test($('#lg-guia').value.trim())) return toast('La guía DHL lleva 10 dígitos.','bad');
-      if(tipo==='interna'&&!$('#lg-turno').value) return toast('Elige el turno de la ruta: matutino o vespertino.','bad');
-      const {error}=await sb.rpc('mesa_logistica',{p_id:id,p_series:$('#lg-ser').checked,p_tipo:tipo,p_guia:tipo==='dhl'?$('#lg-guia').value.trim():null,p_turno:tipo==='interna'?$('#lg-turno').value:null});
-      if(error) return toast(error.message,'bad'); toast('Listo: la venta va en ruta. Al agente le llega el aviso.','ok'); recargar(); };
+    $('#lg-ok').onclick=async()=>{ const tipo=document.querySelector('[name="lg-t"]:checked')?.value, g=$('#lg-guia').value.trim(), tu=$('#lg-turno').value, ser=$('#lg-ser').checked;
+      if(tipo==='dhl'&&g&&!/^\d{10}$/.test(g)) return toast('La guía DHL lleva 10 dígitos.','bad');
+      const {error}=await sb.rpc('mesa_logistica',{p_id:id,p_series:ser&&!v.series_ok,p_tipo:tipo||null,p_guia:tipo==='dhl'&&g?g:null,p_turno:tipo==='interna'&&tu?tu:null});
+      if(error) return toast(error.message,'bad');
+      const listo=(ser||v.series_ok)&&(tipo==='dhl'?!!g:!!tu);
+      toast(listo?'Listo: la venta va en ruta. Al agente le llega el aviso.':'Avance guardado. Sigue en Back Office hasta tener series y '+(tipo==='dhl'?'guía':'turno')+'.','ok'); recargar(); };
   }
 
   // Perla
@@ -13298,7 +13384,7 @@ function pintarDinamicaNiveles(el,d,A,jefe,yo,dias,errAv=''){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v105';
+const VERSION_APP='v106';
 window.addEventListener('beforeunload',e=>{ if(S&&S.ventaSucia){ e.preventDefault(); e.returnValue=''; } });
 async function revisarVersion(){
   try{
