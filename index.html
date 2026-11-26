@@ -9947,7 +9947,7 @@ const CHECK_PERLA=[
 const CHECK_PERLA_ANT=CHECK_PERLA.filter(([k])=>k!=='evidencia');
 /* ---------- Incidencias: lo que traba una venta, en un solo lugar ---------- */
 const INCID={
-  modelado:{n:'Error de modelado',d:'AT&T no deja modelar la venta. Lo reporta el agente; Itzel lo escala.'},
+  modelado:{n:'No aparece el equipo para modelar',d:'El equipo no sale para agregarlo a la venta. Itzel le pide a inventarios que lo muevan para poder avanzar.'},
   orden_no_avanza:{n:'La orden no avanza',d:'Global no deja asignar series o guía. Itzel lo escala.'},
   cambio_folio:{n:'Cambio de folio',d:'Se necesita otro folio. Al resolverse se captura el nuevo y el anterior queda guardado.'},
   facturacion:{n:'Error en facturación',d:'Global, ASD o AVS marcan error al activar. Perla lo escala.'},
@@ -9964,13 +9964,18 @@ function formIncidencia(tipo,{venta=null,pendiente=null,ref='',despues=null}={})
   const I=INCID[tipo], id='ov-inc';
   const ov=modalCaja(id,I.n+(ref?` · ${esc(ref)}`:''),`
     <div style="font-size:12.5px;color:var(--txt-2);margin-bottom:10px">${I.d}</div>
-    ${tipo==='modelado'?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label>DN del cliente</label><input id="fi-dn" inputmode="numeric" maxlength="10" style="${ESTILO_CAMPO}"></div><div><label>Nombre del cliente</label><input id="fi-cli" style="${ESTILO_CAMPO}"></div></div>`:''}
+    ${tipo==='modelado'?`<label>DN del cliente</label><input id="fi-dn" inputmode="numeric" maxlength="10" placeholder="10 dígitos" style="${ESTILO_CAMPO}">
+      <label style="margin-top:10px">Equipo que no te deja agregar <span style="font-weight:400;color:var(--txt-3)">(tal cual viene en el sistema)</span></label><input id="fi-eq" placeholder="Ej. SAMSUNG GALAXY A37 128GB DARK GREEN ATT" style="${ESTILO_CAMPO}">`:''}
     ${tipo==='facturacion'?`<label>¿Dónde marcó error?</label><select id="fi-sis" style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${Object.entries(SIST_FACT).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select>`:''}
-    <label style="margin-top:10px">${tipo==='recoleccion'?'¿Por qué se recolecta?':tipo==='cambio_folio'?'¿Por qué cambia el folio?':'¿Qué pasa? (el error tal cual)'}</label>
-    <textarea id="fi-det" rows="3" style="${ESTILO_CAMPO}" placeholder="${tipo==='recoleccion'?'Ej. el cliente se echó para atrás / llegó otro color':'Ej. mensaje de error que marca el sistema'}"></textarea>
-    <div style="font-size:12px;color:var(--txt-3);margin-top:8px">${tipo==='recoleccion'?'La venta regresa a mesa de control con el ticket de recolección.':'Al guardarla le llega a quien la atiende. Debe escalarse de inmediato: si en 1 hora no hay respuesta, avisa para escalar con Yelitza o Jonathan.'}</div>`,'Reportar');
+    ${tipo==='modelado'?'':`<label style="margin-top:10px">${tipo==='recoleccion'?'¿Por qué se recolecta?':tipo==='cambio_folio'?'¿Por qué cambia el folio?':'¿Qué pasa? (el error tal cual)'}</label>
+    <textarea id="fi-det" rows="3" style="${ESTILO_CAMPO}" placeholder="${tipo==='recoleccion'?'Ej. el cliente se echó para atrás / llegó otro color':'Ej. mensaje de error que marca el sistema'}"></textarea>`}
+    <div style="font-size:12px;color:var(--txt-3);margin-top:8px">${tipo==='modelado'?'Le llega a Itzel para que lo pida a inventarios. Cuando lo muevan te avisa y ya puedes capturar la venta.':tipo==='recoleccion'?'La venta regresa a mesa de control con el ticket de recolección.':'Al guardarla le llega a quien la atiende. Debe escalarse de inmediato: si en 1 hora no hay respuesta, avisa para escalar con Yelitza o Jonathan.'}</div>`,'Reportar');
   $('#'+id+'-ok').onclick=async()=>{
-    const det=$('#fi-det').value.trim(); if(!det) return toast('Escribe qué pasa.','bad');
+    let det;
+    if(tipo==='modelado'){ const dn=$('#fi-dn').value.replace(/\D/g,''), eq=$('#fi-eq').value.trim();
+      if(dn.length!==10) return toast('El DN lleva 10 dígitos.','bad'); if(!eq) return toast('Escribe el equipo tal cual viene en el sistema.','bad');
+      det='Equipo: '+eq; }
+    else { det=$('#fi-det').value.trim(); if(!det) return toast('Escribe qué pasa.','bad'); }
     if(tipo==='facturacion'&&!$('#fi-sis').value) return toast('Elige dónde marcó error.','bad');
     if(tipo==='recoleccion'&&!confirm('La venta regresa a mesa de control para la recolección. ¿Seguir?')) return;
     const {error}=await sb.rpc('abrir_incidencia',{p_tipo:tipo,p_venta:venta,p_pendiente:pendiente,p_detalle:det,
@@ -10004,7 +10009,7 @@ async function pintarIncidencias(c,papel){
       <div class="kpi ${sinResp?'bad':''}"><span>Escaladas sin respuesta 1 h+</span><b>${sinResp}</b></div>
       <div class="kpi"><span>Resueltas</span><b>${A.filter(x=>x.estado==='resuelta').length}</b></div></div>
     <div style="display:flex;gap:8px;margin:12px 0;flex-wrap:wrap">${[['abiertas','Abiertas'],...(miArea?[['mias','Las que atiendo']]:[]),['todas','Todas']].map(([k,l])=>`<button class="btn ${t.ver===k?'btn-p':''}" data-icv="${k}">${l}</button>`).join('')}
-      ${['agente','mesa','direccion'].includes(papel)?'<button class="btn" id="inc-mod" style="margin-left:auto">+ Reportar error de modelado</button>':''}
+      ${['agente','mesa','direccion'].includes(papel)?'<button class="btn" id="inc-mod" style="margin-left:auto">+ No aparece el equipo</button>':''}
       ${['factura','direccion'].includes(papel)?`<button class="btn" id="inc-fac" ${papel==='factura'?'style="margin-left:auto"':''}>+ Reportar error de facturación</button>`:''}</div>
     <div id="inc-det"></div><div id="inc-l"></div>`;
   c.querySelectorAll('[data-icv]').forEach(b=>b.onclick=()=>{ t.ver=b.dataset.icv; t.sel=null; pintarIncidencias(c,papel); });
@@ -10034,7 +10039,7 @@ async function pintarIncidencias(c,papel){
         ${x.folio_nuevo?`<div><span style="color:var(--txt-3)">Folio</span><div><b>${esc(x.folio_nuevo)}</b> (antes otro)</div></div>`:''}</div>
       ${x.cierre_obligatorio?'<div class="note" style="margin-bottom:10px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">La venta ya se completó y este ticket sigue abierto</b>Ciérralo: escribe cómo se resolvió.</div>':''}
       ${yoAtiendo?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;border-top:1px solid var(--line);padding-top:10px">
-        <div><label>${x.estado==='abierta'?'Escalar con':'Escalar otra vez con'} <span style="font-weight:400;color:var(--txt-3)">(quién y número de ticket)</span></label><input id="inc-esc" style="${ESTILO_CAMPO}" placeholder="${x.estado==='abierta'?'Ej. Soporte Global · ticket 4512':'Ej. Yelitza / Jonathan'}"><button class="btn" id="inc-esc-ok" style="margin-top:6px">Registrar escalamiento</button></div>
+        <div><label>${x.estado==='abierta'?'Escalar con':'Escalar otra vez con'} <span style="font-weight:400;color:var(--txt-3)">(quién y número de ticket)</span></label><input id="inc-esc" style="${ESTILO_CAMPO}" placeholder="${x.estado==='abierta'?(x.tipo==='modelado'?'Ej. Inventarios · se pidió por WhatsApp a Juan':'Ej. Soporte Global · ticket 4512'):'Ej. Yelitza / Jonathan'}"><button class="btn" id="inc-esc-ok" style="margin-top:6px">Registrar escalamiento</button></div>
         <div><label>Resolver <span style="font-weight:400;color:var(--txt-3)">(cómo se resolvió)</span></label>
           ${x.tipo==='cambio_folio'?`<input id="inc-fol" placeholder="Folio nuevo (10 dígitos)" maxlength="12" inputmode="numeric" style="${ESTILO_CAMPO};margin-bottom:6px">`:''}
           ${x.tipo==='recoleccion'?`<div style="font-size:12px;color:var(--txt-2)">La recolección se cierra desde la venta: ahí se sube la evidencia de que logística recibió el equipo.</div><button class="btn" id="inc-venta" style="margin-top:6px">Abrir la venta</button>`
@@ -10280,7 +10285,7 @@ async function vistaVentasReg(){
   <div class="head"><div><h1>Ventas</h1><p>${papel==='agente'?'Registra cada venta con su folio, DN y PT en cuanto la captures en Global. Lo que no se registra aquí no cuenta para tu meta ni para tu comisión.'
       :papel==='factura'?'Ventas entregadas: valida la evidencia, activa la orden en Global y factura en ASD. Después pasa al agente, que activa la línea en AVS y la completa.'
       :'Dónde va cada venta y quién la tiene. Cada área mueve solo su etapa; los reportes de Global confirman.'}</p></div>
-    <div class="acts">${cargaEnc?`<button class="btn" id="rv-cargar" title="Encargada hasta ${esc(fecha(rcg.data.hasta))}">Cargar reportes de Global</button><input type="file" id="rv-file" accept=".xlsx,.xls" multiple style="display:none"> `:''}${['agente','mesa','direccion'].includes(papel)?'<button class="btn" id="vr-modelado">Error de modelado</button> <button class="btn btn-p" id="vr-nueva">+ Registrar venta</button>':''}</div></div>
+    <div class="acts">${cargaEnc?`<button class="btn" id="rv-cargar" title="Encargada hasta ${esc(fecha(rcg.data.hasta))}">Cargar reportes de Global</button><input type="file" id="rv-file" accept=".xlsx,.xls" multiple style="display:none"> `:''}${['agente','mesa','direccion'].includes(papel)?'<button class="btn" id="vr-modelado">No aparece el equipo</button> <button class="btn btn-p" id="vr-nueva">+ Registrar venta</button>':''}</div></div>
   ${aviso||''}
   ${pend.length?`<div class="note" style="margin-bottom:14px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">Tienes ${pend.length} venta${pend.length===1?'':'s'} que necesita${pend.length===1?'':'n'} algo de ti</b>
      ${pend.map(x=>esc(x.folio||'')+' · '+esc(x.estatus==='regresada'?'corrige: '+(x.motivo||''):x.estatus==='avs'?'activa la línea en AVS para completarla':x.evid_rechazo?'vuelve a subir la evidencia: '+x.evid_rechazo:'ya se entregó: sube la evidencia con la etiqueta')).join('<br>')}</div>`:''}
