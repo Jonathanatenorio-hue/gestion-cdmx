@@ -460,7 +460,7 @@ main>.tabs button.on{background:var(--card);color:var(--txt);box-shadow:0 1px 3p
 .cargando{opacity:.6;pointer-events:none}
 
 /* ---------- Línea del tiempo de la venta ---------- */
-.vt{list-style:none;margin:6px 0 0;padding:0;display:grid;grid-template-columns:repeat(6,1fr);gap:0}
+.vt{list-style:none;margin:6px 0 0;padding:0;display:grid;grid-template-columns:repeat(7,1fr);gap:0}
 .vt li{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding-right:10px}
 .vt li:before{content:'';position:absolute;top:13px;left:28px;right:0;height:2px;background:var(--line)}
 .vt li:last-child:before{display:none}
@@ -9300,7 +9300,7 @@ async function vistaRegistroVentas(){
 
   $('#main').innerHTML=`
   <div class="head"><div><h1>Registro de ventas</h1><p>Los reportes oficiales de Global: cada venta con su plan, estatus, equipo, zona y costo de envío.</p></div>
-    <div class="acts"><button class="btn" onclick="irA('tablero')">Ver tablero</button><button class="btn btn-p" id="rv-cargar">Cargar reportes</button>
+    <div class="acts"><span id="rv-deleg"></span><button class="btn" onclick="irA('tablero')">Ver tablero</button><button class="btn btn-p" id="rv-cargar">Cargar reportes</button>
       <input type="file" id="rv-file" accept=".xlsx,.xls" multiple style="display:none"></div></div>
   <div class="note"><b>Qué se carga</b>"Global ventas" y "Detalle programación", de cualquier rango de fechas y cuantas veces quieras: lo que ya existe se actualiza y lo nuevo se agrega.
     Solo entra la cuenta de Yelitza. Back office y canceladas no hacen falta: vienen dentro de programación.</div>
@@ -9382,6 +9382,28 @@ async function vistaRegistroVentas(){
   document.querySelectorAll('[data-rvt]').forEach(b=>b.onclick=()=>{ S.rvTab=b.dataset.rvt; vistaRegistroVentas(); });
   $('#rv-cargar').onclick=()=>$('#rv-file').click();
   $('#rv-file').onchange=e=>cargarReportesGlobal([...e.target.files]);
+  if(S.direccion) pintarDelegacionCarga();
+}
+
+/* Carga de reportes: la hacen Yelitza y Jonathan; cuando no estén se le encarga por unos días a Perla o Itzel */
+async function pintarDelegacionCarga(){
+  const el=$('#rv-deleg'); if(!el) return;
+  const {data:e,error}=await sb.rpc('estado_carga_global'); if(error||!e) return;
+  const hoy=hoyMexico(), vigente=e.delegado&&e.hasta&&e.hasta>=hoy;
+  el.innerHTML=`<button class="btn" id="rv-enc">${vigente?`Encargada a ${esc(nomCorto(e.nombre||''))} hasta ${fecha(e.hasta)}`:'Encargar la carga'}</button>`;
+  $('#rv-enc').onclick=()=>{
+    const C=e.candidatos||[];
+    const ov=modalCaja('ov-enc','Encargar la carga de reportes',`
+      <div style="font-size:13px;color:var(--txt-2);margin-bottom:10px">Mientras no estén, la persona que elijas ve el botón "Cargar reportes" en su pantalla de Ventas y le llega un aviso. Al pasar la fecha se le quita sola.</div>
+      <label>Quién</label><select id="enc-emp" style="${ESTILO_CAMPO}"><option value="">— nadie (la cargamos nosotros) —</option>
+        ${C.map(x=>`<option value="${x.id}" ${vigente&&x.id===e.delegado?'selected':''}>${esc(x.nombre)} · ${esc(x.papel)}</option>`).join('')}</select>
+      <label style="margin-top:12px">Hasta qué día</label><input type="date" id="enc-hasta" min="${hoy}" value="${vigente?e.hasta:''}" style="${ESTILO_CAMPO}">`,'Guardar');
+    $('#ov-enc-ok').onclick=async()=>{ const emp=$('#enc-emp').value, h=$('#enc-hasta').value;
+      if(emp&&!h) return toast('Pon hasta qué día.','bad');
+      const {error}=await sb.rpc('delegar_carga_global',{p_emp:emp?Number(emp):null,p_hasta:emp?h:null});
+      if(error) return toast(error.message,'bad'); ov.classList.remove('on');
+      toast(emp?'Listo: ya puede cargar los reportes y le llegó el aviso.':'Listo: la carga vuelve a ser solo de dirección.','ok'); pintarDelegacionCarga(); };
+  };
 }
 
 /* ============================================================
@@ -9920,8 +9942,7 @@ const CHECK_MESA=[
 const CHECK_PERLA=[
   ['evidencia','La evidencia es correcta','El cliente recibió y la guía de la etiqueta coincide con la capturada.'],
   ['activada_global','Orden activada en Global','Activa la orden en Global para el control de pago interno.'],
-  ['facturada_asd','Factura generada en ASD','En ASD se genera la factura de la venta.'],
-  ['reprogramada_avs','SIM activada en AVS','En AVS se activa el SIM nuevo del cliente para que su línea quede activa en ese SIM.']
+  ['facturada_asd','Factura generada en ASD','En ASD se genera la factura de la venta.']
 ];
 const CHECK_PERLA_ANT=CHECK_PERLA.filter(([k])=>k!=='evidencia');
 /* ---------- Incidencias: lo que traba una venta, en un solo lugar ---------- */
@@ -10171,9 +10192,9 @@ const diaMX=t=>t?new Date(t).toLocaleDateString('en-CA',{timeZone:'America/Mexic
 /* Candados: lo que la plataforma dice contra lo que dicen los reportes de Global */
 const CANDADOS=[
   ['conf_pt','pt','PT','El PT existe en el Detalle con el mismo folio',v=>!!v.id&&!['rechazada','cancelada'].includes(v.estatus)],
-  ['conf_bo','bo','Back Office','El Detalle la trae en Back Office o más adelante',v=>['aprobada','en_global','entregada','facturada'].includes(v.estatus)],
-  ['conf_guia','guia','Guía','La guía del Detalle es la que capturó mesa',v=>v.envio_tipo==='dhl'&&['en_global','entregada','facturada'].includes(v.estatus)],
-  ['conf_venta','venta','Terminada','El reporte de Ventas la trae terminada',v=>v.estatus==='facturada']
+  ['conf_bo','bo','Back Office','El Detalle la trae en Back Office o más adelante',v=>['aprobada','en_global','entregada','avs','facturada'].includes(v.estatus)],
+  ['conf_guia','guia','Guía','La guía del Detalle es la que capturó mesa',v=>v.envio_tipo==='dhl'&&['en_global','entregada','avs','facturada'].includes(v.estatus)],
+  ['conf_venta','venta','Terminada','El reporte de Ventas la trae terminada',v=>['avs','facturada'].includes(v.estatus)]
 ];
 function candadosChips(v,chico){
   if(v.previa) return '';
@@ -10217,21 +10238,25 @@ async function vistaVentasReg(){
   const tabs={
     agente:   [['mias','Mis ventas'],['incid','Incidencias'],['pendant','Pendientes anteriores'],['calc','Calculadora DHL']],
     jefe:     [['todas','Ventas de mi equipo'],['incid','Incidencias'],['pendant','Pendientes anteriores'],['calc','Calculadora DHL']],
-    mesa:     [['revisar','Revisión'],['bo','Back Office'],['ruta','En ruta'],['incid','Incidencias'],['nocuadra','No cuadra'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['pendant','Pendientes anteriores'],['calc','Calculadora DHL']],
-    factura:  [['cerrar','Entregadas · por completar'],['pendant','Pendientes anteriores'],['incid','Incidencias'],['exped','Expedientes'],['nocuadra','No cuadra'],['todas','Todas']],
-    direccion:[['revisar','Revisión'],['bo','Back Office'],['ruta','En ruta'],['cerrar','Entregadas'],['incid','Incidencias'],['exped','Expedientes'],['nocuadra','No cuadra'],['cuadre','Cuadre diario'],['dhl','Envíos DHL'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['pendant','Pendientes anteriores'],['calc','Calculadora DHL']]
+    mesa:     [['revisar','Revisión'],['bo','Back Office'],['ruta','En ruta'],['avs','Falta AVS'],['incid','Incidencias'],['nocuadra','No cuadra'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['pendant','Pendientes anteriores'],['calc','Calculadora DHL']],
+    factura:  [['cerrar','Entregadas · por facturar'],['avs','Falta AVS del agente'],['pendant','Pendientes anteriores'],['incid','Incidencias'],['exped','Expedientes'],['nocuadra','No cuadra'],['todas','Todas']],
+    direccion:[['revisar','Revisión'],['bo','Back Office'],['ruta','En ruta'],['cerrar','Entregadas'],['avs','Falta AVS'],['incid','Incidencias'],['exped','Expedientes'],['nocuadra','No cuadra'],['cuadre','Cuadre diario'],['dhl','Envíos DHL'],['sinreg','Sin registro'],['salvan','Salvan falta'],['todas','Todas'],['pendant','Pendientes anteriores'],['calc','Calculadora DHL']]
   }[papel];
   const t=S.vr||(S.vr={tab:tabs[0][0],q:''});
   if(!tabs.some(x=>x[0]===t.tab)) t.tab=tabs[0][0];
   const staff=['mesa','factura','direccion'].includes(papel);
 
-  const [rl,rs,aviso,rp]=await Promise.all([
+  const [rl,rs,aviso,rp,rcg]=await Promise.all([
     traerTodo(()=>sb.from('v_ventas_registro').select('*').order('actualizado_en',{ascending:false}).order('id')),
     ['mesa','direccion'].includes(papel)?sb.from('v_global_sin_registro').select('*').order('fecha_venta',{ascending:false}):{data:[]},
     staff?avisoReportesGlobal():'',
-    sb.from('v_pendientes_anteriores').select('*').order('fecha_venta')
+    sb.from('v_pendientes_anteriores').select('*').order('fecha_venta'),
+    ['mesa','factura'].includes(papel)?sb.rpc('estado_carga_global'):{data:null}
   ]);
+  const cargaEnc=!!(rcg&&!rcg.error&&rcg.data&&rcg.data.puedo);
   const PA=rp&&!rp.error?(rp.data||[]):[];
+  // Pendientes anteriores: la pestaña desaparece sola cuando ya no queda ninguna por resolver
+  if(rp&&!rp.error&&!PA.some(x=>!x.estado_final)){ const i=tabs.findIndex(x=>x[0]==='pendant'); if(i>=0) tabs.splice(i,1); if(t.tab==='pendant') t.tab=tabs[0][0]; }
   const err=[rl,rs].find(x=>x.error);
   if(err){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(err.error.message)}<br><span style="font-size:12.5px">Si dice que no existe, corre el SQL 178.</span></div>`; return; }
   const TODO=rl.data||[], SR=rs.data||[];
@@ -10243,26 +10268,28 @@ async function vistaVentasReg(){
     bo:()=>L.filter(x=>x.estatus==='aprobada'),
     ruta:()=>L.filter(x=>['en_global','recoleccion'].includes(x.estatus)),
     cerrar:()=>L.filter(x=>x.estatus==='entregada').sort((a,b)=>new Date(a.entregada_en)-new Date(b.entregada_en)),
+    avs:()=>L.filter(x=>x.estatus==='avs').sort((a,b)=>new Date(a.perla_en)-new Date(b.perla_en)),
     nocuadra:()=>L.filter(x=>x.no_cuadra&&vivas(x)),
     dhl:()=>L.filter(x=>vivas(x)&&(x.hub_real||x.hub_ideal))
   };
   const n=k=>['incid','exped'].includes(k)?'':k==='pendant'?PA.filter(x=>!x.estado_final).length:['sinreg'].includes(k)?SR.length:['salvan','cuadre','calc'].includes(k)?'':(filtro[k]?filtro[k]().length:0);
   const atrasadas=L.filter(x=>x.estatus==='en_revision'&&x.minutos_en_revision>60).length;
-  const pend=papel==='agente'?L.filter(x=>x.estatus==='regresada'||(x.estatus==='en_global'&&x.envio_tipo==='dhl'&&(x.evid_rechazo||x.envio_estatus==='Entregado'||x.envio_status==='Entregado'))):[];
+  const pend=papel==='agente'?L.filter(x=>x.estatus==='regresada'||x.estatus==='avs'||(x.estatus==='en_global'&&x.envio_tipo==='dhl'&&(x.evid_rechazo||x.envio_estatus==='Entregado'||x.envio_status==='Entregado'))):[];
 
   $('#main').innerHTML=`
   <div class="head"><div><h1>Ventas</h1><p>${papel==='agente'?'Registra cada venta con su folio, DN y PT en cuanto la captures en Global. Lo que no se registra aquí no cuenta para tu meta ni para tu comisión.'
-      :papel==='factura'?'Ventas entregadas: valida, activa en Global, factura en ASD y reprograma en AVS para completarlas.'
+      :papel==='factura'?'Ventas entregadas: valida la evidencia, activa la orden en Global y factura en ASD. Después pasa al agente, que activa la línea en AVS y la completa.'
       :'Dónde va cada venta y quién la tiene. Cada área mueve solo su etapa; los reportes de Global confirman.'}</p></div>
-    <div class="acts">${['agente','mesa','direccion'].includes(papel)?'<button class="btn" id="vr-modelado">Error de modelado</button> <button class="btn btn-p" id="vr-nueva">+ Registrar venta</button>':''}</div></div>
+    <div class="acts">${cargaEnc?`<button class="btn" id="rv-cargar" title="Encargada hasta ${esc(fecha(rcg.data.hasta))}">Cargar reportes de Global</button><input type="file" id="rv-file" accept=".xlsx,.xls" multiple style="display:none"> `:''}${['agente','mesa','direccion'].includes(papel)?'<button class="btn" id="vr-modelado">Error de modelado</button> <button class="btn btn-p" id="vr-nueva">+ Registrar venta</button>':''}</div></div>
   ${aviso||''}
   ${pend.length?`<div class="note" style="margin-bottom:14px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">Tienes ${pend.length} venta${pend.length===1?'':'s'} que necesita${pend.length===1?'':'n'} algo de ti</b>
-     ${pend.map(x=>esc(x.folio||'')+' · '+esc(x.estatus==='regresada'?'corrige: '+(x.motivo||''):x.evid_rechazo?'vuelve a subir la evidencia: '+x.evid_rechazo:'ya se entregó: sube la evidencia con la etiqueta')).join('<br>')}</div>`:''}
+     ${pend.map(x=>esc(x.folio||'')+' · '+esc(x.estatus==='regresada'?'corrige: '+(x.motivo||''):x.estatus==='avs'?'activa la línea en AVS para completarla':x.evid_rechazo?'vuelve a subir la evidencia: '+x.evid_rechazo:'ya se entregó: sube la evidencia con la etiqueta')).join('<br>')}</div>`:''}
   ${atrasadas&&['mesa','direccion'].includes(papel)?`<div class="note" style="margin-bottom:14px;background:var(--bad-l);border-color:var(--bad)"><b style="color:var(--bad)">${atrasadas} venta${atrasadas===1?'':'s'} con más de 1 hora esperando revisión</b>Revísalas primero.</div>`:''}
   <div class="tabs">${tabs.map(([k,l])=>`<button class="tab ${t.tab===k?'on':''}" data-vrt="${k}">${l}${n(k)!==''?` · ${n(k)}`:''}</button>`).join('')}</div>
   <div id="vr-cuerpo" style="margin-top:14px"></div>`;
 
   const c=$('#vr-cuerpo');
+  if(cargaEnc){ $('#rv-cargar').onclick=()=>$('#rv-file').click(); $('#rv-file').onchange=e=>cargarReportesGlobal([...e.target.files],vistaVentasReg); }
   if(t.tab==='sinreg') pintarSinRegistro(c,SR);
   else if(t.tab==='salvan') pintarSalvanFalta(c);
   else if(t.tab==='dhl') pintarEnviosDHL(c,filtro.dhl());
@@ -10278,8 +10305,9 @@ async function vistaVentasReg(){
         <p><b>2 · Revisión</b> · Itzel revisa en Global y AVS con el checklist y el hub DHL. La aprueba o la regresa con motivo.</p>
         <p><b>3 · Back Office</b> · Itzel asigna series y captura la guía DHL (10 dígitos) o la ruta interna con su turno.</p>
         <p><b>4 · En ruta</b> · DHL: cuando el cliente recibe, el agente sube la evidencia con la etiqueta y pasa a Entregada. Ruta interna: pasa sola cuando el Detalle de Global la trae entregada.</p>
-        <p><b>5 · Entregada</b> · Perla valida la evidencia (DHL), activa en Global, factura en ASD y reprograma en AVS.</p>
-        <p><b>6 · Completada</b> · fin. Cuenta para comisión cuando el reporte de Ventas la confirma terminada.</p>
+        <p><b>5 · Entregada</b> · Perla valida la evidencia (DHL), activa la orden en Global y factura en ASD. Al terminar la pasa al agente.</p>
+        <p><b>6 · Activar en AVS</b> · el agente activa la línea del cliente en AVS (el SIM nuevo) y la marca aquí.</p>
+        <p><b>7 · Completada</b> · fin: ahí le cuenta al agente. Para comisión, el reporte de Ventas la confirma terminada.</p>
         <p style="color:var(--txt-3)">Los candados ✓ ⏳ ✕ comparan lo marcado aquí contra los reportes de Global del día siguiente. ✕ = no cuadra y avisa.</p></div></details>
       <input type="search" id="vr-q" value="${esc(t.q)}" placeholder="Buscar folio, DN, PT, cliente o agente" style="${ESTILO_CAMPO};margin-bottom:10px"><div id="vr-lista"></div>`;
     const cab=`<th>Folio · DN · PT</th><th>Cliente</th>${papel!=='agente'?'<th>Agente</th>':''}<th>Etapa</th><th>La tiene</th><th>Fecha de venta</th>`;
@@ -10287,7 +10315,7 @@ async function vistaVentasReg(){
       <td class="mono">${esc(x.folio||'—')}${x.registro_tardio?' <span class="p p-warn" title="Apareció en Global sin registro">tardía</span>':''}<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.dn||'')}${x.pt?' · '+esc(x.pt):''}</div></td>
       <td style="font-size:12.5px">${esc(x.cliente||x.global_cliente||'')}<div style="font-size:11.5px;color:var(--txt-3)">${esc(eqTexto(x)||x.global_equipo||'')}</div></td>
       ${papel!=='agente'?`<td style="font-size:12.5px;white-space:nowrap">${esc(nomCorto(x.agente||''))}</td>`:''}
-      <td><span class="p ${ETAPA_CLASE(x.etapa||'')}">${esc(x.etapa||'')}</span>${(()=>{ const h=pasosVenta(x).hechos; return `<div class="vt-mini" title="${h} de 6 etapas">${Array.from({length:6},(_,i)=>`<i class="${i<h?'ok':''}"></i>`).join('')}</div>`; })()}
+      <td><span class="p ${ETAPA_CLASE(x.etapa||'')}">${esc(x.etapa||'')}</span>${(()=>{ const h=pasosVenta(x).hechos; return `<div class="vt-mini" title="${h} de 7 etapas">${Array.from({length:7},(_,i)=>`<i class="${i<h?'ok':''}"></i>`).join('')}</div>`; })()}
         <div style="margin-top:4px">${candadosChips(x,true)}</div>
         ${x.motivo&&['regresada','rechazada','cancelada'].includes(x.estatus)?`<div style="font-size:11.5px;color:var(--bad);max-width:240px">${esc(x.motivo)}</div>`:''}${x.evid_rechazo?`<div style="font-size:11.5px;color:var(--bad);max-width:240px">Evidencia: ${esc(x.evid_rechazo)}</div>`:''}</td>
       <td style="font-size:12px;white-space:nowrap">${x.responsable?`<b>${esc(RESP_TXT(x))}</b><div style="color:var(--txt-3)">${x.etapa_desde?'hace '+hace(x.etapa_desde):''}</div>`:'<span style="color:var(--txt-3)">—</span>'}</td>
@@ -10347,7 +10375,7 @@ async function pintarPendientesAnteriores(c,PA,papel,err){
       ${puedeAgente&&!x.estado_final?`<div style="display:flex;gap:8px;align-items:end;margin-bottom:12px;flex-wrap:wrap"><div style="min-width:240px"><label>${x.agente?'Cambiar agente':'Ponerle agente'}</label><select id="pa-emp" style="${ESTILO_CAMPO}"><option value="">Elegir…</option>${agentes.map(a=>`<option value="${a.id}">${esc(a.nombre_completo)}</option>`).join('')}</select></div><button class="btn" id="pa-emp-ok">Guardar agente</button></div>`:''}
       ${puedeActivar&&!x.estado_final?`<div style="border-top:1px solid var(--line);padding-top:10px"><b style="font-size:13px">Activación (Perla)</b>
         ${CHECK_PERLA_ANT.map(([k,l,d])=>`<label style="display:flex;gap:10px;align-items:flex-start;margin:7px 0;font-size:13.5px"><input type="checkbox" data-pck="${k}" ${ck[k]===true?'checked':''} style="margin-top:3px;width:17px;height:17px"><span><b>${l}</b><br><span style="font-size:12px;color:var(--txt-3)">${d}</span></span></label>`).join('')}
-        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-p" id="pa-act">Marcar activada</button><button class="btn" id="pa-err">Marcó error en Global / ASD / AVS</button></div></div>`:''}
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-p" id="pa-act">Marcar activada</button><button class="btn" id="pa-err">Marcó error en Global / ASD</button></div></div>`:''}
       ${staff&&!x.estado_final?`<div style="border-top:1px solid var(--line);padding-top:10px;margin-top:12px"><label>Seguimiento</label><input id="pa-nota" style="${ESTILO_CAMPO}" placeholder="Ej. DHL dice que reintenta mañana; cliente confirma que sí la recibe">
         <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn" id="pa-nota-ok">Guardar nota</button><button class="btn" style="color:var(--bad)" id="pa-caida">Se cayó (con la nota como motivo)</button></div></div>`:''}
       ${papel==='direccion'&&x.resultado?'<button class="btn" id="pa-reabrir" style="margin-top:10px">Reabrir</button>':''}
@@ -10371,7 +10399,7 @@ function pintarCuadreDiario(c,L){
   const dias=[...new Set(L.filter(x=>!x.previa).map(x=>diaMX(x.fecha_subida||x.creado_en)).filter(Boolean))].sort().reverse();
   if(dias.length&&!dias.includes(t.dia)) t.dia=dias[0];
   const D=L.filter(x=>!x.previa&&diaMX(x.fecha_subida||x.creado_en)===t.dia);
-  const BO=x=>['aprobada','en_global','entregada','facturada'].includes(x.estatus);
+  const BO=x=>['aprobada','en_global','entregada','avs','facturada'].includes(x.estatus);
   const por={}; D.forEach(x=>{ (por[x.empleado_id]=por[x.empleado_id]||{n:x.agente,L:[]}).L.push(x); });
   const cnt=(A,f)=>A.filter(f).length;
   const celda=(marc,conf,falla)=>`${marc}${marc?` <small style="color:var(--txt-3)">· ${conf} ✓</small>${falla?` <b style="color:var(--bad)">· ${falla} ✕</b>`:''}`:''}`;
@@ -10460,7 +10488,7 @@ document.addEventListener('change',e=>{ if(e.target&&(e.target.id==='e-fnac'||e.
 function eqTexto(x){ const mo=String(x.equipo_modelo||''), ma=String(x.equipo_marca||'');
   return [ma&&mo.toUpperCase().includes(ma.toUpperCase())?'':ma, mo, x.equipo_capacidad, x.equipo_color].filter(Boolean).join(' '); }
 
-/* Las 6 etapas */
+/* Las 7 etapas */
 function pasosVenta(v){
   const est=v.estatus;
   let n=Number(v.etapa_n)||0;
@@ -10470,8 +10498,9 @@ function pasosVenta(v){
     {l:'Revisión', s:'Mesa de control', t:v.revisado_en},
     {l:'Back Office', s:'Series y envío', t:v.logistica_en},
     {l:'En ruta', s:v.envio_tipo==='dhl'?'DHL '+(v.guia_dhl||''):v.envio_tipo==='interna'?'Ruta interna'+(v.turno_ruta?' · '+v.turno_ruta:''):'', t:v.logistica_en},
-    {l:'Entregada', s:v.envio_tipo==='dhl'?'Con evidencia':v.envio_tipo==='interna'?'Según Global':'', t:v.entregada_en},
-    {l:'Completada', s:'Global · ASD · AVS', t:v.facturada_en, fin:true}
+    {l:'Entregada', s:'Facturación: Global · ASD', t:v.perla_en||v.facturada_en||v.entregada_en},
+    {l:'Activar en AVS', s:'La activa el agente', t:v.avs_en||v.facturada_en},
+    {l:'Completada', s:'Le cuenta al agente', t:v.facturada_en, fin:true}
   ];
   const fin=est==='facturada', actual=fin?-1:n-1;
   P.forEach((p,i)=>{ p.ok=fin||i<actual; });
@@ -10629,10 +10658,20 @@ async function abrirVentaReg(id){
         <span style="font-size:13px">Guía registrada: <b class="mono">${esc(v.guia_dhl||'—')}</b></span></div>`:`<div style="font-size:12.5px;color:var(--txt-3);margin-bottom:8px">Ruta interna (${esc(v.turno_ruta||'')}): entregada según el Detalle de Global, no lleva evidencia.</div>`}
       ${CK.map(([k,l,d])=>`<label style="display:flex;gap:10px;align-items:flex-start;margin:8px 0;font-size:13.5px"><input type="checkbox" data-cz="${k}" ${cz[k]===true?'checked':''} style="margin-top:3px;width:17px;height:17px"><span><b>${l}</b><br><span style="font-size:12px;color:var(--txt-3);font-weight:400">${d}</span></span></label>`).join('')}
       ${dhl?`<div style="margin-top:10px"><label>Qué está mal (si rechazas la evidencia)</label><input id="pz-mot" style="${ESTILO_CAMPO}" placeholder="Ej. no se ve el número de guía"></div>`:''}
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn btn-p" id="pz-ok">Completar</button><button class="btn" id="pz-g">Guardar avance</button><button class="btn" id="pz-err">Marcó error en Global / ASD / AVS</button>${dhl?'<button class="btn" style="color:var(--bad)" id="pz-rech">Rechazar evidencia · regresa a En ruta</button>':''}</div>
-      <div style="font-size:12px;color:var(--txt-3);margin-top:8px">Si alguno marca error, repórtalo de inmediato: queda registrado cuándo lo escalaste y la venta se completa en cuanto se resuelva. El reporte de Ventas del día siguiente confirma que quedó terminada.</div>`));
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn btn-p" id="pz-ok">Facturada · pasa al agente</button><button class="btn" id="pz-g">Guardar avance</button><button class="btn" id="pz-err">Marcó error en Global / ASD</button>${dhl?'<button class="btn" style="color:var(--bad)" id="pz-rech">Rechazar evidencia · regresa a En ruta</button>':''}</div>
+      <div style="font-size:12px;color:var(--txt-3);margin-top:8px">Al darle "Facturada" la venta pasa al agente para que active la línea en AVS; ahí se completa y le cuenta a él. Si Global o ASD marcan error, repórtalo de inmediato: queda registrado cuándo lo escalaste.</div>`));
   }
-  if(solover||(!mesa&&!perla&&esDueno&&!['regresada','en_global'].includes(v.estatus))) acc.push(`<div style="grid-column:1/-1;font-size:12.5px;color:var(--txt-3)">Esta etapa la mueve ${esc(RESP_TXT(v)||'otra área')}; aquí solo la ves.</div>`);
+  // ---- 6 · Activar línea en AVS (agente)
+  if(v.estatus==='avs'){
+    const h=v.perla_en?(Date.now()-new Date(v.perla_en))/36e5:0;
+    acc.push(sec('6 · Activar la línea en AVS',(esDueno||mesa)?`
+      <div style="font-size:13px;color:var(--txt-2)">Facturación ya activó la orden en Global y generó la factura en ASD${v.perla_en?' ('+fh(v.perla_en)+')':''}. Ahora te toca: entra a <b>AVS</b> y activa el SIM nuevo del cliente para que su línea quede activa en ese SIM.
+        Cuando quede, márcalo aquí: la venta se completa y <b>ahí te cuenta</b>.</div>
+      ${h>24?`<div style="color:var(--bad);font-size:12.5px;font-weight:600;margin-top:8px">Lleva ${Math.floor(h)} horas esperando AVS.</div>`:''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn btn-p" id="avs-ok">Línea activada en AVS · completar</button><button class="btn" id="avs-err">AVS marca error</button></div>`
+      :`<div style="font-size:13px;color:var(--txt-2)">Facturación ya la avanzó${v.perla_en?' ('+fh(v.perla_en)+')':''}. Falta que <b>${esc(nomCorto(v.agente||''))}</b> active la línea en AVS para completarla.</div>`));
+  }
+  if(solover||(!mesa&&!perla&&esDueno&&!['regresada','en_global','avs'].includes(v.estatus))) acc.push(`<div style="grid-column:1/-1;font-size:12.5px;color:var(--txt-3)">Esta etapa la mueve ${esc(RESP_TXT(v)||'otra área')}; aquí solo la ves.</div>`);
 
   // ---- 4 · Recolección (mesa): se cierra con la evidencia de que logística recibió el equipo
   if(v.estatus==='recoleccion'){
@@ -10650,7 +10689,7 @@ async function abrirVentaReg(id){
     acc.push(`<div style="grid-column:1/-1;display:flex;justify-content:flex-start"><button class="btn" id="inc-cf">Se necesita cambio de folio</button></div>`);
 
   // ---- Mesa: cancelar
-  if(mesa&&!['facturada','cancelada','rechazada'].includes(v.estatus)) acc.push(`<div style="grid-column:1/-1;display:flex;justify-content:flex-end"><button class="btn" style="color:var(--bad)" id="vf-cancelar">La venta se cayó · cancelar</button></div>`);
+  if(mesa&&!['avs','facturada','cancelada','rechazada'].includes(v.estatus)) acc.push(`<div style="grid-column:1/-1;display:flex;justify-content:flex-end"><button class="btn" style="color:var(--bad)" id="vf-cancelar">La venta se cayó · cancelar</button></div>`);
   A.outerHTML=acc.join('');
   engancharVerificacion(id);
 
@@ -10716,7 +10755,10 @@ async function abrirVentaReg(id){
   if($('#pz-ok')) $('#pz-ok').onclick=async()=>{ const z=leerCz(), falta=CHECK_PERLA.filter(([k])=>k in z&&!z[k]).map(([,l])=>l);
     if(falta.length) return toast('Falta: '+falta[0],'bad');
     const {error}=await sb.rpc('perla_cierre_venta',{p_id:id,p_accion:'cerrar',p_checklist:z});
-    if(error) return toast(error.message,'bad'); toast('Venta completada.','ok'); vistaVentasReg(); };
+    if(error) return toast(error.message,'bad'); toast('Listo: pasa al agente para que active la línea en AVS.','ok'); vistaVentasReg(); };
+  if($('#avs-ok')) $('#avs-ok').onclick=async()=>{ if(!confirm('¿Ya quedó activa la línea en AVS?')) return;
+    const {error}=await sb.rpc('agente_activar_avs',{p_id:id});
+    if(error) return toast(error.message,'bad'); toast('Venta completada: ya te cuenta.','ok'); recargar(); };
   if($('#pz-rech')) $('#pz-rech').onclick=async()=>{ const m=$('#pz-mot').value.trim(); if(!m) return toast('Escribe qué está mal en la evidencia.','bad');
     const {error}=await sb.rpc('perla_cierre_venta',{p_id:id,p_accion:'rechazar_evidencia',p_checklist:leerCz(),p_motivo:m});
     if(error) return toast(error.message,'bad'); toast('Evidencia rechazada: regresa a En ruta y al agente le llega el aviso.','ok'); vistaVentasReg(); };
@@ -10728,6 +10770,7 @@ async function abrirVentaReg(id){
   if($('#inc-rec')) $('#inc-rec').onclick=()=>formIncidencia('recoleccion',{venta:id,ref:refV,despues:recargarInc});
   if($('#inc-cf')) $('#inc-cf').onclick=()=>formIncidencia('cambio_folio',{venta:id,ref:refV,despues:recargarInc});
   if($('#pz-err')) $('#pz-err').onclick=()=>formIncidencia('facturacion',{venta:id,ref:refV,despues:recargarInc});
+  if($('#avs-err')) $('#avs-err').onclick=()=>formIncidencia('facturacion',{venta:id,ref:refV,despues:recargarInc});
   if($('#rec-f')) $('#rec-f').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; const img=/^image\//.test(f.type);
     try{ const blob=img?await comprimirFoto(f):f, ruta=`${id}/evidencia_recoleccion_${Date.now()}.${img?'jpg':'pdf'}`;
       const up=await sb.storage.from('expedientes').upload(ruta,blob,{contentType:img?'image/jpeg':'application/pdf'}); if(up.error) throw new Error(up.error.message);
@@ -11016,7 +11059,7 @@ async function vistaComisionesRev(){
   };
 }
 
-async function cargarReportesGlobal(archivos){
+async function cargarReportesGlobal(archivos,despues){
   if(!archivos.length) return;
   const b=$('#rv-cargar'); b.disabled=true; b.classList.add('cargando');
   const t=v=>{ if(v==null) return null; const s=String(v).replace(/[\r\n]+/g,' ').trim(); return s===''?null:s; };
@@ -11072,7 +11115,7 @@ async function cargarReportesGlobal(archivos){
     toast('Listo. '+resumen.join(' ')+(cr.data&&cr.data.agentes_amarrados?` ${cr.data.agentes_amarrados} ventas tomaron su agente del registro.`:''),'ok');
   }catch(e){ toast(e.message,'bad'); resumen.length&&console.log(resumen); }
   b.disabled=false; b.classList.remove('cargando');
-  vistaRegistroVentas();
+  (despues||vistaRegistroVentas)();
 }
 
 async function pintarControlChecador(){
@@ -11947,21 +11990,22 @@ async function vistaPanelFacturacion(esInicio){
   const t=S.pf||(S.pf={mes:hoyMexico().slice(0,7)});
   const finMes=(()=>{ const [y,m]=t.mes.split('-').map(Number); return new Date(y,m,0).getDate(); })();
   const [rv,rp,cv,ri,rx,rc,rg]=await Promise.all([
-    traerTodo(()=>sb.from('v_ventas_registro').select('id,folio,agente,estatus,etapa,previa,facturada_en,facturada_por,conf_venta,conf_nota,no_cuadra,entregada_en,envio_tipo').order('id')),
+    traerTodo(()=>sb.from('v_ventas_registro').select('id,folio,agente,estatus,etapa,previa,facturada_en,facturada_por,perla_en,perla_por,conf_venta,conf_nota,no_cuadra,entregada_en,envio_tipo').order('id')),
     sb.from('v_pendientes_anteriores').select('*'),
     sb.rpc('global_ultima_carga',{p_tipo:'ventas'}),
     sb.from('v_incidencias').select('id,tipo,estado,min_escalada').in('estado',['abierta','escalada']),
     sb.from('v_expedientes').select('estado'),
     sb.rpc('expedientes_calendario',{p_desde:null,p_n:1}),
-    sb.from('ventas_global').select('folio_base').eq('estatus_att','Terminada').gte('fecha_venta',t.mes+'-01').lte('fecha_venta',t.mes+'-'+finMes).range(0,4999)
+    sb.rpc('global_terminadas_mes',{p_mes:t.mes})
   ]);
-  const G=new Set((rg&&!rg.error?rg.data:[]).map(x=>x.folio_base).filter(Boolean));
+  const G=new Set((rg&&!rg.error?rg.data:[]).map(x=>x.folio_base).filter(Boolean)), errG=rg&&rg.error;
   const incF=(ri.data||[]).filter(x=>x.tipo==='facturacion'), expPor=(rx.data||[]).filter(x=>x.estado==='por_entregar').length, expSin=(rx.data||[]).filter(x=>x.estado==='entregado').length;
   const prox=(rc.data||[])[0]?.fecha, proxTxt=prox?new Date(prox+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'short'}):'';
   if(rv.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(rv.error.message)}</div>`; return; }
   const V=rv.data||[], PA=rp.error?[]:(rp.data||[]), yo=S.perfil?.id, mes=t.mes;
   const enMes=d=>d&&diaMX(d).slice(0,7)===mes;
-  const F=V.filter(x=>!x.previa&&x.estatus==='facturada'&&enMes(x.facturada_en)&&(!yo||x.facturada_por===yo||!x.facturada_por));
+  const facEn=x=>x.perla_en||x.facturada_en, facPor=x=>x.perla_por||x.facturada_por;
+  const F=V.filter(x=>!x.previa&&['avs','facturada'].includes(x.estatus)&&enMes(facEn(x))&&(!yo||facPor(x)===yo||!facPor(x)));
   const FA=PA.filter(x=>x.resultado==='activada'&&enMes(x.resuelta_en)&&(!yo||x.resuelta_por===yo||!x.resuelta_por));
   const okF=F.filter(x=>x.conf_venta==='ok'), malF=F.filter(x=>x.conf_venta==='falla'), espF=F.filter(x=>!x.conf_venta);
   const okA=FA.filter(x=>x.terminada_global||x.venta_codigo), espA=FA.filter(x=>!(x.terminada_global||x.venta_codigo));
@@ -11972,33 +12016,37 @@ async function vistaPanelFacturacion(esInicio){
   const vivos=V.filter(x=>!x.previa);
   const etapa=(l,n,tab,nota)=>`<button class="kpi" data-ir-tab="${tab}" style="text-align:left;cursor:pointer;border:1px solid var(--line)"><span>${l}</span><b>${n}</b>${nota?`<small>${nota}</small>`:''}</button>`;
   const pendAnt=PA.filter(x=>!x.estado_final), listasAnt=pendAnt.filter(x=>/lista para activar|ya la trae/.test(x.situacion||''));
-  const meses=[...Array(4)].map((_,i)=>{ const h=hoyMexico(), d=new Date(Number(h.slice(0,4)),Number(h.slice(5,7))-1-i,15); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); });
+  // el tablero arranca en noviembre 2026: antes no había flujo en la plataforma
+  const meses=[...Array(24)].map((_,i)=>{ const h=hoyMexico(), d=new Date(Number(h.slice(0,4)),Number(h.slice(5,7))-1-i,15); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }).filter(m=>m>='2026-11');
+  if(!meses.includes(mes)){ t.mes=meses[0]; return vistaPanelFacturacion(esInicio); }
   const nomMes=m=>new Date(m+'-15T12:00:00').toLocaleDateString('es-MX',{month:'long',year:'numeric'});
   $('#main').innerHTML=`<div class="head"><div><h1>${esInicio?'Hola, '+esc((S.perfil?.nombre||'').split(' ')[0]):'Tablero de facturación'}</h1>
       <p>Lo que completaste contra lo que traen los reportes de Global, y lo que tienes pendiente.</p></div>
       <div class="acts"><select id="pf-mes" style="${ESTILO_CAMPO};width:auto">${meses.map(m=>`<option value="${m}" ${m===mes?'selected':''}>${nomMes(m)}</option>`).join('')}</select></div></div>
     <h3 style="font-size:14px;margin:4px 0 10px">Lo que te toca ahora</h3>
     <div class="kpis">
-      ${(()=>{ const E=vivos.filter(x=>x.estatus==='entregada'), atr=E.filter(x=>Date.now()-new Date(x.entregada_en)>864e5).length; return etapa('Entregadas · por completar',E.length,'cerrar',atr?`<span style="color:var(--bad);font-weight:600">${atr} con más de un día: atiéndelas hoy</span>`:'atiéndelas el mismo día'); })()}
+      ${(()=>{ const E=vivos.filter(x=>x.estatus==='entregada'), atr=E.filter(x=>Date.now()-new Date(x.entregada_en)>864e5).length; return etapa('Entregadas · por facturar',E.length,'cerrar',atr?`<span style="color:var(--bad);font-weight:600">${atr} con más de un día: atiéndelas hoy</span>`:'atiéndelas el mismo día'); })()}
       ${etapa('Incidencias de facturación',incF.length,'incid',incF.some(x=>x.estado==='abierta')?'<span style="color:var(--bad);font-weight:600">hay sin escalar</span>':incF.some(x=>x.min_escalada>=60)?'<span style="color:var(--bad);font-weight:600">1 h sin respuesta: escálala con Yelitza o Jonathan</span>':'escaladas y en espera')}
       ${etapa('Expedientes por entregar',expPor,'exped',`próxima entrega: ${proxTxt}${expSin?` · ${expSin} sin cotejo sellado`:''}`)}
-      ${etapa('Pendientes anteriores',pendAnt.length,'pendant',`${listasAnt.length} listas para activar`)}
+      ${pendAnt.length?etapa('Pendientes anteriores',pendAnt.length,'pendant',`${listasAnt.length} listas para activar`):''}
       ${etapa('No cuadra con Global',vivos.filter(x=>x.no_cuadra&&x.estatus==='facturada').length,'nocuadra','completadas que el reporte no trae')}</div>
     <h3 style="font-size:14px;margin:18px 0 10px">Dónde van las demás <small style="font-weight:400;color:var(--txt-3)">(no te tocan todavía)</small></h3>
     <div class="kpis">
+      ${(()=>{ const A=vivos.filter(x=>x.estatus==='avs'), atr=A.filter(x=>x.perla_en&&Date.now()-new Date(x.perla_en)>864e5).length;
+        return etapa('6 · Facturadas · falta AVS del agente',A.length,'avs',A.length?(atr?`<span style="color:var(--bad);font-weight:600">${atr} con más de un día sin activar</span>`:'ya las avanzaste; el agente activa la línea'):'ninguna esperando'); })()}
       <div class="kpi"><span>2 · Revisión</span><b>${vivos.filter(x=>x.estatus==='en_revision').length}</b><small>Itzel</small></div>
       <div class="kpi"><span>3 · Back Office</span><b>${vivos.filter(x=>x.estatus==='aprobada').length}</b><small>Itzel</small></div>
       <div class="kpi"><span>4 · En ruta</span><b>${vivos.filter(x=>x.estatus==='en_global').length}</b><small>DHL / ruta interna</small></div></div>
     <h3 style="font-size:14px;margin:18px 0 10px">${esc(nomMes(mes))}: tú contra los reportes</h3>
     <div class="kpis">
       <div class="kpi t"><span>Activadas en el mes</span><b>${total}</b><small>${F.length} del flujo nuevo · ${FA.length} pendientes anteriores · ${antes} antes de la plataforma</small></div>
-      <div class="kpi"><span>En el reporte de Ventas</span><b>${enRep}</b><small>terminadas en Global este mes</small></div>
+      <div class="kpi"><span>En el reporte de Ventas</span><b>${errG?'—':enRep}</b><small>${errG?'no se pudo leer el reporte (corre el SQL 196)':'terminadas en Global este mes'}</small></div>
       <div class="kpi ${dif?'bad':'t'}"><span>Diferencia</span><b>${dif}</b><small>${dif?'completadas que Global no trae terminadas':'cuadra'}</small></div>
       <div class="kpi"><span>Por confirmar</span><b>${espera}</b><small>${cv.data?'falta el reporte del día siguiente · última carga '+fh(cv.data):'no se ha cargado el reporte de Ventas'}</small></div></div>
     ${dif?`<div class="tile w12" style="cursor:default;transform:none;margin-top:14px;border-color:var(--bad)"><div class="tv-h"><b>No cuadran: las marcaste completadas y Global no las trae terminadas</b></div>
-      ${malF.map(x=>`<div data-vr="${x.id}" style="cursor:pointer;padding:8px 0;border-top:1px solid var(--line);font-size:13px"><b class="mono">${esc(x.folio||'')}</b> · ${esc(nomCorto(x.agente||''))} · completada ${fh(x.facturada_en)}</div>`).join('')}</div>`:''}
+      ${malF.map(x=>`<div data-vr="${x.id}" style="cursor:pointer;padding:8px 0;border-top:1px solid var(--line);font-size:13px"><b class="mono">${esc(x.folio||'')}</b> · ${esc(nomCorto(x.agente||''))} · facturada ${fh(facEn(x))}</div>`).join('')}</div>`:''}
     ${F.length+FA.length?`<details style="margin-top:14px"><summary style="cursor:pointer;font-size:13px">Ver las ${F.length+FA.length} que activaste en la plataforma en ${esc(nomMes(mes))}</summary><div class="tw" style="margin-top:8px"><table><thead><tr><th>Folio</th><th>Agente</th><th>Completada</th><th>Reporte de Ventas</th></tr></thead><tbody>
-      ${F.map(x=>`<tr data-vr="${x.id}" style="cursor:pointer"><td class="mono">${esc(x.folio||'')}</td><td style="font-size:12.5px">${esc(nomCorto(x.agente||''))}</td><td style="font-size:12.5px">${fh(x.facturada_en)}</td><td>${x.conf_venta==='ok'?'<span class="p p-ok">✓ terminada</span>':x.conf_venta==='falla'?'<span class="p p-bad">✕ no la trae</span>':'<span class="p">⏳ por confirmar</span>'}</td></tr>`).join('')}
+      ${F.map(x=>`<tr data-vr="${x.id}" style="cursor:pointer"><td class="mono">${esc(x.folio||'')}</td><td style="font-size:12.5px">${esc(nomCorto(x.agente||''))}</td><td style="font-size:12.5px">${fh(facEn(x))}</td><td>${x.estatus==='avs'?'<span class="p p-warn">falta AVS del agente</span> ':''}${x.conf_venta==='ok'?'<span class="p p-ok">✓ terminada</span>':x.conf_venta==='falla'?'<span class="p p-bad">✕ no la trae</span>':'<span class="p">⏳ por confirmar</span>'}</td></tr>`).join('')}
       ${FA.map(x=>`<tr><td class="mono">${esc(x.folio)} <span class="p" style="font-size:10.5px">anterior</span></td><td style="font-size:12.5px">${esc(nomCorto(x.agente||''))}</td><td style="font-size:12.5px">${fh(x.resuelta_en)}</td><td>${x.terminada_global||x.venta_codigo?'<span class="p p-ok">✓ activa en Global</span>':'<span class="p">⏳ por confirmar</span>'}</td></tr>`).join('')}
       </tbody></table></div></details>`:''}`;
   $('#pf-mes').onchange=e=>{ t.mes=e.target.value; vistaPanelFacturacion(esInicio); };
@@ -13245,7 +13293,7 @@ function pintarDinamicaNiveles(el,d,A,jefe,yo,dias,errAv=''){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v104';
+const VERSION_APP='v105';
 window.addEventListener('beforeunload',e=>{ if(S&&S.ventaSucia){ e.preventDefault(); e.returnValue=''; } });
 async function revisarVersion(){
   try{
