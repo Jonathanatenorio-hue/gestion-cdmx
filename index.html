@@ -9983,10 +9983,18 @@ async function pintarIncidencias(c,papel){
       <div class="kpi ${sinResp?'bad':''}"><span>Escaladas sin respuesta 1 h+</span><b>${sinResp}</b></div>
       <div class="kpi"><span>Resueltas</span><b>${A.filter(x=>x.estado==='resuelta').length}</b></div></div>
     <div style="display:flex;gap:8px;margin:12px 0;flex-wrap:wrap">${[['abiertas','Abiertas'],...(miArea?[['mias','Las que atiendo']]:[]),['todas','Todas']].map(([k,l])=>`<button class="btn ${t.ver===k?'btn-p':''}" data-icv="${k}">${l}</button>`).join('')}
-      ${['agente','mesa','direccion'].includes(papel)?'<button class="btn" id="inc-mod" style="margin-left:auto">+ Reportar error de modelado</button>':''}</div>
+      ${['agente','mesa','direccion'].includes(papel)?'<button class="btn" id="inc-mod" style="margin-left:auto">+ Reportar error de modelado</button>':''}
+      ${['factura','direccion'].includes(papel)?`<button class="btn" id="inc-fac" ${papel==='factura'?'style="margin-left:auto"':''}>+ Reportar error de facturación</button>`:''}</div>
     <div id="inc-det"></div><div id="inc-l"></div>`;
   c.querySelectorAll('[data-icv]').forEach(b=>b.onclick=()=>{ t.ver=b.dataset.icv; t.sel=null; pintarIncidencias(c,papel); });
   if($('#inc-mod')) $('#inc-mod').onclick=()=>formIncidencia('modelado',{despues:()=>pintarIncidencias(c,papel)});
+  if($('#inc-fac')) $('#inc-fac').onclick=async()=>{
+    const f=(prompt('Folio de la venta que marcó error:')||'').replace(/\D/g,''); if(!f) return;
+    const [a,b]=await Promise.all([sb.from('v_ventas_registro').select('id,estatus').eq('folio',f).eq('estatus','entregada').limit(1),
+                                   sb.from('pendientes_anteriores').select('id,resultado').eq('folio',f).is('resultado',null).limit(1)]);
+    if(a.data&&a.data.length) return formIncidencia('facturacion',{venta:a.data[0].id,ref:f,despues:()=>pintarIncidencias(c,papel)});
+    if(b.data&&b.data.length) return formIncidencia('facturacion',{pendiente:b.data[0].id,ref:f,despues:()=>pintarIncidencias(c,papel)});
+    toast('Ese folio no está en Entregadas por completar ni en Pendientes anteriores.','bad'); };
   tablaPaginada($('#inc-l'),F,'<th>Incidencia</th><th>Venta</th><th>Agente</th><th>Abierta</th><th>Estado</th>',
     x=>{ const [et,ec]=estadoIncid(x); return `<tr style="cursor:pointer" data-inc="${x.id}"><td><b style="font-size:13px">${esc(x.tipo_nombre||'')}</b><div style="font-size:11.5px;color:var(--txt-3);max-width:320px">${esc(x.detalle)}</div></td>
       <td class="mono" style="font-size:12.5px">${esc(x.folio||'')}${x.dn_venta?`<div style="font-size:11.5px;color:var(--txt-3)">${esc(x.dn_venta)}${x.cliente?' · '+esc(x.cliente):''}</div>`:''}</td>
@@ -10056,7 +10064,7 @@ async function pintarExpedientes(c,papel){
   if(t.ver==='entregas'){
     tablaPaginada($('#ex-l'),E,'<th>Fecha de envío</th><th>Mensajero</th><th class="num">Folios</th><th>Cruce</th><th>Estado</th><th></th>',
       e=>{ const F=e.entregas_expedientes_folios||[], k=z=>F.filter(f=>f.coincide===z).length;
-        return `<tr><td><b>${fd(e.fecha_envio)}</b><div style="font-size:11.5px;color:var(--txt-3)">subió ${esc(nomCorto(e.subido_por_nombre||''))} · ${fh(e.subido_en)}</div></td><td style="font-size:12.5px">${esc(e.mensajero||'')}</td>
+        return `<tr><td><b>${e.fecha_envio?fd(e.fecha_envio):'Sin fecha'}</b>${e.nota?`<div style="font-size:11.5px;color:var(--txt-3)">${esc(e.nota)}</div>`:''}<div style="font-size:11.5px;color:var(--txt-3)">subió ${esc(nomCorto(e.subido_por_nombre||''))} · ${fh(e.subido_en)}</div></td><td style="font-size:12.5px">${esc(e.mensajero||'')}</td>
           <td class="num">${F.length}${e.total_declarado&&e.total_declarado!==F.length?` <small style="color:var(--bad)">(dice ${e.total_declarado})</small>`:''}</td>
           <td style="font-size:12px">${k('venta')+k('anterior')} ✓${k('no_activada')?` · <b style="color:var(--warn)">${k('no_activada')} sin activar</b>`:''}${k('sin_venta')?` · <b style="color:var(--bad)">${k('sin_venta')} sin venta</b>`:''}${k('repetido')?` · <b style="color:var(--bad)">${k('repetido')} repetidos</b>`:''}</td>
           <td>${e.estado==='confirmada'?`<span class="p p-ok">Sellado ${fh(e.confirmado_en)}</span>`:'<span class="p p-warn">Falta el sellado</span>'}</td>
@@ -10074,8 +10082,8 @@ async function pintarExpedientes(c,papel){
   } else {
     const L=t.ver==='pendientes'?por:Q;
     tablaPaginada($('#ex-l'),L,'<th>Folio</th><th>Cliente</th><th>Agente</th><th>Activada</th><th>Expediente</th>',
-      x=>`<tr${x.venta_id?` style="cursor:pointer" data-vr="${x.venta_id}"`:''}><td class="mono">${esc(x.folio)}${x.origen==='anterior'?' <span class="p" style="font-size:10.5px">anterior</span>':''}</td><td style="font-size:12.5px">${esc(x.cliente||'')}</td>
-        <td style="font-size:12.5px">${esc(nomCorto(x.agente||''))}</td><td style="font-size:12px">${fh(x.activada_en)}<div style="color:var(--txt-3)">hace ${hace(x.activada_en)}</div></td><td>${estChip(x)}</td></tr>`,
+      x=>`<tr${x.venta_id?` style="cursor:pointer" data-vr="${x.venta_id}"`:''}><td class="mono">${esc(x.folio)}${x.origen==='anterior'?' <span class="p" style="font-size:10.5px">anterior</span>':x.origen==='nota'?' <span class="p" style="font-size:10.5px">de antes</span>':''}${x.nota?`<div style="font-size:11.5px;color:var(--bad);font-family:inherit">${esc(x.nota)}</div>`:''}</td><td style="font-size:12.5px">${esc(x.cliente||'')}</td>
+        <td style="font-size:12.5px">${esc(nomCorto(x.agente||''))}</td><td style="font-size:12px">${x.activada_en?`${fh(x.activada_en)}<div style="color:var(--txt-3)">hace ${hace(x.activada_en)}</div>`:'—'}</td><td>${estChip(x)}</td></tr>`,
       {vacio:t.ver==='pendientes'?'No hay expedientes por entregar.':'Todavía no hay ventas completadas.',despues:el=>el.querySelectorAll('[data-vr]').forEach(tr=>tr.onclick=()=>abrirVentaReg(Number(tr.dataset.vr)))});
   }
   $('#ex-desc').onclick=()=>descargarCotejo(por,prox);
@@ -11937,14 +11945,17 @@ async function vistaMisAvisos(){
 async function vistaPanelFacturacion(esInicio){
   $('#main').innerHTML='<div class="empty">Cargando…</div>';
   const t=S.pf||(S.pf={mes:hoyMexico().slice(0,7)});
-  const [rv,rp,cv,ri,rx,rc]=await Promise.all([
+  const finMes=(()=>{ const [y,m]=t.mes.split('-').map(Number); return new Date(y,m,0).getDate(); })();
+  const [rv,rp,cv,ri,rx,rc,rg]=await Promise.all([
     traerTodo(()=>sb.from('v_ventas_registro').select('id,folio,agente,estatus,etapa,previa,facturada_en,facturada_por,conf_venta,conf_nota,no_cuadra,entregada_en,envio_tipo').order('id')),
     sb.from('v_pendientes_anteriores').select('*'),
     sb.rpc('global_ultima_carga',{p_tipo:'ventas'}),
     sb.from('v_incidencias').select('id,tipo,estado,min_escalada').in('estado',['abierta','escalada']),
     sb.from('v_expedientes').select('estado'),
-    sb.rpc('expedientes_calendario',{p_desde:null,p_n:1})
+    sb.rpc('expedientes_calendario',{p_desde:null,p_n:1}),
+    sb.from('ventas_global').select('folio_base').eq('estatus_att','Terminada').gte('fecha_venta',t.mes+'-01').lte('fecha_venta',t.mes+'-'+finMes).range(0,4999)
   ]);
+  const G=new Set((rg&&!rg.error?rg.data:[]).map(x=>x.folio_base).filter(Boolean));
   const incF=(ri.data||[]).filter(x=>x.tipo==='facturacion'), expPor=(rx.data||[]).filter(x=>x.estado==='por_entregar').length, expSin=(rx.data||[]).filter(x=>x.estado==='entregado').length;
   const prox=(rc.data||[])[0]?.fecha, proxTxt=prox?new Date(prox+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'short'}):'';
   if(rv.error){ $('#main').innerHTML=`<div class="empty"><b>No se pudo cargar</b>${esc(rv.error.message)}</div>`; return; }
@@ -11954,7 +11965,10 @@ async function vistaPanelFacturacion(esInicio){
   const FA=PA.filter(x=>x.resultado==='activada'&&enMes(x.resuelta_en)&&(!yo||x.resuelta_por===yo||!x.resuelta_por));
   const okF=F.filter(x=>x.conf_venta==='ok'), malF=F.filter(x=>x.conf_venta==='falla'), espF=F.filter(x=>!x.conf_venta);
   const okA=FA.filter(x=>x.terminada_global||x.venta_codigo), espA=FA.filter(x=>!(x.terminada_global||x.venta_codigo));
-  const total=F.length+FA.length, enRep=okF.length+okA.length, dif=malF.length, espera=espF.length+espA.length;
+  const fF=new Set(F.map(x=>x.folio)), fA=new Set(FA.map(x=>x.folio));
+  const todas=new Set([...G,...fF,...fA]), antes=[...G].filter(f=>!fF.has(f)&&!fA.has(f)).length;
+  const total=todas.size, enRep=G.size, dif=malF.length,
+        espera=F.filter(x=>!G.has(x.folio)&&x.conf_venta!=='falla').length+FA.filter(x=>!G.has(x.folio)).length;
   const vivos=V.filter(x=>!x.previa);
   const etapa=(l,n,tab,nota)=>`<button class="kpi" data-ir-tab="${tab}" style="text-align:left;cursor:pointer;border:1px solid var(--line)"><span>${l}</span><b>${n}</b>${nota?`<small>${nota}</small>`:''}</button>`;
   const pendAnt=PA.filter(x=>!x.estado_final), listasAnt=pendAnt.filter(x=>/lista para activar|ya la trae/.test(x.situacion||''));
@@ -11977,13 +11991,13 @@ async function vistaPanelFacturacion(esInicio){
       <div class="kpi"><span>4 · En ruta</span><b>${vivos.filter(x=>x.estatus==='en_global').length}</b><small>DHL / ruta interna</small></div></div>
     <h3 style="font-size:14px;margin:18px 0 10px">${esc(nomMes(mes))}: tú contra los reportes</h3>
     <div class="kpis">
-      <div class="kpi t"><span>Completadas por ti</span><b>${total}</b><small>${F.length} del flujo nuevo · ${FA.length} anteriores</small></div>
-      <div class="kpi"><span>En el reporte de Ventas</span><b>${enRep}</b><small>terminadas en Global</small></div>
+      <div class="kpi t"><span>Activadas en el mes</span><b>${total}</b><small>${F.length} del flujo nuevo · ${FA.length} pendientes anteriores · ${antes} antes de la plataforma</small></div>
+      <div class="kpi"><span>En el reporte de Ventas</span><b>${enRep}</b><small>terminadas en Global este mes</small></div>
       <div class="kpi ${dif?'bad':'t'}"><span>Diferencia</span><b>${dif}</b><small>${dif?'completadas que Global no trae terminadas':'cuadra'}</small></div>
       <div class="kpi"><span>Por confirmar</span><b>${espera}</b><small>${cv.data?'falta el reporte del día siguiente · última carga '+fh(cv.data):'no se ha cargado el reporte de Ventas'}</small></div></div>
     ${dif?`<div class="tile w12" style="cursor:default;transform:none;margin-top:14px;border-color:var(--bad)"><div class="tv-h"><b>No cuadran: las marcaste completadas y Global no las trae terminadas</b></div>
       ${malF.map(x=>`<div data-vr="${x.id}" style="cursor:pointer;padding:8px 0;border-top:1px solid var(--line);font-size:13px"><b class="mono">${esc(x.folio||'')}</b> · ${esc(nomCorto(x.agente||''))} · completada ${fh(x.facturada_en)}</div>`).join('')}</div>`:''}
-    ${total?`<details style="margin-top:14px"><summary style="cursor:pointer;font-size:13px">Ver las ${total} que completaste en ${esc(nomMes(mes))}</summary><div class="tw" style="margin-top:8px"><table><thead><tr><th>Folio</th><th>Agente</th><th>Completada</th><th>Reporte de Ventas</th></tr></thead><tbody>
+    ${F.length+FA.length?`<details style="margin-top:14px"><summary style="cursor:pointer;font-size:13px">Ver las ${F.length+FA.length} que activaste en la plataforma en ${esc(nomMes(mes))}</summary><div class="tw" style="margin-top:8px"><table><thead><tr><th>Folio</th><th>Agente</th><th>Completada</th><th>Reporte de Ventas</th></tr></thead><tbody>
       ${F.map(x=>`<tr data-vr="${x.id}" style="cursor:pointer"><td class="mono">${esc(x.folio||'')}</td><td style="font-size:12.5px">${esc(nomCorto(x.agente||''))}</td><td style="font-size:12.5px">${fh(x.facturada_en)}</td><td>${x.conf_venta==='ok'?'<span class="p p-ok">✓ terminada</span>':x.conf_venta==='falla'?'<span class="p p-bad">✕ no la trae</span>':'<span class="p">⏳ por confirmar</span>'}</td></tr>`).join('')}
       ${FA.map(x=>`<tr><td class="mono">${esc(x.folio)} <span class="p" style="font-size:10.5px">anterior</span></td><td style="font-size:12.5px">${esc(nomCorto(x.agente||''))}</td><td style="font-size:12.5px">${fh(x.resuelta_en)}</td><td>${x.terminada_global||x.venta_codigo?'<span class="p p-ok">✓ activa en Global</span>':'<span class="p">⏳ por confirmar</span>'}</td></tr>`).join('')}
       </tbody></table></div></details>`:''}`;
@@ -13231,7 +13245,7 @@ function pintarDinamicaNiveles(el,d,A,jefe,yo,dias,errAv=''){
 
 /* La página se actualiza sola: si en el servidor hay una versión nueva,
    se recarga. Así nadie se queda checando con una copia vieja. */
-const VERSION_APP='v103';
+const VERSION_APP='v104';
 window.addEventListener('beforeunload',e=>{ if(S&&S.ventaSucia){ e.preventDefault(); e.returnValue=''; } });
 async function revisarVersion(){
   try{
